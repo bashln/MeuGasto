@@ -1,14 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { Supermarket } from '../types';
-import { authService } from './authService';
-
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
-};
+import { getCurrentUserId } from './authService';
 
 export const supermarketService = {
   async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: any }> {

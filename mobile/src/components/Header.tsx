@@ -1,18 +1,25 @@
 import React from 'react';
-import { View, StyleSheet, Text as RNText } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { View, StyleSheet, Text as RNText, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 interface HeaderProps {
   title: string;
-  iconName: string;
+  iconName: keyof typeof MaterialCommunityIcons.glyphMap;
+  onBack?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, iconName }) => {
+export const Header: React.FC<HeaderProps> = ({ title, iconName, onBack }) => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Icon name={iconName} size={22} color={colors.primaryText} />
+        {onBack ? (
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primaryText} />
+          </TouchableOpacity>
+        ) : (
+          <MaterialCommunityIcons name={iconName} size={22} color={colors.primaryText} />
+        )}
         <RNText style={styles.title}>{title}</RNText>
       </View>
     </View>
@@ -30,6 +37,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  backButton: {
+    padding: 2,
   },
   title: {
     color: colors.primaryText,

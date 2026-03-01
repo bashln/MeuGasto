@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
-import { Text, Card } from 'react-native-paper';
-import { useAuth } from '../context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { reportService } from '../services';
 import { DashboardStats } from '../types';
 import { formatMoney, getMonthName, getCurrentMonth, getCurrentYear } from '../utils';
@@ -20,9 +19,11 @@ type DashboardScreenProps = {
 };
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
-  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
+  const [supermarketData, setSupermarketData] = useState<Array<{ supermarket: string; total: number }>>([]);
+  const [monthlyTotals, setMonthlyTotals] = useState<Array<{ month: number; total: number }>>([]);
   
   const [showPicker, setShowPicker] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
@@ -32,10 +33,27 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     loadDashboard();
   }, [selectedMonth, selectedYear]);
 
+  const getMonthRange = (month: number, year: number) => {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { startDate, endDate };
+  };
+
   const loadDashboard = async () => {
+    setIsLoading(true);
+    const { startDate, endDate } = getMonthRange(selectedMonth, selectedYear);
     try {
-      const data = await reportService.getDashboardStats(selectedMonth, selectedYear);
-      setStats(data);
+      const [statsData, itemsData, marketsData, monthlyData] = await Promise.all([
+        reportService.getDashboardStats(selectedMonth, selectedYear),
+        reportService.getTopItems(5, startDate, endDate),
+        reportService.getExpensesBySupermarket(startDate, endDate),
+        reportService.getMonthlyExpenses(selectedYear),
+      ]);
+      setStats(statsData);
+      setTopItems(itemsData);
+      setSupermarketData(marketsData);
+      setMonthlyTotals(monthlyData);
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
@@ -48,6 +66,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     setSelectedYear(value.year);
   };
 
+  const currentMonthTotal =
+    monthlyTotals.find(m => m.month === selectedMonth)?.total || 0;
+  const previousMonthTotal =
+    selectedMonth > 1
+      ? monthlyTotals.find(m => m.month === selectedMonth - 1)?.total || 0
+      : 0;
+  const comparisonPercent =
+    previousMonthTotal > 0
+      ? Math.round(((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100)
+      : null;
+  const comparisonText =
+    comparisonPercent === null
+      ? 'Sem base para comparação'
+      : `${comparisonPercent >= 0 ? '+' : ''}${comparisonPercent}% vs mês anterior`;
+
+  const topItem = topItems[0];
+  const topMarket = supermarketData
+    .slice()
+    .sort((a, b) => b.total - a.total)[0];
+  const insights = [
+    topItem ? `Item com maior gasto: ${topItem.name} (${formatMoney(topItem.total)})` : null,
+    topMarket ? `Mercado com maior gasto: ${topMarket.supermarket} (${formatMoney(topMarket.total)})` : null,
+    stats?.purchaseCount ? `Compras no mês: ${stats.purchaseCount}` : null,
+  ].filter(Boolean) as string[];
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -57,8 +100,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         {/* Month Selector */}
         <TouchableOpacity style={styles.monthSelector} onPress={() => setShowPicker(true)}>
           <RNText style={styles.monthSelectorText}>
-            {getMonthName(selectedMonth)} {selectedYear} ▼
+            {getMonthName(selectedMonth)} {selectedYear}
           </RNText>
+          <MaterialCommunityIcons name="chevron-down" size={14} color={colors.primary} />
         </TouchableOpacity>
 
         {/* HERO - Main Metric */}
@@ -66,7 +110,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           <RNText style={styles.heroLabel}>Gasto Total do Mês</RNText>
           <RNText style={styles.heroValue}>{formatMoney(stats?.totalSpent || 0)}</RNText>
           <View style={styles.heroBadge}>
-            <RNText style={styles.heroBadgeText}>+12% vs mês anterior</RNText>
+            <RNText style={styles.heroBadgeText}>{comparisonText}</RNText>
           </View>
         </View>
 
@@ -100,12 +144,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           <RNText style={styles.sectionTitle}>Ações Rápidas</RNText>
 
           {/* Action 1 - Gerenciar Compras (Primary) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCardPrimary}
             onPress={() => navigation.navigate('ScanQRCode')}
           >
             <View style={styles.actionIconContainer}>
-              <RNText style={styles.actionIcon}>🛒</RNText>
+              <MaterialCommunityIcons name="cart" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
               <RNText style={styles.actionTitle}>Gerenciar Compras</RNText>
@@ -117,12 +161,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </TouchableOpacity>
 
           {/* Action 2 - Regra de 3 */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('PurchasesTab')}
           >
             <View style={[styles.actionIconContainer, styles.actionIconBlue]}>
-              <RNText style={styles.actionIcon}>📊</RNText>
+              <MaterialCommunityIcons name="chart-bar" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
               <RNText style={styles.actionTitleSecondary}>Regra de 3</RNText>
@@ -131,12 +175,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </TouchableOpacity>
 
           {/* Action 3 - Relatórios */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('ReportsTab')}
           >
             <View style={[styles.actionIconContainer, styles.actionIconPurple]}>
-              <RNText style={styles.actionIcon}>📈</RNText>
+              <MaterialCommunityIcons name="trending-up" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
               <RNText style={styles.actionTitleSecondary}>Relatórios</RNText>
@@ -148,21 +192,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         {/* Insights */}
         <View style={styles.insightsCard}>
           <RNText style={styles.insightsTitle}>Insights deste mês</RNText>
-          
-          <View style={styles.insightItem}>
-            <RNText style={styles.insightIcon}>✓</RNText>
-            <RNText style={styles.insightText}>Passarela Center teve melhores preços</RNText>
-          </View>
-          
-          <View style={styles.insightItem}>
-            <RNText style={styles.insightIcon}>✓</RNText>
-            <RNText style={styles.insightText}>Arroz 5kg variou R$ 3,50 entre mercados</RNText>
-          </View>
-          
-          <View style={styles.insightItem}>
-            <RNText style={styles.insightIcon}>💡</RNText>
-            <RNText style={styles.insightText}>Economia potencial: R$ 45,00/mês</RNText>
-          </View>
+
+          {insights.length === 0 ? (
+            <RNText style={styles.insightEmptyText}>
+              Sem dados suficientes para gerar insights neste período.
+            </RNText>
+          ) : (
+            insights.map((insight, index) => (
+              <View key={`${insight}-${index}`} style={styles.insightItem}>
+                <View style={styles.insightIconContainer}>
+                  <MaterialCommunityIcons
+                    name={index === insights.length - 1 ? 'lightbulb-on-outline' : 'check'}
+                    size={12}
+                    color={colors.primaryText}
+                  />
+                </View>
+                <RNText style={styles.insightText}>{insight}</RNText>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -192,6 +240,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   monthSelectorText: {
     color: colors.primary,
@@ -212,7 +263,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroValue: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 12,
@@ -224,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   heroBadgeText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -260,7 +311,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metricValue: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -298,9 +349,6 @@ const styles = StyleSheet.create({
   },
   actionIconPurple: {
     backgroundColor: colors.secondary,
-  },
-  actionIcon: {
-    fontSize: 20,
   },
   actionContent: {
     flex: 1,
@@ -358,20 +406,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
+  insightEmptyText: {
+    fontSize: 13,
+    color: colors.mutedText,
+  },
   insightItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
   },
-  insightIcon: {
+  insightIconContainer: {
     width: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: colors.success,
-    color: colors.primaryText,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 10,
     overflow: 'hidden',
   },

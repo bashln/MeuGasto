@@ -7,7 +7,8 @@ export const formatMoney = (value: number): string => {
 
 export const formatMoneyInput = (value: string): string => {
   const numericValue = value.replace(/\D/g, '');
-  const formatted = (parseFloat(numericValue) / 100).toFixed(2);
+  const number = numericValue ? parseFloat(numericValue) : 0;
+  const formatted = (number / 100).toFixed(2);
   return formatted.replace('.', ',');
 };
 
