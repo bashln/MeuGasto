@@ -272,13 +272,13 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
 }) => {
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState('Carregando nota fiscal...');
+  const [statusMessage, setStatusMessage] = useState('Isso pode levar alguns segundos.');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (visible) {
       setLoading(true);
-      setStatusMessage('Carregando nota fiscal...');
+      setStatusMessage('Isso pode levar alguns segundos.');
       
       // Configurar timeout
       timeoutRef.current = setTimeout(() => {
@@ -358,7 +358,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     >
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Importando NFC-e</Text>
+          <Text style={styles.headerTitle}>Importando nota fiscal...</Text>
           <Text style={styles.statusMessage}>{statusMessage}</Text>
         </View>
 

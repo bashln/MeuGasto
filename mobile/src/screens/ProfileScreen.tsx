@@ -16,6 +16,9 @@ type ProfileScreenProps = {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const appVersion =
+    (require('../../app.json')?.expo?.version as string | undefined) ||
+    '0.3.0-alpha';
 
   const handleLogout = () => {
     Alert.alert('Sair da conta', 'Tem certeza que deseja sair?', [
@@ -116,6 +119,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <RNText style={styles.logoutButtonText}>Sair</RNText>
         </TouchableOpacity>
+
+        <RNText style={styles.versionText}>Versão {appVersion}</RNText>
       </ScrollView>
     </View>
   );
@@ -249,5 +254,11 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
+  },
+  versionText: {
+    color: colors.mutedText,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 16,
   },
 });
