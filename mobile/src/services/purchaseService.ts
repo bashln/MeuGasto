@@ -68,7 +68,8 @@ export const purchaseService = {
       .from('purchases')
       .select(`
         *,
-        supermarket:supermarkets(*)
+        supermarket:supermarkets(*),
+        items(*)
       `)
       .eq('id', id)
       .eq('user_id', userId)
@@ -78,12 +79,7 @@ export const purchaseService = {
       throw new Error(error.message);
     }
 
-    const { data: items, error: itemsError } = await supabase
-      .from('items')
-      .select('*')
-      .eq('purchase_id', purchase.id);
-
-    const safeItems = Array.isArray(items) ? items : [];
+    const safeItems = Array.isArray(purchase.items) ? purchase.items : [];
 
     return {
       id: purchase.id,
@@ -92,7 +88,7 @@ export const purchaseService = {
       date: purchase.date,
       totalPrice: parseFloat(purchase.total_price) || 0,
       isManual: purchase.manual,
-      products: (items || []).map(item => ({
+      products: safeItems.map((item: any) => ({
         id: item.id,
         name: item.name,
         code: item.code,

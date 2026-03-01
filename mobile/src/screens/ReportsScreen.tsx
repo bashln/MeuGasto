@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, Share, Modal, FlatList } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, Share, Modal, FlatList, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { reportService } from '../services';
+import { useReports } from '../hooks/useReports';
 import { formatMoney, getMonthName, getCurrentYear } from '../utils';
 import { Header, Loading, ErrorMessage } from '../components';
 import { colors } from '../theme/colors';
@@ -11,94 +11,28 @@ type ReportType = 'geral' | 'itens' | 'mercados';
 const YEAR_OPTIONS = [2023, 2024, 2025, 2026, 2027];
 
 export const ReportsScreen: React.FC = () => {
-  const [reportType, setReportType] = useState<ReportType>('itens');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [monthlyData, setMonthlyData] = useState<Array<{ month: number; total: number }>>([]);
-  const [supermarketData, setSupermarketData] = useState<Array<{ supermarket: string; total: number }>>([]);
-  const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
-  const [itemReport, setItemReport] = useState<{
-    totalQuantity: number;
-    totalSpent: number;
-    averagePrice: number;
-    purchaseCount: number;
-    bySupermarket: Array<{
-      supermarket: string;
-      totalQuantity: number;
-      totalSpent: number;
-      averagePrice: number;
-    }>;
-  } | null>(null);
+  const {
+    isLoading,
+    error,
+    reportType,
+    selectedYear,
+    selectedItem,
+    monthlyData,
+    supermarketData,
+    topItems,
+    itemReport,
+    setReportType,
+    setSelectedYear,
+    setSelectedItem,
+    loadReport,
+    loadItemReport,
+    refresh,
+  } = useReports();
 
-  const [selectedYear, setSelectedYear] = useState(getCurrentYear());
-  const [selectedItem, setSelectedItem] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('Últimos 6 meses');
   const [selectedMarket, setSelectedMarket] = useState('Todos');
   const [sortBy, setSortBy] = useState('Preço');
   const [itemPickerVisible, setItemPickerVisible] = useState(false);
-
-  useEffect(() => {
-    loadReport();
-  }, [reportType, selectedYear]);
-
-  useEffect(() => {
-    if (reportType !== 'itens') return;
-    if (!selectedItem) {
-      setItemReport(null);
-      return;
-    }
-    loadItemReport(selectedItem);
-  }, [reportType, selectedItem, selectedYear]);
-
-  useEffect(() => {
-    if (reportType !== 'itens') return;
-    if (topItems.length === 0) {
-      setSelectedItem('');
-      return;
-    }
-    if (!selectedItem || !topItems.find(item => item.name === selectedItem)) {
-      setSelectedItem(topItems[0]?.name || '');
-    }
-  }, [reportType, topItems, selectedItem]);
-
-  const loadReport = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    const startDate = `${selectedYear}-01-01`;
-    const endDate = `${selectedYear}-12-31`;
-
-    try {
-      if (reportType === 'geral') {
-        const data = await reportService.getMonthlyExpenses(selectedYear);
-        setMonthlyData(data);
-        setTopItems([]);
-        setItemReport(null);
-      } else if (reportType === 'itens') {
-        const data = await reportService.getTopItems(10, startDate, endDate);
-        setTopItems(data);
-      }
-
-      const superData = await reportService.getExpensesBySupermarket(startDate, endDate);
-      setSupermarketData(superData);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar relatório');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadItemReport = async (itemName: string) => {
-    const startDate = `${selectedYear}-01-01`;
-    const endDate = `${selectedYear}-12-31`;
-
-    try {
-      const data = await reportService.getItemReport(itemName, startDate, endDate);
-      setItemReport(data);
-    } catch (err: any) {
-      setItemReport(null);
-    }
-  };
 
   const handleExportCSV = async () => {
     let csvString = '';
@@ -107,6 +41,13 @@ export const ReportsScreen: React.FC = () => {
       csvString = 'Mês,Total\n' +
         monthlyData.map(m => `${getMonthName(m.month)},${m.total.toFixed(2)}`).join('\n');
     } else if (reportType === 'itens') {
+      const itemReportData = itemReport || {
+        totalQuantity: 0,
+        totalSpent: 0,
+        averagePrice: 0,
+        purchaseCount: 0,
+        bySupermarket: [],
+      };
       csvString = 'Supermercado,Preço Médio,Qtd Total,Total Gasto\n' +
         itemReportData.bySupermarket.map(row =>
           `${row.supermarket},${row.averagePrice.toFixed(2)},${row.totalQuantity},${row.totalSpent.toFixed(2)}`
@@ -128,7 +69,7 @@ export const ReportsScreen: React.FC = () => {
   }
 
   if (error) {
-    return <ErrorMessage message={error} onRetry={loadReport} />;
+    return <ErrorMessage message={error} onRetry={refresh} />;
   }
 
   // Métricas calculadas
@@ -412,7 +353,12 @@ export const ReportsScreen: React.FC = () => {
       {/* Header */}
       <Header title="Relatórios" iconName="chart-bar" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refresh} />
+        }
+      >
         {/* Segmented Control */}
         <View style={styles.segmentedControl}>
           <TouchableOpacity
