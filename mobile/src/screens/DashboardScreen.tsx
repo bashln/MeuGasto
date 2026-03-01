@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { reportService } from '../services';
-import { DashboardStats } from '../types';
-import { formatMoney, getMonthName, getCurrentMonth, getCurrentYear } from '../utils';
+import { useDashboard } from '../hooks/useDashboard';
+import { formatMoney, getMonthName } from '../utils';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { RootStackParamList, MainTabParamList } from '../types';
-import { Header, MonthYearPicker } from '../components';
+import { Header, MonthYearPicker, ErrorMessage } from '../components';
 import { colors } from '../theme/colors';
 
 type DashboardScreenProps = {
@@ -19,19 +18,21 @@ type DashboardScreenProps = {
 };
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
-  const [supermarketData, setSupermarketData] = useState<Array<{ supermarket: string; total: number }>>([]);
-  const [monthlyTotals, setMonthlyTotals] = useState<Array<{ month: number; total: number }>>([]);
-  
-  const [showPicker, setShowPicker] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  const [selectedYear, setSelectedYear] = useState(getCurrentYear());
+  const {
+    stats,
+    topItems,
+    supermarketData,
+    monthlyTotals,
+    selectedMonth,
+    selectedYear,
+    setSelectedMonth,
+    setSelectedYear,
+    isLoading,
+    error,
+    refresh,
+  } = useDashboard();
 
-  useEffect(() => {
-    loadDashboard();
-  }, [selectedMonth, selectedYear]);
+  const [showPicker, setShowPicker] = useState(false);
 
   const getMonthRange = (month: number, year: number) => {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -40,30 +41,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     return { startDate, endDate };
   };
 
-  const loadDashboard = async () => {
-    setIsLoading(true);
-    const { startDate, endDate } = getMonthRange(selectedMonth, selectedYear);
-    try {
-      const [statsData, itemsData, marketsData, monthlyData] = await Promise.all([
-        reportService.getDashboardStats(selectedMonth, selectedYear),
-        reportService.getTopItems(5, startDate, endDate),
-        reportService.getExpensesBySupermarket(startDate, endDate),
-        reportService.getMonthlyExpenses(selectedYear),
-      ]);
-      setStats(statsData);
-      setTopItems(itemsData);
-      setSupermarketData(marketsData);
-      setMonthlyTotals(monthlyData);
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handlePickerChange = (value: { month: number; year: number }) => {
     setSelectedMonth(value.month);
     setSelectedYear(value.year);
+    setShowPicker(false);
   };
 
   const currentMonthTotal =
@@ -91,12 +72,26 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     stats?.purchaseCount ? `Compras no mês: ${stats.purchaseCount}` : null,
   ].filter(Boolean) as string[];
 
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Header title="Início" iconName="view-dashboard" />
+        <ErrorMessage message={error} onRetry={refresh} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <Header title="Início" iconName="view-dashboard" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refresh} />
+        }
+      >
         {/* Month Selector */}
         <TouchableOpacity style={styles.monthSelector} onPress={() => setShowPicker(true)}>
           <RNText style={styles.monthSelectorText}>
@@ -120,17 +115,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <RNText style={styles.metricLabel}>Compras do mês</RNText>
             <RNText style={styles.metricValue}>{stats?.purchaseCount || 0}</RNText>
           </View>
-          
+
           <View style={[styles.metricCard, styles.metricOrange]}>
             <RNText style={styles.metricLabel}>Itens únicos</RNText>
             <RNText style={styles.metricValue}>{stats?.itemCount || 0}</RNText>
           </View>
-          
+
           <View style={[styles.metricCard, styles.metricPurple]}>
             <RNText style={styles.metricLabel}>Economia estimada</RNText>
             <RNText style={styles.metricValue}>{formatMoney(stats?.savings || 0)}</RNText>
           </View>
-          
+
           <View style={[styles.metricCard, styles.metricBlue]}>
             <RNText style={styles.metricLabel}>Ticket médio</RNText>
             <RNText style={styles.metricValue}>
