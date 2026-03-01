@@ -86,3 +86,9 @@ Este projeto é distribuído sob a licença GNU AGPLv3.
 O código pode ser usado, modificado e redistribuído livremente,
 desde que qualquer uso como serviço acessível via rede também
 disponibilize o código-fonte das modificações.
+
+## Dependências externas
+
+- Portais estaduais da SEFAZ para consulta da NFC-e
+- nfce-scraper (https://nfce-scraper.herokuapp.com) como fallback para consulta
+- Serviços de terceiros podem ficar indisponíveis ou mudar sem aviso
