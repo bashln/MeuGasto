@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Text as RNText } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TextInput, Menu } from 'react-native-paper';
 import { purchaseService, supermarketService } from '../services';
 import { Purchase, Supermarket } from '../types';
@@ -104,7 +105,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <RNText style={styles.backIcon}>←</RNText>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
           </TouchableOpacity>
           <RNText style={styles.headerTitle}>{headerTitle}</RNText>
           <View style={styles.headerSpacer} />
@@ -120,7 +121,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <RNText style={styles.backIcon}>←</RNText>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <RNText style={styles.headerTitle}>{headerTitle}</RNText>
         <View style={styles.headerSpacer} />
@@ -164,7 +165,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
                   ? supermarkets.find((s) => s.id === selectedSupermarketId)?.name || 'Selecionar'
                   : 'Sem supermercado'}
               </RNText>
-              <RNText style={styles.menuCaret}>▼</RNText>
+              <MaterialCommunityIcons name="chevron-down" size={14} color={colors.mutedText} />
             </TouchableOpacity>
           }
         >
@@ -218,11 +219,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  backIcon: {
-    color: colors.primaryText,
-    fontSize: 24,
-    fontWeight: '600',
-  },
   headerTitle: {
     color: colors.primaryText,
     fontSize: 18,
@@ -273,10 +269,6 @@ const styles = StyleSheet.create({
   menuText: {
     color: colors.text,
     fontSize: 15,
-  },
-  menuCaret: {
-    color: colors.mutedText,
-    fontSize: 12,
   },
   saveButton: {
     backgroundColor: colors.success,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner } from '../components';
 import { nfceService, purchaseService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -115,10 +116,6 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     setShowCamera(true);
   };
 
-  const handleSelectFromGallery = () => {
-    Alert.alert('Em breve', 'Seleção de imagem da galeria em desenvolvimento');
-  };
-
   const showImportError = (reason?: string) => {
     let message = 'Você pode tentar novamente ou salvar manualmente.';
 
@@ -165,7 +162,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cadastro de Compras</Text>
         <View style={styles.headerSpacer} />
@@ -174,26 +171,26 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       <View style={styles.content}>
         <View style={styles.mainCard}>
           <View style={styles.iconContainer}>
-            <Text style={styles.icon}>📄</Text>
+            <MaterialCommunityIcons name="qrcode-scan" size={32} color={colors.primaryText} />
           </View>
-          <Text style={styles.cardTitle}>Adicionar Nota Fiscal</Text>
+          <Text style={styles.cardTitle}>Ler QR Code</Text>
           <Text style={styles.cardSubtitle}>
-            Capture ou selecione uma imagem da sua nota fiscal
+            Escaneie o QR Code da NFC-e
           </Text>
 
-          <TouchableOpacity 
-            style={[styles.button, styles.photoButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.photoButton]}
             onPress={handleTakePhoto}
           >
-            <Text style={styles.buttonIcon}>📷</Text>
-            <Text style={styles.buttonText}>Tirar Foto</Text>
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>Escanear QR Code</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.button, styles.galleryButton]} 
-            onPress={handleSelectFromGallery}
+          <TouchableOpacity
+            style={[styles.button, styles.galleryButton, { opacity: 0.45 }]}
+            disabled={true}
           >
-            <Text style={styles.buttonIcon}>🖼️</Text>
+            <MaterialCommunityIcons name="image" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
             <Text style={styles.buttonTextWhite}>Selecionar da Galeria</Text>
           </TouchableOpacity>
         </View>
@@ -201,20 +198,20 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
         <View style={styles.ocrCard}>
           <View style={styles.ocrContent}>
             <View>
-              <Text style={styles.ocrTitle}>OCR Automático</Text>
-              <Text style={styles.ocrSubtitle}>
-                Extração automática de dados
-              </Text>
+            <Text style={styles.ocrTitle}>Importação Automática</Text>
+            <Text style={styles.ocrSubtitle}>
+              Leitura via QR Code
+            </Text>
             </View>
-            <Text style={styles.checkIcon}>✓</Text>
+            <MaterialCommunityIcons name="check-circle" size={24} color={colors.success} />
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.manualButton} 
+        <TouchableOpacity
+          style={styles.manualButton}
           onPress={handleManualRegister}
         >
-          <Text style={styles.manualIcon}>+</Text>
+          <MaterialCommunityIcons name="plus" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
           <Text style={styles.manualText}>Cadastrar Manualmente</Text>
         </TouchableOpacity>
       </View>
@@ -251,11 +248,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  backIcon: {
-    color: colors.primaryText,
-    fontSize: 24,
-    fontWeight: '600',
-  },
   headerTitle: {
     color: colors.primaryText,
     fontSize: 18,
@@ -288,9 +280,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  icon: {
-    fontSize: 32,
-  },
   cardTitle: {
     color: colors.primary,
     fontSize: 18,
@@ -318,17 +307,13 @@ const styles = StyleSheet.create({
   galleryButton: {
     backgroundColor: colors.secondary,
   },
-  buttonIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
   buttonText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
   },
   buttonTextWhite: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -353,11 +338,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     marginTop: 2,
   },
-  checkIcon: {
-    fontSize: 20,
-    color: colors.text,
-    fontWeight: '600',
-  },
   manualButton: {
     backgroundColor: colors.success,
     height: 52,
@@ -367,14 +347,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
   },
-  manualIcon: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-    marginRight: 8,
-  },
   manualText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: '600',
   },

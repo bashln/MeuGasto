@@ -4,7 +4,7 @@ import { Text, Card, Chip, useTheme, Surface, Divider, IconButton, Button } from
 import { purchaseService } from '../services';
 import { Purchase } from '../types';
 import { formatMoney, formatDate } from '../utils';
-import { Loading, ErrorMessage } from '../components';
+import { Loading, ErrorMessage, Header } from '../components';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
@@ -69,6 +69,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
 
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundApp }]}>
+      <Header title="Detalhes da Compra" iconName="cart" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Surface style={styles.headerCard} elevation={2}>
           <View style={styles.headerRow}>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert, TextInput } from 'react-native';
 import { Text, FAB, useTheme } from 'react-native-paper';
-import { usePurchases, useAuth } from '../context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { usePurchases } from '../context';
 import { Header, PurchaseCard, Loading, ErrorMessage } from '../components';
 import { Purchase, PurchaseFilter } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -42,13 +43,26 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
     navigation.navigate('ScanQRCode');
   };
 
-  const handleDeletePurchase = async (purchase: Purchase) => {
-    try {
-      await deletePurchase(purchase.id);
-      await loadPurchases();
-    } catch (err) {
-      console.log('Erro ao deletar:', err);
-    }
+  const handleDeletePurchase = (purchase: Purchase) => {
+    Alert.alert(
+      'Excluir compra',
+      'Tem certeza que deseja excluir esta compra?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePurchase(purchase.id);
+              await loadPurchases();
+            } catch (err) {
+              console.log('Erro ao deletar:', err);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleEditPurchase = (purchase: Purchase) => {
@@ -106,13 +120,14 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
 
       {/* Campo de Busca */}
       <View style={styles.searchContainer}>
-        <RNText style={styles.searchIcon}>🔍</RNText>
-        <RNText
+        <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedText} style={{ marginRight: 10 }} />
+        <TextInput
           style={styles.searchInput}
-          onPress={() => {}}
-        >
-          {searchQuery || "Buscar compras..."}
-        </RNText>
+          placeholder="Buscar compras..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={colors.mutedText}
+        />
       </View>
 
       {/* Filtros */}
@@ -155,7 +170,14 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="cart-off" size={48} color={colors.mutedText} style={{ marginBottom: 12 }} />
             <RNText style={styles.emptyText}>Nenhuma compra encontrada</RNText>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => navigation.navigate('ScanQRCode')}
+            >
+              <RNText style={styles.emptyButtonText}>Escanear cupom fiscal</RNText>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -164,7 +186,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
         icon="plus"
         style={styles.fab}
         onPress={handleAddPurchase}
-        color="#fff"
+        color={colors.primaryText}
       />
     </View>
   );
@@ -183,7 +205,7 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: colors.mutedText,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     padding: 12,
     alignItems: 'center',
@@ -213,14 +235,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 48,
   },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 10,
-  },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: colors.mutedText,
+    color: colors.text,
   },
   filtersContainer: {
     flexDirection: 'row',
@@ -257,6 +275,19 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.mutedText,
     fontSize: 14,
+  },
+  emptyButton: {
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  emptyButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',

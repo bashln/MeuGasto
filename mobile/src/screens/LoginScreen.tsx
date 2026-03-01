@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText, Alert } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
 import {
   Text,
   TextInput,
   Button,
   useTheme,
 } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
 import { colors } from '../theme/colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -61,7 +62,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       >
         <View style={styles.logoContainer}>
           <View style={styles.logoIcon}>
-            <RNText style={styles.logoText}>📄</RNText>
+            <MaterialCommunityIcons name="receipt" size={36} color={colors.primaryText} />
           </View>
         </View>
 
@@ -138,10 +139,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={styles.googleButton}
-            onPress={() => {
-              Alert.alert('Em breve', 'Login com Google será disponibilizado em uma próxima versão.');
-            }}
+            style={[styles.googleButton, { opacity: 0.45 }]}
+            disabled={true}
           >
             <RNText style={styles.googleButtonText}>Continuar com Google</RNText>
           </TouchableOpacity>
@@ -160,7 +159,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           {BENEFITS.map((benefit, index) => (
             <View key={index} style={styles.benefitItem}>
               <View style={styles.checkIcon}>
-                <RNText style={styles.checkText}>✓</RNText>
+                <MaterialCommunityIcons name="check" size={12} color={colors.primaryText} />
               </View>
               <RNText style={styles.benefitText}>{benefit}</RNText>
             </View>
@@ -196,9 +195,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 8,
-  },
-  logoText: {
-    fontSize: 32,
   },
   header: {
     alignItems: 'center',
@@ -274,7 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   loginButtonText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -300,7 +296,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   googleButtonText: {
     color: colors.mutedText,
@@ -344,11 +340,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
-  },
-  checkText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   benefitText: {
     color: colors.mutedText,

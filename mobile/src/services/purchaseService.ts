@@ -1,15 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { Purchase, PurchaseFilter, NfceRequest } from '../types';
-import { authService } from './authService';
+import { getCurrentUserId } from './authService';
 import { nfceService } from './nfceService';
-
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
-};
 
 export const purchaseService = {
   async getPurchases(filter?: PurchaseFilter): Promise<Purchase[]> {
@@ -19,7 +11,8 @@ export const purchaseService = {
       .from('purchases')
       .select(`
         *,
-        supermarket:supermarkets(*)
+        supermarket:supermarkets(*),
+        items(*)
       `)
       .eq('user_id', userId);
 
@@ -45,42 +38,27 @@ export const purchaseService = {
       throw new Error(error.message);
     }
 
-    // Buscar items para cada purchase
-    const purchasesWithItems = await Promise.all(
-      (purchases || []).map(async (purchase) => {
-        const { data: items, error: itemsError } = await supabase
-          .from('items')
-          .select('*')
-          .eq('purchase_id', purchase.id);
-
-        if (itemsError) {
-          console.log('[DEBUG getPurchases] Erro ao buscar items:', itemsError);
-        }
-        
-        const safeItems = Array.isArray(items) ? items : [];
-
-        return {
-          id: purchase.id,
-          supermarket: purchase.supermarket,
-          accessKey: purchase.access_key,
-          date: purchase.date,
-          totalPrice: parseFloat(purchase.total_price) || 0,
-          isManual: purchase.manual,
-          products: safeItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            code: item.code,
-            quantity: parseFloat(item.quantity) || 1,
-            unit: item.unit,
-            price: parseFloat(item.price) || 0,
-          })),
-          createdAt: purchase.created_at,
-          updatedAt: purchase.updated_at,
-        };
-      })
-    );
-
-    return purchasesWithItems;
+    return (purchases || []).map((purchase) => {
+      const safeItems = Array.isArray(purchase.items) ? purchase.items : [];
+      return {
+        id: purchase.id,
+        supermarket: purchase.supermarket,
+        accessKey: purchase.access_key,
+        date: purchase.date,
+        totalPrice: parseFloat(purchase.total_price) || 0,
+        isManual: purchase.manual,
+        products: safeItems.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          code: item.code,
+          quantity: parseFloat(item.quantity) || 1,
+          unit: item.unit,
+          price: parseFloat(item.price) || 0,
+        })),
+        createdAt: purchase.created_at,
+        updatedAt: purchase.updated_at,
+      };
+    });
   },
 
   async getPurchaseById(id: number): Promise<Purchase> {
@@ -104,11 +82,6 @@ export const purchaseService = {
       .from('items')
       .select('*')
       .eq('purchase_id', purchase.id);
-
-    if (itemsError) {
-      console.log('[DEBUG getPurchaseById] Erro ao buscar items:', itemsError);
-    }
-    console.log('[DEBUG getPurchaseById] Items retornados:', items?.length, 'purchase_id:', purchase.id);
 
     const safeItems = Array.isArray(items) ? items : [];
 

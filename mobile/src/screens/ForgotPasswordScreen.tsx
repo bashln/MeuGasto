@@ -9,6 +9,7 @@ import {
   Text as RNText,
 } from "react-native";
 import { Text, TextInput } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authService } from "../services";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types";
@@ -83,7 +84,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <RNText style={styles.backIcon}>←</RNText>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <RNText style={styles.headerTitle}>Recuperar Senha</RNText>
         <View style={styles.headerSpacer} />
@@ -147,11 +148,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-  },
-  backIcon: {
-    color: colors.primaryText,
-    fontSize: 24,
-    fontWeight: "600",
   },
   headerTitle: {
     color: colors.primaryText,

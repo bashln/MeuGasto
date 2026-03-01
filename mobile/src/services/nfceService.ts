@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { authService } from './authService';
+import { getCurrentUserId } from './authService';
 
 interface NFCeItem {
   item: string;
@@ -21,14 +21,6 @@ interface NFCeData {
   };
   date?: string;
 }
-
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
-};
 
 export const extractAccessKeyFromQRCode = (qrCodeData: string): string => {
   const pValue = parseQrInput(qrCodeData);

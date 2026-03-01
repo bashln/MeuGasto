@@ -1,14 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { DashboardStats } from '../types';
-import { authService } from './authService';
-
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
-};
+import { getCurrentUserId } from './authService';
 
 export const reportService = {
   async getDashboardStats(month?: number, year?: number): Promise<DashboardStats> {
@@ -199,5 +191,118 @@ export const reportService = {
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.total - a.total)
       .slice(0, limit);
+  },
+
+  async getItemReport(
+    itemName: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    totalQuantity: number;
+    totalSpent: number;
+    averagePrice: number;
+    purchaseCount: number;
+    bySupermarket: Array<{
+      supermarket: string;
+      totalQuantity: number;
+      totalSpent: number;
+      averagePrice: number;
+    }>;
+  }> {
+    const userId = await getCurrentUserId();
+
+    if (!itemName) {
+      return {
+        totalQuantity: 0,
+        totalSpent: 0,
+        averagePrice: 0,
+        purchaseCount: 0,
+        bySupermarket: [],
+      };
+    }
+
+    let purchasesQuery = supabase
+      .from('purchases')
+      .select('id, supermarket:supermarkets(name), date')
+      .eq('user_id', userId);
+
+    if (startDate) {
+      purchasesQuery = purchasesQuery.gte('date', startDate);
+    }
+    if (endDate) {
+      purchasesQuery = purchasesQuery.lte('date', endDate);
+    }
+
+    const { data: purchases, error: purchasesError } = await purchasesQuery;
+
+    if (purchasesError) {
+      throw new Error(purchasesError.message);
+    }
+
+    const purchaseIds = purchases?.map(p => p.id) || [];
+    if (purchaseIds.length === 0) {
+      return {
+        totalQuantity: 0,
+        totalSpent: 0,
+        averagePrice: 0,
+        purchaseCount: 0,
+        bySupermarket: [],
+      };
+    }
+
+    const supermarketByPurchaseId: Record<number, string> = {};
+    (purchases || []).forEach((p: any) => {
+      const supermarket = p.supermarket;
+      const name = (Array.isArray(supermarket) ? supermarket[0]?.name : supermarket?.name) || 'Sem supermercado';
+      supermarketByPurchaseId[p.id] = name;
+    });
+
+    const { data: items, error: itemsError } = await supabase
+      .from('items')
+      .select('purchase_id, name, quantity, price')
+      .in('purchase_id', purchaseIds)
+      .eq('name', itemName);
+
+    if (itemsError) {
+      throw new Error(itemsError.message);
+    }
+
+    let totalQuantity = 0;
+    let totalSpent = 0;
+    const purchaseIdSet = new Set<number>();
+    const bySupermarketTotals: Record<string, { totalQuantity: number; totalSpent: number }> = {};
+
+    (items || []).forEach(item => {
+      const quantity = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.price) || 0;
+      const itemTotal = quantity * price;
+      const purchaseId = item.purchase_id as number;
+      const supermarketName = supermarketByPurchaseId[purchaseId] || 'Sem supermercado';
+
+      totalQuantity += quantity;
+      totalSpent += itemTotal;
+      purchaseIdSet.add(purchaseId);
+
+      if (!bySupermarketTotals[supermarketName]) {
+        bySupermarketTotals[supermarketName] = { totalQuantity: 0, totalSpent: 0 };
+      }
+      bySupermarketTotals[supermarketName].totalQuantity += quantity;
+      bySupermarketTotals[supermarketName].totalSpent += itemTotal;
+    });
+
+    const bySupermarket = Object.entries(bySupermarketTotals).map(([supermarket, data]) => ({
+      supermarket,
+      totalQuantity: data.totalQuantity,
+      totalSpent: data.totalSpent,
+      averagePrice: data.totalQuantity > 0 ? data.totalSpent / data.totalQuantity : 0,
+    }));
+
+    return {
+      totalQuantity,
+      totalSpent,
+      averagePrice: totalQuantity > 0 ? totalSpent / totalQuantity : 0,
+      purchaseCount: purchaseIdSet.size,
+      bySupermarket,
+    };
   },
 };

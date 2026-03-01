@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Alert } from 'react-native';
-import { Text, FAB, useTheme, Searchbar } from 'react-native-paper';
+import { View, StyleSheet, FlatList, RefreshControl, Alert, TextInput } from 'react-native';
+import { Text, FAB, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDrafts } from '../context';
 import { DraftCard, Header, Loading, ErrorMessage } from '../components';
 import { Rascunho } from '../types';
@@ -76,12 +77,16 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: colors.backgroundApp }]}>
       <Header title="Rascunhos" iconName="note-multiple" />
 
-      <Searchbar
-        placeholder="Buscar rascunhos..."
-        onChangeText={setSearchQuery}
-        value={searchQuery}
-        style={styles.searchbar}
-      />
+      <View style={styles.searchContainer}>
+        <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedText} style={{ marginRight: 10 }} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar rascunhos..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={colors.mutedText}
+        />
+      </View>
 
       <FlatList
         data={filteredDrafts}
@@ -99,6 +104,7 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="note-multiple-outline" size={48} color={colors.mutedText} style={{ marginBottom: 12 }} />
             <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
               Nenhum rascunho encontrado
             </Text>
@@ -123,9 +129,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  searchbar: {
-    margin: 16,
-    marginBottom: 8,
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 48,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
   },
   list: {
     paddingBottom: 80,
