@@ -34,8 +34,8 @@ const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.success,
-        tabBarInactiveTintColor: colors.primaryText,
+        tabBarActiveTintColor: colors.primaryDark,
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.7)',
         tabBarStyle: {
           backgroundColor: colors.primary,
           borderTopLeftRadius: 28,
