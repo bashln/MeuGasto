@@ -59,6 +59,12 @@ export interface Rascunho {
   id: number;
   supermarket?: Supermarket;
   conteudo: string;
+  items?: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    price: number;
+  }>;
   totalPrice: number;
   createdAt: string;
   updatedAt: string;
@@ -140,6 +146,7 @@ export type RootStackParamList = {
   Reports: undefined;
   Profile: undefined;
   ScanQRCode: undefined;
+  EditProfile: undefined;
 };
 
 export type MainTabParamList = {

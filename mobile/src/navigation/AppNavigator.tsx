@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '../context';
 import { Loading } from '../components';
@@ -20,6 +20,7 @@ import {
   ReportsScreen,
   ProfileScreen,
   ScanQRCodeScreen,
+  EditProfileScreen,
 } from '../screens';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { colors } from '../theme/colors';
@@ -53,7 +54,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Início',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="view-dashboard" size={size} color={color} />
+            <MaterialCommunityIcons name="view-dashboard" size={size} color={color} />
           ),
         }}
       />
@@ -63,7 +64,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Compras',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="cart" size={size} color={color} />
+            <MaterialCommunityIcons name="cart" size={size} color={color} />
           ),
         }}
       />
@@ -73,7 +74,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Rascunhos',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="note-multiple" size={size} color={color} />
+            <MaterialCommunityIcons name="note-multiple" size={size} color={color} />
           ),
         }}
       />
@@ -83,7 +84,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Relatórios',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="chart-bar" size={size} color={color} />
+            <MaterialCommunityIcons name="chart-bar" size={size} color={color} />
           ),
         }}
       />
@@ -93,7 +94,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Perfil',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="account" size={size} color={color} />
+            <MaterialCommunityIcons name="account" size={size} color={color} />
           ),
         }}
       />
@@ -147,25 +148,30 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen
               name="PurchaseDetail"
               component={PurchaseDetailScreen}
-              options={{ title: 'Detalhes da Compra' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="PurchaseEdit"
               component={PurchaseEditScreen}
-              options={{ title: 'Editar Compra' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="DraftDetail"
               component={DraftDetailScreen}
-              options={{ title: 'Detalhes do Rascunho' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ScanQRCode"
               component={ScanQRCodeScreen}
-              options={{ 
+              options={{
                 headerShown: false,
                 presentation: 'fullScreenModal'
               }}
+            />
+            <Stack.Screen
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ headerShown: false }}
             />
           </>
         )}
