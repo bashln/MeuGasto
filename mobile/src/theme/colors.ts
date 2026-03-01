@@ -1,5 +1,6 @@
 export const colors = {
   primary: '#FF6B35',
+  primaryDark: '#8C3A1D',
   primaryText: '#FFFFFF',
   backgroundApp: '#EAF2F4',
   backgroundAuth: '#FFFFFF',
