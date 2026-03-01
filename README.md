@@ -69,13 +69,6 @@ cd mobile
 eas build -p android --profile preview
 ```
 
-## Build iOS (Local)
-
-```bash
-cd mobile
-npm run ios
-```
-
 ## NFC-e
 
 O fluxo de leitura da NFC-e usa WebView para carregar a URL do QR Code e
