@@ -26,7 +26,6 @@ cd mobile
 # Desenvolvimento
 npm start           # Iniciar Expo
 npm run android     # Build Android
-npm run ios         # Build iOS
 npm run web         # Executar web
 
 # TypeScript (verificação)
