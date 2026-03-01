@@ -17,6 +17,13 @@ interface RegisterRequest {
   name: string;
 }
 
+export const getCurrentUserId = async (): Promise<string> => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw new Error(error.message);
+  if (!session?.user?.id) throw new Error('User not authenticated');
+  return session.user.id;
+};
+
 export const authService = {
   async register(userData: RegisterRequest): Promise<AuthResult> {
     const { data, error } = await supabase.auth.signUp({
@@ -144,6 +151,24 @@ export const authService = {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) {
       throw error;
+    }
+  },
+
+  async changePassword(newPassword: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  async updateProfile(name: string): Promise<void> {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error(userError?.message || 'Usuário não autenticado');
+    }
+    const { error } = await supabase.from('profiles').update({ name }).eq('id', user.id);
+    if (error) {
+      throw new Error(error.message);
     }
   },
 };
