@@ -15,6 +15,8 @@ type PurchaseEditScreenProps = {
 
 export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigation, route }) => {
   const { purchaseId } = route.params;
+  const isNewPurchase = purchaseId === 0;
+  const headerTitle = isNewPurchase ? 'Compra Manual' : 'Editar Compra';
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [supermarkets, setSupermarkets] = useState<Supermarket[]>([]);
   const [date, setDate] = useState('');
@@ -30,11 +32,18 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
   const loadData = async () => {
     try {
-      const data = await purchaseService.getPurchaseById(purchaseId);
-      setPurchase(data);
-      setDate(data.date || '');
-      setTotalPrice(String(data.totalPrice ?? 0));
-      setSelectedSupermarketId(data.supermarket?.id ?? null);
+      if (!isNewPurchase) {
+        const data = await purchaseService.getPurchaseById(purchaseId);
+        setPurchase(data);
+        setDate(data.date || '');
+        setTotalPrice(String(data.totalPrice ?? 0));
+        setSelectedSupermarketId(data.supermarket?.id ?? null);
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        setDate(today);
+        setTotalPrice('');
+        setSelectedSupermarketId(null);
+      }
 
       const supermarketsResult = await supermarketService.getSupermarkets(0, 200);
       setSupermarkets(supermarketsResult.data || []);
@@ -47,7 +56,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
   };
 
   const handleSave = async () => {
-    if (!purchase?.isManual) {
+    if (!isNewPurchase && !purchase?.isManual) {
       Alert.alert('Compra importada', 'Compras importadas via NFC-e não podem ser alteradas.');
       return;
     }
@@ -65,13 +74,24 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
     setIsSaving(true);
     try {
-      await purchaseService.updatePurchase(purchaseId, {
-        date: date.trim(),
-        totalPrice: total,
-        supermarketId: selectedSupermarketId,
-      });
-      Alert.alert('Sucesso', 'Compra atualizada com sucesso');
-      navigation.goBack();
+      if (isNewPurchase) {
+        const created = await purchaseService.createManualPurchase({
+          date: date.trim(),
+          totalPrice: total,
+          supermarketId: selectedSupermarketId ?? undefined,
+          items: [],
+        });
+        Alert.alert('Sucesso', 'Compra manual criada com sucesso');
+        navigation.navigate('PurchaseDetail', { purchaseId: created.id });
+      } else {
+        await purchaseService.updatePurchase(purchaseId, {
+          date: date.trim(),
+          totalPrice: total,
+          supermarketId: selectedSupermarketId,
+        });
+        Alert.alert('Sucesso', 'Compra atualizada com sucesso');
+        navigation.goBack();
+      }
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Erro ao atualizar compra');
     } finally {
@@ -86,7 +106,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <RNText style={styles.backIcon}>←</RNText>
           </TouchableOpacity>
-          <RNText style={styles.headerTitle}>Editar Compra</RNText>
+          <RNText style={styles.headerTitle}>{headerTitle}</RNText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -102,7 +122,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <RNText style={styles.backIcon}>←</RNText>
         </TouchableOpacity>
-        <RNText style={styles.headerTitle}>Editar Compra</RNText>
+        <RNText style={styles.headerTitle}>{headerTitle}</RNText>
         <View style={styles.headerSpacer} />
       </View>
 

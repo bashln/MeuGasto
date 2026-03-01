@@ -27,22 +27,29 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     setShowCamera(false);
 
     try {
-      console.log('QR Code data:', data);
-      
+      if (__DEV__) {
+        console.log('QR Code data:', data);
+      }
+
       const url = buildNFCeUrl(data);
-      console.log('URL SEFAZ:', url);
-      
+      if (__DEV__) {
+        console.log('URL SEFAZ:', url);
+      }
+
       const accessKey = extractAccessKeyFromQRCode(data);
-      console.log('Chave extraída:', accessKey);
-      
+      if (__DEV__) {
+        console.log('Chave extraída:', accessKey);
+      }
+
       setCurrentUrl(url);
       setCurrentAccessKey(accessKey);
       setShowWebView(true);
-      
     } catch (error: any) {
-      console.log('Erro ao processar QR Code:', error);
-      Alert.alert('Erro', error.message || 'Erro ao processar código QR');
+      if (__DEV__) {
+        console.log('Erro ao processar QR Code:', error);
+      }
       setIsProcessing(false);
+      showImportError('qr');
     }
   };
 
@@ -52,47 +59,43 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
   const handleWebViewSuccess = async (scrapedData: any) => {
     try {
-      console.log('Dados extraídos:', scrapedData);
-      
+      if (__DEV__) {
+        console.log('Dados extraídos:', scrapedData);
+      }
+
       const result = await nfceService.createPurchaseFromScrapedData(
         scrapedData,
         currentAccessKey
       );
-      
-      console.log('Compra salva:', result);
-      
+
+      if (__DEV__) {
+        console.log('Compra salva:', result);
+      }
+
       const purchase = await purchaseService.getPurchaseById(result.purchaseId);
-      
+
       setShowWebView(false);
       setIsProcessing(false);
-      
-      Alert.alert(
-        'Sucesso!',
-        `Compra do(a) ${purchase.supermarket?.name || 'supermercado'} registrada com sucesso!\nTotal: R$ ${purchase.totalPrice.toFixed(2)}`,
-        [
-          {
-            text: 'Ver Detalhes',
-            onPress: () => navigation.navigate('PurchaseDetail', { purchaseId: purchase.id }),
-          },
-          {
-            text: 'Voltar',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
+
+      Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
+      navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
     } catch (error: any) {
-      console.log('Erro ao salvar compra:', error);
+      if (__DEV__) {
+        console.log('Erro ao salvar compra:', error);
+      }
       setShowWebView(false);
       setIsProcessing(false);
-      Alert.alert('Erro', error.message || 'Erro ao salvar a compra');
+      showImportError('save');
     }
   };
 
   const handleWebViewError = (error: string) => {
-    console.log('Erro na WebView:', error);
+    if (__DEV__) {
+      console.log('Erro na WebView:', error);
+    }
     setShowWebView(false);
     setIsProcessing(false);
-    Alert.alert('Erro', error);
+    showImportError(error);
   };
 
   const handleWebViewCancel = () => {
@@ -105,7 +108,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const handleManualRegister = () => {
-    Alert.alert('Em breve', 'Funcionalidade de cadastro manual em desenvolvimento');
+    navigation.navigate('PurchaseEdit', { purchaseId: 0 });
   };
 
   const handleTakePhoto = () => {
@@ -114,6 +117,38 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
   const handleSelectFromGallery = () => {
     Alert.alert('Em breve', 'Seleção de imagem da galeria em desenvolvimento');
+  };
+
+  const showImportError = (reason?: string) => {
+    let message = 'Você pode tentar novamente ou salvar manualmente.';
+
+    if (typeof reason === 'string') {
+      const lower = reason.toLowerCase();
+      if (lower.includes('network') || lower.includes('conex') || lower.includes('internet')) {
+        message = 'Sem internet no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
+        message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
+      } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
+        message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
+      }
+    }
+
+    Alert.alert(
+      'Não foi possível importar esta nota.',
+      message,
+      [
+        {
+          text: 'Tentar novamente',
+          onPress: () => {
+            setShowCamera(true);
+          },
+        },
+        {
+          text: 'Salvar manualmente',
+          onPress: () => navigation.navigate('PurchaseEdit', { purchaseId: 0 }),
+        },
+      ]
+    );
   };
 
   // Se estiver mostrando a câmera, mostrar o QRCodeScanner
