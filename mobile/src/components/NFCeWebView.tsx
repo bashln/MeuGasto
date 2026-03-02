@@ -272,7 +272,6 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   timeout = 30000,
 }) => {
   const webViewRef = useRef<WebView>(null);
-  const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState('Isso pode levar alguns segundos.');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -283,14 +282,13 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     try {
       const parsed = new URL(targetUrl);
       return NFCE_ALLOWED_HOSTS.has(parsed.hostname);
-    } catch (_error) {
+    } catch {
       return false;
     }
   };
 
   useEffect(() => {
     if (visible) {
-      setLoading(true);
       setStatusMessage('Isso pode levar alguns segundos.');
       
       // Configurar timeout
@@ -313,25 +311,23 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [visible, timeout]);
+  }, [visible, timeout, onError]);
 
   const handleMessage = (event: { nativeEvent: { data?: string } }) => {
     try {
       const message = JSON.parse(event.nativeEvent.data ?? '{}');
       
       if (DEBUG) {
-        console.log('[NFCeWebView] Mensagem recebida:', message.type);
+        console.warn('[NFCeWebView] Mensagem recebida:', message.type);
       }
 
       if (message.type === 'NFCE_DEBUG' && DEBUG) {
-        console.log('[NFCeWebView] Debug:', message.message);
+        console.warn('[NFCeWebView] Debug:', message.message);
         setStatusMessage(message.message);
       } else if (message.type === 'NFCE_SCRAPE_RESULT') {
         if (message.ok) {
-          setLoading(false);
           onSuccess(message.data);
         } else {
-          setLoading(false);
           onError(message.error || 'Erro ao extrair dados da nota fiscal');
         }
       }
@@ -341,7 +337,6 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   };
 
   const handleLoadEnd = () => {
-    setLoading(false);
     setStatusMessage('Extraindo dados da nota...');
     
     // Injetar script após carregamento

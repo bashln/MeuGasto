@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { purchaseService } from '../services';
-import { Purchase, PurchaseFilter, PageResponse } from '../types';
+import { Purchase, PurchaseFilter, PageResponse, NfceRequest } from '../types';
 
 interface PurchaseContextType {
   purchases: Purchase[];
@@ -9,8 +9,8 @@ interface PurchaseContextType {
   page: PageResponse<Purchase>['page'] | null;
   fetchPurchases: (filter?: PurchaseFilter) => Promise<void>;
   getPurchase: (id: number) => Promise<Purchase>;
-  createPurchase: (data: any) => Promise<Purchase>;
-  updatePurchase: (id: number, data: any) => Promise<Purchase>;
+  createPurchase: (data: NfceRequest) => Promise<Purchase>;
+  updatePurchase: (id: number, data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>) => Promise<Purchase>;
   deletePurchase: (id: number) => Promise<void>;
 }
 
@@ -33,8 +33,9 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
       const purchases = await purchaseService.getPurchases(filter);
       setPurchases(purchases);
       setPage(null);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar compras');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar compras';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -44,13 +45,16 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
     return purchaseService.getPurchaseById(id);
   }, []);
 
-  const createPurchase = useCallback(async (data: any): Promise<Purchase> => {
+  const createPurchase = useCallback(async (data: NfceRequest): Promise<Purchase> => {
     const purchase = await purchaseService.createPurchaseFromQRCode(data);
     await fetchPurchases();
     return purchase;
   }, [fetchPurchases]);
 
-  const updatePurchase = useCallback(async (id: number, data: any): Promise<Purchase> => {
+  const updatePurchase = useCallback(async (
+    id: number,
+    data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>
+  ): Promise<Purchase> => {
     const purchase = await purchaseService.updatePurchase(id, data);
     await fetchPurchases();
     return purchase;

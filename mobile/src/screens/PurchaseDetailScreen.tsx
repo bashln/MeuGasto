@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, Card, Chip, useTheme, Surface, Divider, IconButton, Button } from 'react-native-paper';
+import { Text, Card, Chip, useTheme, Surface, Divider, IconButton } from 'react-native-paper';
 import { purchaseService } from '../services';
 import { Purchase } from '../types';
 import { formatMoney, formatDate } from '../utils';
@@ -22,20 +22,21 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadPurchase();
-  }, [purchaseId]);
-
-  const loadPurchase = async () => {
+  const loadPurchase = useCallback(async () => {
     try {
       const data = await purchaseService.getPurchaseById(purchaseId);
       setPurchase(data);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar compra');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar compra';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [purchaseId]);
+
+  useEffect(() => {
+    loadPurchase();
+  }, [loadPurchase]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -50,8 +51,9 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
             try {
               await purchaseService.deletePurchase(purchaseId);
               navigation.goBack();
-            } catch (err: any) {
-              Alert.alert('Erro', err.message || 'Erro ao excluir');
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'Erro ao excluir';
+              Alert.alert('Erro', message);
             }
           },
         },

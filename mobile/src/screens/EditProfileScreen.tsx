@@ -48,8 +48,9 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
       await authService.updateProfile(name.trim());
       updateUser({ ...user, name: name.trim() });
       navigation.goBack();
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Não foi possível salvar as alterações');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível salvar as alterações';
+      Alert.alert('Erro', message);
     } finally {
       setIsSaving(false);
     }

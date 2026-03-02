@@ -50,8 +50,9 @@ export const useDashboard = (): UseDashboardResult => {
       setTopItems(itemsData);
       setSupermarketData(marketsData);
       setMonthlyTotals(monthlyData);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dashboard');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar dashboard';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

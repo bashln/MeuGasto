@@ -45,7 +45,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
     try {
       if (__DEV__) {
-        console.log('QR Code data:', data);
+        console.warn('QR Code data:', data);
       }
 
       const url = buildNFCeUrl(data);
@@ -53,20 +53,20 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
         throw new Error('URL de consulta NFC-e não permitida');
       }
       if (__DEV__) {
-        console.log('URL SEFAZ:', url);
+        console.warn('URL SEFAZ:', url);
       }
 
       const accessKey = extractAccessKeyFromQRCode(data);
       if (__DEV__) {
-        console.log('Chave extraída:', accessKey);
+        console.warn('Chave extraída:', accessKey);
       }
 
       setCurrentUrl(url);
       setCurrentAccessKey(accessKey);
       setShowWebView(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (__DEV__) {
-        console.log('Erro ao processar QR Code:', error);
+        console.warn('Erro ao processar QR Code:', error);
       }
       setIsProcessing(false);
       showImportError('qr');
@@ -80,7 +80,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   const handleWebViewSuccess = async (scrapedData: ScrapedData) => {
     try {
       if (__DEV__) {
-        console.log('Dados extraídos:', scrapedData);
+        console.warn('Dados extraídos:', scrapedData);
       }
 
       const result = await nfceService.createPurchaseFromScrapedData(
@@ -89,7 +89,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       );
 
       if (__DEV__) {
-        console.log('Compra salva:', result);
+        console.warn('Compra salva:', result);
       }
 
       const purchase = await purchaseService.getPurchaseById(result.purchaseId);
@@ -99,9 +99,9 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
       Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
       navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (__DEV__) {
-        console.log('Erro ao salvar compra:', error);
+        console.warn('Erro ao salvar compra:', error);
       }
       setShowWebView(false);
       setIsProcessing(false);
@@ -111,7 +111,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
   const handleWebViewError = (error: string) => {
     if (__DEV__) {
-      console.log('Erro na WebView:', error);
+      console.warn('Erro na WebView:', error);
     }
     setShowWebView(false);
     setIsProcessing(false);

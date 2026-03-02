@@ -6,7 +6,7 @@ export const parseContent = (content: string | null): { notes: string; items: Dr
     if (parsed && typeof parsed === 'object' && 'notes' in parsed) {
       return { notes: parsed.notes || '', items: parsed.items || [] };
     }
-  } catch (_error) {
+  } catch {
     // fallback para conteúdo legado em texto puro
   }
   return { notes: content || '', items: [] };

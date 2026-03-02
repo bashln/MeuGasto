@@ -61,8 +61,9 @@ export const useReports = (): UseReportsResult => {
 
       const superData = await reportService.getExpensesBySupermarket(startDate, endDate);
       setSupermarketData(superData);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar relatório');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar relatório';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -75,7 +76,7 @@ export const useReports = (): UseReportsResult => {
     try {
       const data = await reportService.getItemReport(itemName, startDate, endDate);
       setItemReport(data);
-    } catch (err: any) {
+    } catch {
       setItemReport(null);
     }
   }, [selectedYear]);

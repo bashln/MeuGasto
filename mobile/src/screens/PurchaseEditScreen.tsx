@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Text as RNText } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TextInput, Menu } from 'react-native-paper';
@@ -27,11 +27,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
   const [isSaving, setIsSaving] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [purchaseId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       if (!isNewPurchase) {
         const data = await purchaseService.getPurchaseById(purchaseId);
@@ -48,13 +44,18 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
       const supermarketsResult = await supermarketService.getSupermarkets(0, 200);
       setSupermarkets(supermarketsResult.data || []);
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao carregar compra');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar compra';
+      Alert.alert('Erro', message);
       navigation.goBack();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isNewPurchase, purchaseId, navigation]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = async () => {
     if (!isNewPurchase && !purchase?.isManual) {
@@ -93,8 +94,9 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
         Alert.alert('Sucesso', 'Compra atualizada com sucesso');
         navigation.goBack();
       }
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao atualizar compra');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar compra';
+      Alert.alert('Erro', message);
     } finally {
       setIsSaving(false);
     }

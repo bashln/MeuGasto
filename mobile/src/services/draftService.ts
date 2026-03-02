@@ -4,8 +4,23 @@ import { getCurrentUserId } from './authService';
 import { purchaseService } from './purchaseService';
 import { DraftItem, parseContent, serializeContent } from './draftContent';
 
+type PaginationInfo = {
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+};
+
+type DraftUpdateData = {
+  updated_at: string;
+  content?: string;
+  total_price?: number;
+  supermarket_id?: number;
+};
+
 export const draftService = {
-  async getDrafts(filter?: RascunhoFilter): Promise<{ data: Rascunho[]; page: any }> {
+  async getDrafts(filter?: RascunhoFilter): Promise<{ data: Rascunho[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
 
     let query = supabase
@@ -50,6 +65,7 @@ export const draftService = {
         pageSize: size,
         totalElements: count || 0,
         totalPages: Math.ceil((count || 0) / size),
+        last: from + size >= (count || 0),
       },
     };
   },
@@ -112,7 +128,7 @@ export const draftService = {
   async updateDraft(id: number, data: UpdateRascunhoRequest): Promise<Rascunho> {
     const userId = await getCurrentUserId();
 
-    const updateData: any = {
+    const updateData: DraftUpdateData = {
       updated_at: new Date().toISOString(),
     };
 

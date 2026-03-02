@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert, TextInput } from 'react-native';
-import { Text, FAB, useTheme } from 'react-native-paper';
+import { FAB } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { usePurchases } from '../context';
 import { Header, PurchaseCard, Loading, ErrorMessage } from '../components';
@@ -15,19 +15,18 @@ type PurchasesScreenProps = {
 };
 
 export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
   const { purchases, isLoading, error, fetchPurchases, deletePurchase } = usePurchases();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadPurchases();
-  }, []);
-
   const loadPurchases = useCallback(async (filter?: PurchaseFilter) => {
     await fetchPurchases(filter);
   }, [fetchPurchases]);
+
+  useEffect(() => {
+    loadPurchases();
+  }, [loadPurchases]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -57,7 +56,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
               await deletePurchase(purchase.id);
               await loadPurchases();
             } catch (err) {
-              console.log('Erro ao deletar:', err);
+              console.warn('Erro ao deletar:', err);
             }
           },
         },

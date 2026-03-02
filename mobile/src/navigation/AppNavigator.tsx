@@ -2,7 +2,6 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '../context';
@@ -29,8 +28,6 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainTabs: React.FC = () => {
-  const theme = useTheme();
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -104,7 +101,6 @@ const MainTabs: React.FC = () => {
 
 export const AppNavigator: React.FC = () => {
   const { isLoading, isAuthenticated } = useAuth();
-  const theme = useTheme();
 
   if (isLoading) {
     return <Loading fullScreen />;
