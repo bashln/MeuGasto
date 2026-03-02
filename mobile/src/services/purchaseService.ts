@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { Purchase, PurchaseFilter, NfceRequest } from '../types';
+import { Purchase, PurchaseFilter, NfceRequest, PageResponse } from '../types';
 import { getCurrentUserId } from './authService';
 import { nfceService } from './nfceService';
 
@@ -20,8 +20,12 @@ type PurchaseUpdateData = {
 };
 
 export const purchaseService = {
-  async getPurchases(filter?: PurchaseFilter): Promise<Purchase[]> {
+  async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
     const userId = await getCurrentUserId();
+    const page = filter?.page ?? 0;
+    const size = filter?.size ?? 20;
+    const from = page * size;
+    const to = from + size - 1;
     
     let query = supabase
       .from('purchases')
@@ -29,11 +33,14 @@ export const purchaseService = {
         *,
         supermarket:supermarkets(*),
         items(*)
-      `)
+      `, { count: 'exact' })
       .eq('user_id', userId);
 
     if (filter?.supermarketId) {
       query = query.eq('supermarket_id', filter.supermarketId);
+    }
+    if (filter?.isManual !== undefined) {
+      query = query.eq('manual', filter.isManual);
     }
     if (filter?.startDate) {
       query = query.gte('date', filter.startDate);
@@ -48,21 +55,15 @@ export const purchaseService = {
       query = query.lte('total_price', filter.maxPrice);
     }
 
-    if (filter?.page !== undefined || filter?.size !== undefined) {
-      const page = filter.page ?? 0;
-      const size = filter.size ?? 20;
-      const from = page * size;
-      const to = from + size - 1;
-      query = query.range(from, to);
-    }
-
-    const { data: purchases, error } = await query.order('date', { ascending: false });
+    const { data: purchases, error, count } = await query
+      .order('date', { ascending: false })
+      .range(from, to);
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return (purchases || []).map((purchase) => {
+    const purchaseData = (purchases || []).map((purchase) => {
       const safeItems = Array.isArray(purchase.items) ? purchase.items : [];
       return {
         id: purchase.id,
@@ -83,6 +84,20 @@ export const purchaseService = {
         updatedAt: purchase.updated_at,
       };
     });
+
+    const totalElements = count || 0;
+    const totalPages = Math.ceil(totalElements / size);
+
+    return {
+      data: purchaseData,
+      page: {
+        pageNumber: page,
+        pageSize: size,
+        totalElements,
+        totalPages,
+        last: totalPages === 0 ? true : page >= totalPages - 1,
+      },
+    };
   },
 
   async getPurchaseById(id: number): Promise<Purchase> {

@@ -2,8 +2,10 @@
 node_modules/
 dist/
 dist-ssr/
-*.md
-!README.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QWEN.md
 
 # Environment variables
 .env

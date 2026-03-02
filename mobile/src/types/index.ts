@@ -85,6 +85,7 @@ export interface PageResponse<T> {
 
 export interface PurchaseFilter {
   supermarketId?: number;
+  isManual?: boolean;
   startDate?: string;
   endDate?: string;
   minPrice?: number;

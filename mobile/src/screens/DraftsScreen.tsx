@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Alert, TextInput, ActivityIndicator, Text as RNText } from 'react-native';
 import { Text, FAB, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDrafts } from '../context';
@@ -15,13 +15,20 @@ type DraftsScreenProps = {
 
 export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
   const theme = useTheme();
-  const { drafts, isLoading, error, fetchDrafts, deleteDraft } = useDrafts();
+  const { drafts, isLoading, isLoadingMore, hasMore, page, error, fetchDrafts, loadMoreDrafts, deleteDraft } = useDrafts();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
+  const PAGE_SIZE = 20;
+
+  const buildServerFilter = useCallback((pageNumber = 0) => ({
+    page: pageNumber,
+    size: PAGE_SIZE,
+  }), []);
+
   const loadDrafts = useCallback(async () => {
-    await fetchDrafts();
-  }, [fetchDrafts]);
+    await fetchDrafts(buildServerFilter(0));
+  }, [fetchDrafts, buildServerFilter]);
 
   useEffect(() => {
     loadDrafts();
@@ -32,6 +39,15 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
     await loadDrafts();
     setRefreshing(false);
   }, [loadDrafts]);
+
+  const onEndReached = useCallback(async () => {
+    if (!hasMore || isLoading || isLoadingMore) {
+      return;
+    }
+
+    const nextPage = (page?.pageNumber ?? 0) + 1;
+    await loadMoreDrafts(buildServerFilter(nextPage));
+  }, [buildServerFilter, hasMore, isLoading, isLoadingMore, loadMoreDrafts, page?.pageNumber]);
 
   const handleDraftPress = (draft: Rascunho) => {
     navigation.navigate('DraftDetail', { draftId: draft.id });
@@ -113,6 +129,20 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
             </Text>
           </View>
         }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.listFooter}>
+              <ActivityIndicator color={colors.primary} />
+              <RNText style={styles.footerText}>Carregando mais rascunhos...</RNText>
+            </View>
+          ) : !hasMore && drafts.length > 0 ? (
+            <View style={styles.listFooter}>
+              <RNText style={styles.footerText}>Fim da lista</RNText>
+            </View>
+          ) : null
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
       />
 
       <FAB
@@ -157,5 +187,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
+  },
+  listFooter: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footerText: {
+    color: colors.mutedText,
+    fontSize: 12,
   },
 });
