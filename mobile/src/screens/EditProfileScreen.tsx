@@ -13,6 +13,7 @@ import { TextInput } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { useAuth } from '../context';
 import { authService } from '../services';
@@ -26,11 +27,17 @@ type EditProfileScreenProps = {
 };
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!user) {
+      Alert.alert('Erro', 'Usuário não autenticado');
+      return;
+    }
+
     if (!name.trim()) {
       Alert.alert('Erro', 'O nome não pode ficar em branco');
       return;
@@ -39,7 +46,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
     setIsSaving(true);
     try {
       await authService.updateProfile(name.trim());
-      updateUser({ ...user!, name: name.trim() });
+      updateUser({ ...user, name: name.trim() });
       navigation.goBack();
     } catch (err: any) {
       Alert.alert('Erro', err.message || 'Não foi possível salvar as alterações');
@@ -50,8 +57,13 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <RNText style={styles.headerTitle}>Editar Perfil</RNText>
@@ -103,7 +115,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
+    paddingTop: 16,
     paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',

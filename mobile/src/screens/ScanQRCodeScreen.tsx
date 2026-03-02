@@ -1,20 +1,36 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner } from '../components';
 import { nfceService, purchaseService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
-import { buildNFCeUrl, extractAccessKeyFromQRCode } from '../services/nfceService';
-import { useTheme } from 'react-native-paper';
+import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
 import { colors } from '../theme/colors';
 
 type ScanQRCodeScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ScanQRCode'>;
 };
 
+interface ScrapedData {
+  storeName?: string;
+  cnpj?: string;
+  emittedAt?: string;
+  city?: string;
+  state?: string;
+  total: number;
+  items: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    unityPrice?: number;
+    totalPrice?: number;
+  }>;
+}
+
 export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
@@ -33,6 +49,9 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       }
 
       const url = buildNFCeUrl(data);
+      if (!isAllowedNfceUrl(url)) {
+        throw new Error('URL de consulta NFC-e não permitida');
+      }
       if (__DEV__) {
         console.log('URL SEFAZ:', url);
       }
@@ -58,7 +77,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     setShowCamera(false);
   };
 
-  const handleWebViewSuccess = async (scrapedData: any) => {
+  const handleWebViewSuccess = async (scrapedData: ScrapedData) => {
     try {
       if (__DEV__) {
         console.log('Dados extraídos:', scrapedData);
@@ -160,8 +179,13 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   // Tela principal com design Figma
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose} style={styles.backButton}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cadastro de Compras</Text>
@@ -193,6 +217,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
             <MaterialCommunityIcons name="image" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
             <Text style={styles.buttonTextWhite}>Selecionar da Galeria</Text>
           </TouchableOpacity>
+          <Text style={styles.disabledHint}>Galeria em breve.</Text>
         </View>
 
         <View style={styles.ocrCard}>
@@ -238,7 +263,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
+    paddingTop: 16,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -316,6 +341,13 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
+  },
+  disabledHint: {
+    marginTop: -4,
+    marginBottom: 6,
+    fontSize: 12,
+    color: colors.mutedText,
+    alignSelf: 'flex-start',
   },
   ocrCard: {
     backgroundColor: colors.surface,
