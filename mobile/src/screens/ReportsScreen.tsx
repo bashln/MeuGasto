@@ -26,7 +26,8 @@ export const ReportsScreen: React.FC = () => {
     refresh,
   } = useReports();
 
-  const [selectedPeriod] = useState('Últimos 6 meses');
+  // TODO(vNext): reativar filtro de periodo de analise com opcoes dinamicas.
+  // const [selectedPeriod, setSelectedPeriod] = useState('Últimos 6 meses');
   const [selectedMarket] = useState('Todos');
   const [sortBy] = useState('Preço');
   const [itemPickerVisible, setItemPickerVisible] = useState(false);
@@ -188,12 +189,15 @@ export const ReportsScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.filterRow}>
-          <RNText style={styles.filterLabel}>Período de Análise</RNText>
-          <View style={styles.filterSelect}>
-            <RNText style={styles.filterSelectText}>{selectedPeriod}</RNText>
+        {/*
+          TODO(vNext): reativar filtro de periodo de analise.
+          <View style={styles.filterRow}>
+            <RNText style={styles.filterLabel}>Período de Análise</RNText>
+            <View style={styles.filterSelect}>
+              <RNText style={styles.filterSelectText}>{selectedPeriod}</RNText>
+            </View>
           </View>
-        </View>
+        */}
 
         <View style={styles.filterRow}>
           <RNText style={styles.filterLabel}>Mercado</RNText>
