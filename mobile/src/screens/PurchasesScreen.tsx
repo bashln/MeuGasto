@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { FAB } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { usePurchases } from '../context';
@@ -15,24 +15,45 @@ type PurchasesScreenProps = {
 };
 
 export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) => {
-  const { purchases, isLoading, error, fetchPurchases, deletePurchase } = usePurchases();
+  const { purchases, isLoading, isLoadingMore, hasMore, page, error, fetchPurchases, loadMorePurchases, deletePurchase } = usePurchases();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
+
+  const PAGE_SIZE = 20;
+
+  const buildServerFilter = useCallback((pageNumber = 0): PurchaseFilter => {
+    const isManual = filterType === 'all' ? undefined : filterType === 'manual';
+
+    return {
+      page: pageNumber,
+      size: PAGE_SIZE,
+      isManual,
+    };
+  }, [filterType]);
 
   const loadPurchases = useCallback(async (filter?: PurchaseFilter) => {
     await fetchPurchases(filter);
   }, [fetchPurchases]);
 
   useEffect(() => {
-    loadPurchases();
-  }, [loadPurchases]);
+    loadPurchases(buildServerFilter(0));
+  }, [loadPurchases, buildServerFilter]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadPurchases();
+    await loadPurchases(buildServerFilter(0));
     setRefreshing(false);
-  }, [loadPurchases]);
+  }, [loadPurchases, buildServerFilter]);
+
+  const onEndReached = useCallback(async () => {
+    if (!hasMore || isLoading || isLoadingMore) {
+      return;
+    }
+
+    const nextPage = (page?.pageNumber ?? 0) + 1;
+    await loadMorePurchases(buildServerFilter(nextPage));
+  }, [buildServerFilter, hasMore, isLoading, isLoadingMore, loadMorePurchases, page?.pageNumber]);
 
   const handlePurchasePress = (purchase: Purchase) => {
     navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
@@ -54,7 +75,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
           onPress: async () => {
             try {
               await deletePurchase(purchase.id);
-              await loadPurchases();
+              await loadPurchases(buildServerFilter(0));
             } catch (err) {
               console.warn('Erro ao deletar:', err);
             }
@@ -94,7 +115,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
   }
 
   if (error) {
-    return <ErrorMessage message={error} onRetry={() => loadPurchases()} />;
+    return <ErrorMessage message={error} onRetry={() => loadPurchases(buildServerFilter(0))} />;
   }
 
   return (
@@ -179,6 +200,20 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
             </TouchableOpacity>
           </View>
         }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.listFooter}>
+              <ActivityIndicator color={colors.primary} />
+              <RNText style={styles.footerText}>Carregando mais compras...</RNText>
+            </View>
+          ) : !hasMore && purchases.length > 0 ? (
+            <View style={styles.listFooter}>
+              <RNText style={styles.footerText}>Fim da lista</RNText>
+            </View>
+          ) : null
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
       />
 
       <FAB
@@ -294,5 +329,15 @@ const styles = StyleSheet.create({
     bottom: 90,
     backgroundColor: colors.success,
     borderRadius: 16,
+  },
+  listFooter: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footerText: {
+    color: colors.mutedText,
+    fontSize: 12,
   },
 });
