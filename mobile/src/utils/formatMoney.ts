@@ -13,6 +13,9 @@ export const formatMoneyInput = (value: string): string => {
 };
 
 export const parseMoney = (value: string): number => {
-  const cleaned = value.replace(/[R$\s]/g, '').replace(',', '.');
+  const cleaned = value
+    .replace(/[R$\s]/g, '')
+    .replace(/\./g, '')
+    .replace(',', '.');
   return parseFloat(cleaned) || 0;
 };

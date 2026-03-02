@@ -13,7 +13,7 @@ export const draftService = {
       .select(`
         *,
         supermarket:supermarkets(*)
-      `)
+      `, { count: 'exact' })
       .eq('user_id', userId);
 
     if (filter?.supermarketId) {

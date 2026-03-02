@@ -44,7 +44,7 @@ export default function App() {
         <AuthProvider>
           <PurchaseProvider>
             <DraftProvider>
-              <StatusBar style="light" />
+              <StatusBar style="auto" />
               <AppNavigator />
             </DraftProvider>
           </PurchaseProvider>

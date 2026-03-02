@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, ActivityIndicator, Text, Button } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../theme/colors';
+import { NFCE_ALLOWED_HOSTS } from '../services/nfceService';
 
 const DEBUG = __DEV__ || false;
 
@@ -212,7 +213,7 @@ const SCRAPE_SCRIPT = `
       var emittedAt = findEmissao(pageText);
 
       // Tentar extrair cidade e estado
-      var cityStateMatch = pageText.match(/([A-Za-zÀ-ÿ\s]+)\s*-\s*([A-Z]{2})/);
+      var cityStateMatch = pageText.match(/([A-Za-zÀ-ÿ\\s]+)\\s*-\\s*([A-Z]{2})/);
       var city = cityStateMatch ? cityStateMatch[1].trim() : null;
       var state = cityStateMatch ? cityStateMatch[2] : null;
 
@@ -275,6 +276,18 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   const [statusMessage, setStatusMessage] = useState('Isso pode levar alguns segundos.');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const isAllowedNavigation = (targetUrl?: string): boolean => {
+    if (!targetUrl) return false;
+    if (targetUrl === 'about:blank') return true;
+
+    try {
+      const parsed = new URL(targetUrl);
+      return NFCE_ALLOWED_HOSTS.has(parsed.hostname);
+    } catch (_error) {
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (visible) {
       setLoading(true);
@@ -302,9 +315,9 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     };
   }, [visible, timeout]);
 
-  const handleMessage = (event: any) => {
+  const handleMessage = (event: { nativeEvent: { data?: string } }) => {
     try {
-      const message = JSON.parse(event.nativeEvent.data);
+      const message = JSON.parse(event.nativeEvent.data ?? '{}');
       
       if (DEBUG) {
         console.log('[NFCeWebView] Mensagem recebida:', message.type);
@@ -339,12 +352,23 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     }
   };
 
-  const handleNavigationStateChange = (navState: any) => {
+  const handleNavigationStateChange = (navState: { loading: boolean }) => {
     if (navState.loading) {
       setStatusMessage('Carregando...');
     } else {
       setStatusMessage('Processando dados...');
     }
+  };
+
+  const handleShouldStartLoadWithRequest = (request: { url: string }) => {
+    const isAllowed = isAllowedNavigation(request.url);
+
+    if (!isAllowed) {
+      onError('Navegação bloqueada por segurança. Tente novamente.');
+      return false;
+    }
+
+    return true;
   };
 
   if (!visible) return null;
@@ -369,6 +393,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
           onMessage={handleMessage}
           onLoadEnd={handleLoadEnd}
           onNavigationStateChange={handleNavigationStateChange}
+          onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
           startInLoadingState={true}
           renderLoading={() => (
             <View style={styles.loadingOverlay}>
@@ -380,7 +405,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
           scalesPageToFit={true}
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
-          allowFileAccess={true}
+          allowFileAccess={false}
           allowsBackForwardNavigationGestures={true}
         />
 

@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, TextInput, ActivityIndicator } from 'react-native';
 import {
-  Text,
   Avatar,
 } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
 import { authService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,6 +11,7 @@ import { CompositeNavigationProp } from '@react-navigation/native';
 import { RootStackParamList, MainTabParamList } from '../types';
 import { colors } from '../theme/colors';
 import { Header } from '../components';
+import appConfig from '../../app.json';
 
 type ProfileScreenProps = {
   navigation: CompositeNavigationProp<
@@ -23,9 +22,7 @@ type ProfileScreenProps = {
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const appVersion =
-    (require('../../app.json')?.expo?.version as string | undefined) ||
-    '0.3.0-alpha';
+  const appVersion = appConfig?.expo?.version || '0.3.0-alpha';
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');

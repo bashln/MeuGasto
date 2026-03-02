@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabaseClient';
 import { getCurrentUserId } from './authService';
 
+const SCRAPER_HOST = 'nfce-scraper.herokuapp.com';
+
 interface NFCeItem {
   item: string;
   id: number;
@@ -77,33 +79,33 @@ export const buildNFCeUrl = (input: string): string => {
   
   // URLs por estado
   const stateUrls: Record<string, string> = {
-    '11': 'http://www.sefaz.am.gov.br/nfce/consulta',
-    '12': 'http://www.sefaz.ac.gov.br/nfce/consulta',
-    '13': 'http://www.sefaz.ap.gov.br/nfce/consulta',
-    '14': 'http://www.sefaz.se.gov.br/nfce/consulta',
-    '15': 'http://www.sefaz.to.gov.br/nfce/consulta',
-    '16': 'http://www.fazenda.ma.gov.br/nfce/consulta',
-    '17': 'http://www.sefaz.pi.gov.br/nfce/consulta',
-    '21': 'http://www.fazenda.mg.gov.br/nfce/consulta',
-    '22': 'http://www.sefaz.es.gov.br/nfce/consulta',
-    '23': 'http://www.sefaz.rj.gov.br/nfce/consulta',
-    '24': 'http://www.sefaz.rj.gov.br/nfce/consulta',
-    '25': 'http://www.sefaz.pb.gov.br/nfce/consulta',
-    '26': 'http://www.sefaz.pe.gov.br/nfce/consulta',
-    '27': 'http://www.sefaz.al.gov.br/nfce/consulta',
-    '28': 'http://www.sefaz.ba.gov.br/nfce/consulta',
-    '29': 'http://www.sefaz.se.gov.br/nfce/consulta',
-    '31': 'http://www.sefaz.mt.gov.br/nfce/consulta',
-    '32': 'http://www.sefaz.ms.gov.br/nfce/consulta',
-    '33': 'http://www.sefaz.rj.gov.br/nfce/consulta',
-    '35': 'http://www.fazenda.sp.gov.br/nfce/consulta',
-    '41': 'http://www.fazenda.pr.gov.br/nfce/consulta',
-    '42': 'http://www.sefaz.sc.gov.br/nfce/consulta',
+    '11': 'https://www.sefaz.am.gov.br/nfce/consulta',
+    '12': 'https://www.sefaz.ac.gov.br/nfce/consulta',
+    '13': 'https://www.sefaz.ap.gov.br/nfce/consulta',
+    '14': 'https://www.sefaz.se.gov.br/nfce/consulta',
+    '15': 'https://www.sefaz.to.gov.br/nfce/consulta',
+    '16': 'https://www.fazenda.ma.gov.br/nfce/consulta',
+    '17': 'https://www.sefaz.pi.gov.br/nfce/consulta',
+    '21': 'https://www.fazenda.mg.gov.br/nfce/consulta',
+    '22': 'https://www.sefaz.es.gov.br/nfce/consulta',
+    '23': 'https://www.sefaz.rj.gov.br/nfce/consulta',
+    '24': 'https://www.sefaz.rj.gov.br/nfce/consulta',
+    '25': 'https://www.sefaz.pb.gov.br/nfce/consulta',
+    '26': 'https://www.sefaz.pe.gov.br/nfce/consulta',
+    '27': 'https://www.sefaz.al.gov.br/nfce/consulta',
+    '28': 'https://www.sefaz.ba.gov.br/nfce/consulta',
+    '29': 'https://www.sefaz.se.gov.br/nfce/consulta',
+    '31': 'https://www.sefaz.mt.gov.br/nfce/consulta',
+    '32': 'https://www.sefaz.ms.gov.br/nfce/consulta',
+    '33': 'https://www.sefaz.rj.gov.br/nfce/consulta',
+    '35': 'https://www.fazenda.sp.gov.br/nfce/consulta',
+    '41': 'https://www.fazenda.pr.gov.br/nfce/consulta',
+    '42': 'https://www.sefaz.sc.gov.br/nfce/consulta',
     '43': 'https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce',
-    '50': 'http://www.sefaz.go.gov.br/nfce/consulta',
-    '51': 'http://www.sefaz.mt.gov.br/nfce/consulta',
-    '52': 'http://www.sefaz.ro.gov.br/nfce/consulta',
-    '53': 'http://www.sefaz.to.gov.br/nfce/consulta',
+    '50': 'https://www.sefaz.go.gov.br/nfce/consulta',
+    '51': 'https://www.sefaz.mt.gov.br/nfce/consulta',
+    '52': 'https://www.sefaz.ro.gov.br/nfce/consulta',
+    '53': 'https://www.sefaz.to.gov.br/nfce/consulta',
   };
 
   const baseUrl = stateUrls[stateCode] || stateUrls['43'];
@@ -115,6 +117,41 @@ export const buildNFCeUrl = (input: string): string => {
   return `${baseUrl}?p=${pParam}`;
 };
 
+export const NFCE_ALLOWED_HOSTS = new Set<string>([
+  SCRAPER_HOST,
+  'dfe-portal.svrs.rs.gov.br',
+  'www.sefaz.am.gov.br',
+  'www.sefaz.ac.gov.br',
+  'www.sefaz.ap.gov.br',
+  'www.sefaz.se.gov.br',
+  'www.sefaz.to.gov.br',
+  'www.fazenda.ma.gov.br',
+  'www.sefaz.pi.gov.br',
+  'www.fazenda.mg.gov.br',
+  'www.sefaz.es.gov.br',
+  'www.sefaz.rj.gov.br',
+  'www.sefaz.pb.gov.br',
+  'www.sefaz.pe.gov.br',
+  'www.sefaz.al.gov.br',
+  'www.sefaz.ba.gov.br',
+  'www.sefaz.mt.gov.br',
+  'www.sefaz.ms.gov.br',
+  'www.fazenda.sp.gov.br',
+  'www.fazenda.pr.gov.br',
+  'www.sefaz.sc.gov.br',
+  'www.sefaz.go.gov.br',
+  'www.sefaz.ro.gov.br',
+]);
+
+export const isAllowedNfceUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return NFCE_ALLOWED_HOSTS.has(parsed.hostname);
+  } catch (_error) {
+    return false;
+  }
+};
+
 const normalizeQrCodeToUrl = (qrCodeData: string): string => {
   // Agora buildNFCeUrl já faz todo o trabalho de parsing
   return buildNFCeUrl(qrCodeData);
@@ -123,14 +160,18 @@ const normalizeQrCodeToUrl = (qrCodeData: string): string => {
 export const nfceService = {
   async consultQRCode(qrCodeData: string): Promise<NFCeData> {
     const accessKey = extractAccessKeyFromQRCode(qrCodeData);
-    console.log('Chave extraída:', accessKey, '- Comprimento:', accessKey.length);
+    if (__DEV__) {
+      console.log('Chave extraída:', accessKey, '- Comprimento:', accessKey.length);
+    }
     
     if (accessKey.length !== 44) {
       throw new Error('Chave de acesso inválida. Deve ter 44 dígitos.');
     }
     const url = normalizeQrCodeToUrl(qrCodeData);
 
-    console.log('Consultando NFC-e com URL:', url);
+    if (__DEV__) {
+      console.log('Consultando NFC-e com URL:', url);
+    }
 
     try {
       const response = await fetch(
@@ -143,7 +184,9 @@ export const nfceService = {
 
       const items: NFCeItem[] = await response.json();
 
-      console.log('Items recebidos:', items);
+      if (__DEV__) {
+        console.log('Items recebidos:', items);
+      }
 
       if (!items || items.length === 0) {
         throw new Error('Nenhum item encontrado na nota fiscal.');
@@ -157,7 +200,9 @@ export const nfceService = {
         date: new Date().toISOString().split('T')[0],
       };
     } catch (error: any) {
-      console.log('Erro na consulta NFC-e:', error);
+      if (__DEV__) {
+        console.log('Erro na consulta NFC-e:', error);
+      }
       if (error.message.includes('Nenhum item')) {
         throw error;
       }
@@ -199,44 +244,36 @@ export const nfceService = {
 
     }
 
-    const { data: purchase, error: purchaseError } = await supabase
-      .from('purchases')
-      .insert({
-        user_id: userId,
-        supermarket_id: actualSupermarketId || null,
-        access_key: accessKey,
-        date: nfceData.date || new Date().toISOString().split('T')[0],
-        total_price: nfceData.total,
-        manual: false,
-      })
-      .select()
-      .single();
+    const itemsPayload = nfceData.items.map(item => ({
+      name: item.item,
+      code: item.id.toString(),
+      quantity: item.amount,
+      unit: item.unity,
+      price: item.unity_price,
+    }));
+
+    const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
+      p_user_id: userId,
+      p_supermarket_id: actualSupermarketId || null,
+      p_access_key: accessKey,
+      p_date: nfceData.date || new Date().toISOString().split('T')[0],
+      p_total_price: nfceData.total,
+      p_manual: false,
+      p_items: itemsPayload,
+    });
 
     if (purchaseError) {
       throw new Error(purchaseError.message);
     }
 
-    if (nfceData.items.length > 0) {
-      const itemsToInsert = nfceData.items.map(item => ({
-        purchase_id: purchase.id,
-        name: item.item,
-        code: item.id.toString(),
-        quantity: item.amount,
-        unit: item.unity,
-        price: item.unity_price,
-      }));
+    const purchaseId = createdPurchase?.[0]?.purchase_id;
 
-      const { error: itemsError } = await supabase
-        .from('items')
-        .insert(itemsToInsert);
-
-      if (itemsError) {
-        throw new Error(itemsError.message);
-      }
+    if (!purchaseId) {
+      throw new Error('Não foi possível criar a compra da NFC-e');
     }
 
     return {
-      purchaseId: purchase.id,
+      purchaseId,
       accessKey,
       total: nfceData.total,
       itemCount: nfceData.items.length,
@@ -336,44 +373,36 @@ export const nfceService = {
       }
     }
 
-    const { data: purchase, error: purchaseError } = await supabase
-      .from('purchases')
-      .insert({
-        user_id: userId,
-        supermarket_id: actualSupermarketId || null,
-        access_key: accessKey,
-        date: purchaseDate,
-        total_price: scrapedData.total,
-        manual: false,
-      })
-      .select()
-      .single();
+    const itemsPayload = (scrapedData.items ?? []).map(item => ({
+      name: item.name.substring(0, 200),
+      code: '',
+      quantity: item.quantity || 1,
+      unit: item.unit || 'UN',
+      price: item.totalPrice || item.unityPrice || 0,
+    }));
+
+    const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
+      p_user_id: userId,
+      p_supermarket_id: actualSupermarketId || null,
+      p_access_key: accessKey,
+      p_date: purchaseDate,
+      p_total_price: scrapedData.total,
+      p_manual: false,
+      p_items: itemsPayload,
+    });
 
     if (purchaseError) {
       throw new Error(purchaseError.message);
     }
 
-    if (scrapedData.items && scrapedData.items.length > 0) {
-      const itemsToInsert = scrapedData.items.map(item => ({
-        purchase_id: purchase.id,
-        name: item.name.substring(0, 200),
-        code: '',
-        quantity: item.quantity || 1,
-        unit: item.unit || 'UN',
-        price: item.totalPrice || item.unityPrice || 0,
-      }));
+    const purchaseId = createdPurchase?.[0]?.purchase_id;
 
-      const { error: itemsError } = await supabase
-        .from('items')
-        .insert(itemsToInsert);
-
-      if (itemsError) {
-        throw new Error(itemsError.message);
-      }
+    if (!purchaseId) {
+      throw new Error('Não foi possível criar a compra importada');
     }
 
     return {
-      purchaseId: purchase.id,
+      purchaseId,
       accessKey,
       total: scrapedData.total,
       itemCount: scrapedData.items?.length || 0,

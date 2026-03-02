@@ -213,8 +213,102 @@ CREATE INDEX IF NOT EXISTS idx_purchases_date ON purchases(date);
 CREATE INDEX IF NOT EXISTS idx_purchases_supermarket_id ON purchases(supermarket_id);
 
 CREATE INDEX IF NOT EXISTS idx_items_purchase_id ON items(purchase_id);
+CREATE INDEX IF NOT EXISTS idx_items_purchase_id_name ON items(purchase_id, name);
 
 CREATE INDEX IF NOT EXISTS idx_drafts_user_id ON drafts(user_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_supermarket_id ON drafts(supermarket_id);
 
 CREATE INDEX IF NOT EXISTS idx_supermarkets_user_id ON supermarkets(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_purchases_user_access_key_unique
+  ON purchases(user_id, access_key)
+  WHERE access_key IS NOT NULL;
+
+-- =============================================
+-- TRANSACTIONAL PURCHASE CREATION
+-- =============================================
+CREATE OR REPLACE FUNCTION public.create_purchase_with_items(
+  p_user_id UUID,
+  p_supermarket_id INTEGER,
+  p_access_key TEXT,
+  p_date DATE,
+  p_total_price NUMERIC,
+  p_manual BOOLEAN,
+  p_items JSONB DEFAULT '[]'::JSONB
+)
+RETURNS TABLE(purchase_id INTEGER)
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_purchase_id INTEGER;
+BEGIN
+  IF p_access_key IS NOT NULL THEN
+    SELECT id
+      INTO v_purchase_id
+      FROM purchases
+     WHERE user_id = p_user_id
+       AND access_key = p_access_key
+     LIMIT 1;
+
+    IF v_purchase_id IS NOT NULL THEN
+      RETURN QUERY SELECT v_purchase_id;
+      RETURN;
+    END IF;
+  END IF;
+
+  BEGIN
+    INSERT INTO purchases (
+      user_id,
+      supermarket_id,
+      access_key,
+      date,
+      total_price,
+      manual
+    )
+    VALUES (
+      p_user_id,
+      p_supermarket_id,
+      p_access_key,
+      p_date,
+      p_total_price,
+      p_manual
+    )
+    RETURNING id INTO v_purchase_id;
+  EXCEPTION
+    WHEN unique_violation THEN
+      SELECT id
+        INTO v_purchase_id
+        FROM purchases
+       WHERE user_id = p_user_id
+         AND access_key = p_access_key
+       LIMIT 1;
+  END;
+
+  IF p_items IS NOT NULL AND jsonb_typeof(p_items) = 'array' AND jsonb_array_length(p_items) > 0 THEN
+    INSERT INTO items (
+      purchase_id,
+      name,
+      code,
+      quantity,
+      unit,
+      price
+    )
+    SELECT
+      v_purchase_id,
+      item.name,
+      NULLIF(item.code, ''),
+      COALESCE(item.quantity, 1),
+      NULLIF(item.unit, ''),
+      COALESCE(item.price, 0)
+    FROM jsonb_to_recordset(p_items) AS item(
+      name TEXT,
+      code TEXT,
+      quantity NUMERIC,
+      unit TEXT,
+      price NUMERIC
+    );
+  END IF;
+
+  RETURN QUERY SELECT v_purchase_id;
+END;
+$$;

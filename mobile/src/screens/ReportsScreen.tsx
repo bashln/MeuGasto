@@ -8,7 +8,8 @@ import { colors } from '../theme/colors';
 
 type ReportType = 'geral' | 'itens' | 'mercados';
 
-const YEAR_OPTIONS = [2023, 2024, 2025, 2026, 2027];
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
 export const ReportsScreen: React.FC = () => {
   const {
@@ -167,8 +168,8 @@ export const ReportsScreen: React.FC = () => {
         </View>
 
         <View style={styles.summaryRow}>
-          <RNText style={styles.summaryLabel}>Total de compras</RNText>
-          <RNText style={styles.summaryValue}>{supermarketData.reduce((s, m) => s + 1, 0)}</RNText>
+          <RNText style={styles.summaryLabel}>Meses com compras</RNText>
+          <RNText style={styles.summaryValue}>{monthlyData.reduce((s, m) => s + m.total, 0) > 0 ? monthlyData.filter(m => m.total > 0).length : 0}</RNText>
         </View>
       </View>
     </>
@@ -438,6 +439,7 @@ export const ReportsScreen: React.FC = () => {
               </View>
             </TouchableOpacity>
           </View>
+          <RNText style={styles.disabledHint}>PDF em breve.</RNText>
         </View>
       </ScrollView>
 
@@ -801,6 +803,11 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
     fontSize: 14,
     fontWeight: '500',
+  },
+  disabledHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: colors.mutedText,
   },
   // Mercados view
   mercadoRow: {

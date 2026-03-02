@@ -25,11 +25,19 @@ export const purchaseService = {
     if (filter?.endDate) {
       query = query.lte('date', filter.endDate);
     }
-    if (filter?.minPrice) {
+    if (filter?.minPrice !== undefined) {
       query = query.gte('total_price', filter.minPrice);
     }
-    if (filter?.maxPrice) {
+    if (filter?.maxPrice !== undefined) {
       query = query.lte('total_price', filter.maxPrice);
+    }
+
+    if (filter?.page !== undefined || filter?.size !== undefined) {
+      const page = filter.page ?? 0;
+      const size = filter.size ?? 20;
+      const from = page * size;
+      const to = from + size - 1;
+      query = query.range(from, to);
     }
 
     const { data: purchases, error } = await query.order('date', { ascending: false });
@@ -119,43 +127,34 @@ export const purchaseService = {
   }): Promise<Purchase> {
     const userId = await getCurrentUserId();
 
-    // Passo 1: Criar purchase
-    const { data: newPurchase, error: purchaseError } = await supabase
-      .from('purchases')
-      .insert({
-        user_id: userId,
-        supermarket_id: purchase.supermarketId || null,
-        date: purchase.date,
-        total_price: purchase.totalPrice,
-        manual: true,
-      })
-      .select()
-      .single();
-
-    if (purchaseError) {
-      throw new Error(purchaseError.message);
-    }
-
-    // Passo 2: Criar items com purchase_id
-    if (purchase.items?.length > 0) {
-      const itemsToInsert = purchase.items.map(item => ({
-        purchase_id: newPurchase.id,
+    const itemsPayload = (purchase.items ?? []).map(item => ({
         name: item.name,
+        code: '',
         quantity: item.quantity,
         unit: item.unit,
         price: item.price,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('items')
-        .insert(itemsToInsert);
+    const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
+      p_user_id: userId,
+      p_supermarket_id: purchase.supermarketId || null,
+      p_access_key: null,
+      p_date: purchase.date,
+      p_total_price: purchase.totalPrice,
+      p_manual: true,
+      p_items: itemsPayload,
+    });
 
-      if (itemsError) {
-        throw new Error(itemsError.message);
-      }
+    if (purchaseError) {
+      throw new Error(purchaseError.message);
     }
 
-    return this.getPurchaseById(newPurchase.id);
+    const purchaseId = createdPurchase?.[0]?.purchase_id;
+    if (!purchaseId) {
+      throw new Error('Não foi possível criar a compra manual');
+    }
+
+    return this.getPurchaseById(purchaseId);
   },
 
   async updatePurchase(
@@ -170,7 +169,7 @@ export const purchaseService = {
 
     const updateData: any = {};
     if (updates.date) updateData.date = updates.date;
-    if (updates.totalPrice) updateData.total_price = updates.totalPrice;
+    if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
     if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
     updateData.updated_at = new Date().toISOString();
 

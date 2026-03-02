@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text as RNText, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 
 interface HeaderProps {
@@ -10,11 +11,18 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ title, iconName, onBack }) => {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 12 }] }>
       <View style={styles.content}>
         {onBack ? (
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+          >
             <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primaryText} />
           </TouchableOpacity>
         ) : (
@@ -29,7 +37,6 @@ export const Header: React.FC<HeaderProps> = ({ title, iconName, onBack }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
   },

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authService } from '../services/authService';
 import { AuthUser } from '../types';
+import { supabase } from '../lib/supabaseClient';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -24,6 +25,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     checkAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        const { user: currentUser } = await authService.getSession();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Auth state sync failed:', error);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkAuth = async () => {
