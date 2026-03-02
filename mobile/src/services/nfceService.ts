@@ -147,7 +147,7 @@ export const isAllowedNfceUrl = (value: string): boolean => {
   try {
     const parsed = new URL(value);
     return NFCE_ALLOWED_HOSTS.has(parsed.hostname);
-  } catch (_error) {
+  } catch {
     return false;
   }
 };
@@ -161,7 +161,7 @@ export const nfceService = {
   async consultQRCode(qrCodeData: string): Promise<NFCeData> {
     const accessKey = extractAccessKeyFromQRCode(qrCodeData);
     if (__DEV__) {
-      console.log('Chave extraída:', accessKey, '- Comprimento:', accessKey.length);
+      console.warn('Chave extraída:', accessKey, '- Comprimento:', accessKey.length);
     }
     
     if (accessKey.length !== 44) {
@@ -170,7 +170,7 @@ export const nfceService = {
     const url = normalizeQrCodeToUrl(qrCodeData);
 
     if (__DEV__) {
-      console.log('Consultando NFC-e com URL:', url);
+      console.warn('Consultando NFC-e com URL:', url);
     }
 
     try {
@@ -185,7 +185,7 @@ export const nfceService = {
       const items: NFCeItem[] = await response.json();
 
       if (__DEV__) {
-        console.log('Items recebidos:', items);
+        console.warn('Items recebidos:', items);
       }
 
       if (!items || items.length === 0) {
@@ -199,11 +199,11 @@ export const nfceService = {
         total,
         date: new Date().toISOString().split('T')[0],
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (__DEV__) {
-        console.log('Erro na consulta NFC-e:', error);
+        console.warn('Erro na consulta NFC-e:', error);
       }
-      if (error.message.includes('Nenhum item')) {
+      if (error instanceof Error && error.message.includes('Nenhum item')) {
         throw error;
       }
       throw new Error('Erro ao consultar nota fiscal. Verifique a chave de acesso.');

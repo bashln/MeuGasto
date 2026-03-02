@@ -34,8 +34,9 @@ export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
       const response = await draftService.getDrafts(filter);
       setDrafts(response.data);
       setPage(response.page);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar rascunhos');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar rascunhos';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

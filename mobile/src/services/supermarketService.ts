@@ -2,8 +2,15 @@ import { supabase } from '../lib/supabaseClient';
 import { Supermarket } from '../types';
 import { getCurrentUserId } from './authService';
 
+type PaginationInfo = {
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+};
+
 export const supermarketService = {
-  async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: any }> {
+  async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
 
     const from = page * size;

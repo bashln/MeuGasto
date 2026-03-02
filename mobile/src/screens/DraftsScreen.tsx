@@ -15,17 +15,17 @@ type DraftsScreenProps = {
 
 export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
   const theme = useTheme();
-  const { drafts, isLoading, error, fetchDrafts, deleteDraft, convertToPurchase } = useDrafts();
+  const { drafts, isLoading, error, fetchDrafts, deleteDraft } = useDrafts();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    loadDrafts();
-  }, []);
 
   const loadDrafts = useCallback(async () => {
     await fetchDrafts();
   }, [fetchDrafts]);
+
+  useEffect(() => {
+    loadDrafts();
+  }, [loadDrafts]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Modal, FlatList, TouchableOpacity, Text as RNText } from 'react-native';
 import {
   Text,
@@ -12,7 +12,6 @@ import {
   Card,
 } from 'react-native-paper';
 import { useDrafts } from '../context';
-import { draftService } from '../services';
 import { Rascunho } from '../types';
 import { formatMoney, formatDate } from '../utils';
 import { Loading, ErrorMessage, Header } from '../components';
@@ -54,26 +53,27 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
 
   const isNewDraft = draftId === 0 || draftId === undefined;
 
+  const loadDraft = useCallback(async () => {
+    try {
+      const data = await getDraft(draftId);
+      setDraft(data);
+      setConteudo(data.conteudo);
+      setItems(data.items ?? []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar rascunho';
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [draftId, getDraft]);
+
   useEffect(() => {
     if (!isNewDraft) {
       loadDraft();
     } else {
       setIsLoading(false);
     }
-  }, [draftId]);
-
-  const loadDraft = async () => {
-    try {
-      const data = await getDraft(draftId);
-      setDraft(data);
-      setConteudo(data.conteudo);
-      setItems(data.items ?? []);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar rascunho');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [isNewDraft, loadDraft]);
 
   const handleSave = async () => {
     if (!conteudo.trim() && items.length === 0) {
@@ -90,8 +90,9 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
         await updateDraft(draftId, { conteudo, items });
       }
       navigation.goBack();
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao salvar rascunho');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar rascunho';
+      Alert.alert('Erro', message);
     } finally {
       setIsSaving(false);
     }
@@ -110,8 +111,9 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
             try {
               await deleteDraft(draftId);
               navigation.goBack();
-            } catch (err: any) {
-              Alert.alert('Erro', err.message || 'Erro ao excluir');
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'Erro ao excluir';
+              Alert.alert('Erro', message);
             }
           },
         },
@@ -139,8 +141,9 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
               Alert.alert('Sucesso', 'Compra criada! Acesse a aba Compras para visualizá-la.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
               ]);
-            } catch (err: any) {
-              Alert.alert('Erro', err.message || 'Erro ao converter rascunho');
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'Erro ao converter rascunho';
+              Alert.alert('Erro', message);
             } finally {
               setIsConverting(false);
             }

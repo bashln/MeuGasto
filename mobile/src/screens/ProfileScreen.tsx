@@ -47,8 +47,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
       setNewPassword('');
       setConfirmNewPassword('');
       Alert.alert('Sucesso', 'Senha alterada com sucesso');
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Não foi possível alterar a senha');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível alterar a senha';
+      Alert.alert('Erro', message);
     } finally {
       setIsChangingPassword(false);
     }

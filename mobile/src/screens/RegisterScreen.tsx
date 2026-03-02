@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
 import {
-  Text,
   TextInput,
-  Button,
-  useTheme,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
@@ -23,7 +20,6 @@ const BENEFITS = [
 ];
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
   const { register } = useAuth();
 
   const [name, setName] = useState('');
@@ -55,9 +51,10 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 
     try {
       await register(email.trim(), password, name.trim());
-    } catch (err: any) {
-      console.log('Register error:', err);
-      setError(err.message || 'Erro ao criar conta');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao criar conta';
+      console.warn('Register error:', err);
+      setError(message);
     } finally {
       setIsLoading(false);
     }

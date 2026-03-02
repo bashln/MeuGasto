@@ -3,6 +3,22 @@ import { Purchase, PurchaseFilter, NfceRequest } from '../types';
 import { getCurrentUserId } from './authService';
 import { nfceService } from './nfceService';
 
+type PurchaseItemRow = {
+  id: number;
+  name: string;
+  code?: string;
+  quantity: number | string;
+  unit: string;
+  price: number | string;
+};
+
+type PurchaseUpdateData = {
+  date?: string;
+  total_price?: number;
+  supermarket_id?: number | null;
+  updated_at: string;
+};
+
 export const purchaseService = {
   async getPurchases(filter?: PurchaseFilter): Promise<Purchase[]> {
     const userId = await getCurrentUserId();
@@ -55,13 +71,13 @@ export const purchaseService = {
         date: purchase.date,
         totalPrice: parseFloat(purchase.total_price) || 0,
         isManual: purchase.manual,
-        products: safeItems.map((item: any) => ({
+        products: safeItems.map((item: PurchaseItemRow) => ({
           id: item.id,
           name: item.name,
           code: item.code,
-          quantity: parseFloat(item.quantity) || 1,
+          quantity: Number(item.quantity) || 1,
           unit: item.unit,
-          price: parseFloat(item.price) || 0,
+          price: Number(item.price) || 0,
         })),
         createdAt: purchase.created_at,
         updatedAt: purchase.updated_at,
@@ -96,13 +112,13 @@ export const purchaseService = {
       date: purchase.date,
       totalPrice: parseFloat(purchase.total_price) || 0,
       isManual: purchase.manual,
-      products: safeItems.map((item: any) => ({
+      products: safeItems.map((item: PurchaseItemRow) => ({
         id: item.id,
         name: item.name,
         code: item.code,
-        quantity: parseFloat(item.quantity) || 1,
+        quantity: Number(item.quantity) || 1,
         unit: item.unit,
-        price: parseFloat(item.price) || 0,
+        price: Number(item.price) || 0,
       })),
       createdAt: purchase.created_at,
       updatedAt: purchase.updated_at,
@@ -167,11 +183,10 @@ export const purchaseService = {
   ): Promise<Purchase> {
     const userId = await getCurrentUserId();
 
-    const updateData: any = {};
+    const updateData: PurchaseUpdateData = { updated_at: new Date().toISOString() };
     if (updates.date) updateData.date = updates.date;
     if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
     if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
-    updateData.updated_at = new Date().toISOString();
 
     const { error } = await supabase
       .from('purchases')

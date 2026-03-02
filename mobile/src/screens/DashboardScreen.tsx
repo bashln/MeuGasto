@@ -34,13 +34,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
 
   const [showPicker, setShowPicker] = useState(false);
 
-  const getMonthRange = (month: number, year: number) => {
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    return { startDate, endDate };
-  };
-
   const handlePickerChange = (value: { month: number; year: number }) => {
     setSelectedMonth(value.month);
     setSelectedYear(value.year);

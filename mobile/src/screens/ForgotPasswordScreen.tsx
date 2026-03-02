@@ -50,18 +50,19 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
         "Enviamos um link de recuperação para seu e-mail.",
       );
       navigation.goBack();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string; status?: number; code?: string; name?: string };
       if (__DEV__) {
         console.error("forgotPassword error:", {
-          message: err?.message,
-          status: err?.status,
-          code: err?.code,
-          name: err?.name,
+          message: errorObj?.message,
+          status: errorObj?.status,
+          code: errorObj?.code,
+          name: errorObj?.name,
           raw: err,
         });
       }
 
-      if (err?.code === "email_address_invalid") {
+      if (errorObj?.code === "email_address_invalid") {
         setError(
           "Esse domínio não recebe e-mails de recuperação. Use um e-mail com domínio válido.",
         );

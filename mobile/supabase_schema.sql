@@ -312,3 +312,51 @@ BEGIN
   RETURN QUERY SELECT v_purchase_id;
 END;
 $$;
+
+-- =============================================
+-- REPORTING HELPERS
+-- =============================================
+CREATE OR REPLACE FUNCTION public.report_expenses_by_supermarket(
+  p_user_id UUID,
+  p_start_date DATE DEFAULT NULL,
+  p_end_date DATE DEFAULT NULL
+)
+RETURNS TABLE(supermarket TEXT, total NUMERIC)
+LANGUAGE sql
+SECURITY INVOKER
+AS $$
+  SELECT
+    COALESCE(s.name, 'Sem supermercado') AS supermarket,
+    COALESCE(SUM(p.total_price), 0) AS total
+  FROM purchases p
+  LEFT JOIN supermarkets s ON s.id = p.supermarket_id
+  WHERE p.user_id = p_user_id
+    AND (p_start_date IS NULL OR p.date >= p_start_date)
+    AND (p_end_date IS NULL OR p.date <= p_end_date)
+  GROUP BY COALESCE(s.name, 'Sem supermercado')
+  ORDER BY total DESC;
+$$;
+
+CREATE OR REPLACE FUNCTION public.report_top_items(
+  p_user_id UUID,
+  p_limit INTEGER DEFAULT 10,
+  p_start_date DATE DEFAULT NULL,
+  p_end_date DATE DEFAULT NULL
+)
+RETURNS TABLE(name TEXT, quantity NUMERIC, total NUMERIC)
+LANGUAGE sql
+SECURITY INVOKER
+AS $$
+  SELECT
+    COALESCE(i.name, 'Sem nome') AS name,
+    COALESCE(SUM(i.quantity), 0) AS quantity,
+    COALESCE(SUM(i.quantity * i.price), 0) AS total
+  FROM items i
+  INNER JOIN purchases p ON p.id = i.purchase_id
+  WHERE p.user_id = p_user_id
+    AND (p_start_date IS NULL OR p.date >= p_start_date)
+    AND (p_end_date IS NULL OR p.date <= p_end_date)
+  GROUP BY COALESCE(i.name, 'Sem nome')
+  ORDER BY total DESC
+  LIMIT GREATEST(COALESCE(p_limit, 10), 1);
+$$;

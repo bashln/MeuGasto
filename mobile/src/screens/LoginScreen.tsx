@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
 import {
-  Text,
   TextInput,
-  Button,
-  useTheme,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
@@ -23,7 +20,6 @@ const BENEFITS = [
 ];
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -43,9 +39,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
     try {
       await login(email.trim(), password);
-    } catch (err: any) {
-      console.log('Login error:', err);
-      setError(err.message || 'Erro ao fazer login');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao fazer login';
+      console.warn('Login error:', err);
+      setError(message);
     } finally {
       setIsLoading(false);
     }

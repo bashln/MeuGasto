@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, Share, Modal, FlatList, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useReports } from '../hooks/useReports';
-import { formatMoney, getMonthName, getCurrentYear } from '../utils';
+import { formatMoney, getMonthName } from '../utils';
 import { Header, Loading, ErrorMessage } from '../components';
 import { colors } from '../theme/colors';
-
-type ReportType = 'geral' | 'itens' | 'mercados';
 
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
@@ -25,14 +23,12 @@ export const ReportsScreen: React.FC = () => {
     setReportType,
     setSelectedYear,
     setSelectedItem,
-    loadReport,
-    loadItemReport,
     refresh,
   } = useReports();
 
-  const [selectedPeriod, setSelectedPeriod] = useState('Últimos 6 meses');
-  const [selectedMarket, setSelectedMarket] = useState('Todos');
-  const [sortBy, setSortBy] = useState('Preço');
+  const [selectedPeriod] = useState('Últimos 6 meses');
+  const [selectedMarket] = useState('Todos');
+  const [sortBy] = useState('Preço');
   const [itemPickerVisible, setItemPickerVisible] = useState(false);
 
   const handleExportCSV = async () => {
@@ -60,7 +56,7 @@ export const ReportsScreen: React.FC = () => {
 
     try {
       await Share.share({ message: csvString, title: 'relatorio.csv' });
-    } catch (err: any) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível exportar o relatório.');
     }
   };
@@ -339,7 +335,7 @@ export const ReportsScreen: React.FC = () => {
                   <RNText style={styles.mercadoTotal}>{formatMoney(item.total)}</RNText>
                 </View>
                 <View style={styles.mercadoBarContainer}>
-                  <View style={[styles.mercadoBar, { width: `${(item.total / maxTotal) * 100}%` as any }]} />
+                  <View style={[styles.mercadoBar, { width: `${(item.total / maxTotal) * 100}%` }]} />
                 </View>
               </View>
             ))
