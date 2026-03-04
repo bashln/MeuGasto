@@ -1,4 +1,4 @@
-# Projeto Mercado
+# MeuGasto
 
 Aplicação mobile para gerenciamento inteligente de compras em mercados.
 
