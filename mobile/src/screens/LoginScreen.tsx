@@ -64,7 +64,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         </View>
 
         <View style={styles.header}>
-          <RNText style={styles.title}>Projeto</RNText>
+          <RNText style={styles.title}>MeuGasto</RNText>
           <RNText style={styles.subtitle}>
             Cadastre suas compras via nota fiscal
           </RNText>

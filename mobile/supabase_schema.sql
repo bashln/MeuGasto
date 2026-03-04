@@ -1,5 +1,5 @@
 -- =============================================
--- Supabase Schema for Mercado App
+-- Supabase Schema for MeuGasto
 -- Run this in Supabase SQL Editor
 -- =============================================
 
