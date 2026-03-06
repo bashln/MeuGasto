@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner } from '../components';
+import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
 import { nfceService, purchaseService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
-import { buildNFCeUrl, extractAccessKeyFromQRCode } from '../services/nfceService';
-import { useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RootStackParamList } from '../navigation/types';
+import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
 import { colors } from '../theme/colors';
 
 type ScanQRCodeScreenProps = {
@@ -13,7 +15,7 @@ type ScanQRCodeScreenProps = {
 };
 
 export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
@@ -27,22 +29,32 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     setShowCamera(false);
 
     try {
-      console.log('QR Code data:', data);
-      
+      if (__DEV__) {
+        console.warn('QR Code data:', data);
+      }
+
       const url = buildNFCeUrl(data);
-      console.log('URL SEFAZ:', url);
-      
+      if (!isAllowedNfceUrl(url)) {
+        throw new Error('URL de consulta NFC-e não permitida');
+      }
+      if (__DEV__) {
+        console.warn('URL SEFAZ:', url);
+      }
+
       const accessKey = extractAccessKeyFromQRCode(data);
-      console.log('Chave extraída:', accessKey);
-      
+      if (__DEV__) {
+        console.warn('Chave extraída:', accessKey);
+      }
+
       setCurrentUrl(url);
       setCurrentAccessKey(accessKey);
       setShowWebView(true);
-      
-    } catch (error: any) {
-      console.log('Erro ao processar QR Code:', error);
-      Alert.alert('Erro', error.message || 'Erro ao processar código QR');
+    } catch (error: unknown) {
+      if (__DEV__) {
+        console.warn('Erro ao processar QR Code:', error);
+      }
       setIsProcessing(false);
+      showImportError('qr');
     }
   };
 
@@ -50,49 +62,45 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     setShowCamera(false);
   };
 
-  const handleWebViewSuccess = async (scrapedData: any) => {
+  const handleWebViewSuccess = async (scrapedData: NFCeScrapedData) => {
     try {
-      console.log('Dados extraídos:', scrapedData);
-      
+      if (__DEV__) {
+        console.warn('Dados extraídos:', scrapedData);
+      }
+
       const result = await nfceService.createPurchaseFromScrapedData(
         scrapedData,
         currentAccessKey
       );
-      
-      console.log('Compra salva:', result);
-      
+
+      if (__DEV__) {
+        console.warn('Compra salva:', result);
+      }
+
       const purchase = await purchaseService.getPurchaseById(result.purchaseId);
-      
+
       setShowWebView(false);
       setIsProcessing(false);
-      
-      Alert.alert(
-        'Sucesso!',
-        `Compra do(a) ${purchase.supermarket?.name || 'supermercado'} registrada com sucesso!\nTotal: R$ ${purchase.totalPrice.toFixed(2)}`,
-        [
-          {
-            text: 'Ver Detalhes',
-            onPress: () => navigation.navigate('PurchaseDetail', { purchaseId: purchase.id }),
-          },
-          {
-            text: 'Voltar',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
-    } catch (error: any) {
-      console.log('Erro ao salvar compra:', error);
+
+      Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
+      navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
+    } catch (error: unknown) {
+      if (__DEV__) {
+        console.warn('Erro ao salvar compra:', error);
+      }
       setShowWebView(false);
       setIsProcessing(false);
-      Alert.alert('Erro', error.message || 'Erro ao salvar a compra');
+      showImportError('save');
     }
   };
 
   const handleWebViewError = (error: string) => {
-    console.log('Erro na WebView:', error);
+    if (__DEV__) {
+      console.warn('Erro na WebView:', error);
+    }
     setShowWebView(false);
     setIsProcessing(false);
-    Alert.alert('Erro', error);
+    showImportError(error);
   };
 
   const handleWebViewCancel = () => {
@@ -105,15 +113,43 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const handleManualRegister = () => {
-    Alert.alert('Em breve', 'Funcionalidade de cadastro manual em desenvolvimento');
+    navigation.navigate('PurchaseEdit', { purchaseId: 0 });
   };
 
   const handleTakePhoto = () => {
     setShowCamera(true);
   };
 
-  const handleSelectFromGallery = () => {
-    Alert.alert('Em breve', 'Seleção de imagem da galeria em desenvolvimento');
+  const showImportError = (reason?: string) => {
+    let message = 'Você pode tentar novamente ou salvar manualmente.';
+
+    if (typeof reason === 'string') {
+      const lower = reason.toLowerCase();
+      if (lower.includes('network') || lower.includes('conex') || lower.includes('internet')) {
+        message = 'Sem internet no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
+        message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
+      } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
+        message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
+      }
+    }
+
+    Alert.alert(
+      'Não foi possível importar esta nota.',
+      message,
+      [
+        {
+          text: 'Tentar novamente',
+          onPress: () => {
+            setShowCamera(true);
+          },
+        },
+        {
+          text: 'Salvar manualmente',
+          onPress: () => navigation.navigate('PurchaseEdit', { purchaseId: 0 }),
+        },
+      ]
+    );
   };
 
   // Se estiver mostrando a câmera, mostrar o QRCodeScanner
@@ -128,9 +164,14 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   // Tela principal com design Figma
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleClose} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cadastro de Compras</Text>
         <View style={styles.headerSpacer} />
@@ -139,47 +180,48 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       <View style={styles.content}>
         <View style={styles.mainCard}>
           <View style={styles.iconContainer}>
-            <Text style={styles.icon}>📄</Text>
+            <MaterialCommunityIcons name="qrcode-scan" size={32} color={colors.primaryText} />
           </View>
-          <Text style={styles.cardTitle}>Adicionar Nota Fiscal</Text>
+          <Text style={styles.cardTitle}>Ler QR Code</Text>
           <Text style={styles.cardSubtitle}>
-            Capture ou selecione uma imagem da sua nota fiscal
+            Escaneie o QR Code da NFC-e
           </Text>
 
-          <TouchableOpacity 
-            style={[styles.button, styles.photoButton]} 
+          <TouchableOpacity
+            style={[styles.button, styles.photoButton]}
             onPress={handleTakePhoto}
           >
-            <Text style={styles.buttonIcon}>📷</Text>
-            <Text style={styles.buttonText}>Tirar Foto</Text>
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>Escanear QR Code</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.button, styles.galleryButton]} 
-            onPress={handleSelectFromGallery}
+          <TouchableOpacity
+            style={[styles.button, styles.galleryButton, { opacity: 0.45 }]}
+            disabled={true}
           >
-            <Text style={styles.buttonIcon}>🖼️</Text>
+            <MaterialCommunityIcons name="image" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
             <Text style={styles.buttonTextWhite}>Selecionar da Galeria</Text>
           </TouchableOpacity>
+          <Text style={styles.disabledHint}>Galeria em breve.</Text>
         </View>
 
         <View style={styles.ocrCard}>
           <View style={styles.ocrContent}>
             <View>
-              <Text style={styles.ocrTitle}>OCR Automático</Text>
-              <Text style={styles.ocrSubtitle}>
-                Extração automática de dados
-              </Text>
+            <Text style={styles.ocrTitle}>Importação Automática</Text>
+            <Text style={styles.ocrSubtitle}>
+              Leitura via QR Code
+            </Text>
             </View>
-            <Text style={styles.checkIcon}>✓</Text>
+            <MaterialCommunityIcons name="check-circle" size={24} color={colors.success} />
           </View>
         </View>
 
-        <TouchableOpacity 
-          style={styles.manualButton} 
+        <TouchableOpacity
+          style={styles.manualButton}
           onPress={handleManualRegister}
         >
-          <Text style={styles.manualIcon}>+</Text>
+          <MaterialCommunityIcons name="plus" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
           <Text style={styles.manualText}>Cadastrar Manualmente</Text>
         </TouchableOpacity>
       </View>
@@ -206,7 +248,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
+    paddingTop: 16,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
@@ -215,11 +257,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-  },
-  backIcon: {
-    color: colors.primaryText,
-    fontSize: 24,
-    fontWeight: '600',
   },
   headerTitle: {
     color: colors.primaryText,
@@ -253,9 +290,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  icon: {
-    fontSize: 32,
-  },
   cardTitle: {
     color: colors.primary,
     fontSize: 18,
@@ -283,19 +317,22 @@ const styles = StyleSheet.create({
   galleryButton: {
     backgroundColor: colors.secondary,
   },
-  buttonIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
   buttonText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
   },
   buttonTextWhite: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
+  },
+  disabledHint: {
+    marginTop: -4,
+    marginBottom: 6,
+    fontSize: 12,
+    color: colors.mutedText,
+    alignSelf: 'flex-start',
   },
   ocrCard: {
     backgroundColor: colors.surface,
@@ -318,11 +355,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     marginTop: 2,
   },
-  checkIcon: {
-    fontSize: 20,
-    color: colors.text,
-    fontWeight: '600',
-  },
   manualButton: {
     backgroundColor: colors.success,
     height: 52,
@@ -332,14 +364,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
   },
-  manualIcon: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
-    marginRight: 8,
-  },
   manualText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: '600',
   },

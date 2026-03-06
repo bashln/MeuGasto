@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, IconButton, useTheme } from 'react-native-paper';
-import { Rascunho } from '../types';
+import { Draft } from '../types';
 import { formatMoney, formatDate } from '../utils';
 
 interface DraftCardProps {
-  draft: Rascunho;
-  onPress?: (draft: Rascunho) => void;
-  onDelete?: (draft: Rascunho) => void;
+  draft: Draft;
+  onPress?: (draft: Draft) => void;
+  onDelete?: (draft: Draft) => void;
 }
 
 export const DraftCard: React.FC<DraftCardProps> = ({ draft, onPress, onDelete }) => {
@@ -41,7 +41,7 @@ export const DraftCard: React.FC<DraftCardProps> = ({ draft, onPress, onDelete }
             numberOfLines={2}
             style={[styles.content, { color: theme.colors.onSurfaceVariant }]}
           >
-            {draft.conteudo}
+            {draft.content}
           </Text>
 
           <View style={styles.footer}>

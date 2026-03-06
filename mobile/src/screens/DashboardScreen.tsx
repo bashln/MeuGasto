@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
-import { Text, Card } from 'react-native-paper';
-import { useAuth } from '../context';
-import { reportService } from '../services';
-import { DashboardStats } from '../types';
-import { formatMoney, getMonthName, getCurrentMonth, getCurrentYear } from '../utils';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, RefreshControl } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useDashboard } from '../hooks/useDashboard';
+import { formatMoney, getMonthName } from '../utils';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
-import { RootStackParamList, MainTabParamList } from '../types';
-import { Header, MonthYearPicker } from '../components';
+import { RootStackParamList, MainTabParamList } from '../navigation/types';
+import { Header, MonthYearPicker, ErrorMessage } from '../components';
 import { colors } from '../theme/colors';
 
 type DashboardScreenProps = {
@@ -20,53 +18,113 @@ type DashboardScreenProps = {
 };
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
+  const {
+    stats,
+    topItems,
+    supermarketData,
+    monthlyTotals,
+    previousYearMonthlyTotals,
+    selectedMonth,
+    selectedYear,
+    setSelectedMonth,
+    setSelectedYear,
+    isLoading,
+    error,
+    refresh,
+  } = useDashboard();
+
   const [showPicker, setShowPicker] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  const [selectedYear, setSelectedYear] = useState(getCurrentYear());
-
-  useEffect(() => {
-    loadDashboard();
-  }, [selectedMonth, selectedYear]);
-
-  const loadDashboard = async () => {
-    try {
-      const data = await reportService.getDashboardStats(selectedMonth, selectedYear);
-      setStats(data);
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handlePickerChange = (value: { month: number; year: number }) => {
     setSelectedMonth(value.month);
     setSelectedYear(value.year);
+    setShowPicker(false);
   };
+
+  const currentMonthTotal =
+    monthlyTotals.find(m => m.month === selectedMonth)?.total || 0;
+  const previousMonthTotal =
+    selectedMonth === 1
+      ? previousYearMonthlyTotals.find(m => m.month === 12)?.total || 0
+      : monthlyTotals.find(m => m.month === selectedMonth - 1)?.total || 0;
+  let comparisonText = 'Sem base para comparação';
+  let comparisonTone: 'positive' | 'negative' | 'neutral' = 'neutral';
+
+  if (previousMonthTotal === 0) {
+    if (currentMonthTotal > 0) {
+      comparisonText = 'Início de registro neste mês';
+    } else {
+      comparisonText = 'Sem gastos neste e no mês anterior';
+    }
+  } else if (currentMonthTotal === 0) {
+    comparisonText = '-100% vs mês anterior';
+    comparisonTone = 'positive';
+  } else {
+    const comparisonPercent = Math.round(
+      ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100,
+    );
+    comparisonText = `${comparisonPercent >= 0 ? '+' : ''}${comparisonPercent}% vs mês anterior`;
+
+    if (comparisonPercent > 0) {
+      comparisonTone = 'negative';
+    } else if (comparisonPercent < 0) {
+      comparisonTone = 'positive';
+    }
+  }
+
+  const topItem = topItems[0];
+  const topMarket = supermarketData
+    .slice()
+    .sort((a, b) => b.total - a.total)[0];
+  const insights = [
+    topItem ? `Item com maior gasto: ${topItem.name} (${formatMoney(topItem.total)})` : null,
+    topMarket ? `Mercado com maior gasto: ${topMarket.supermarket} (${formatMoney(topMarket.total)})` : null,
+    stats?.purchaseCount ? `Compras no mês: ${stats.purchaseCount}` : null,
+  ].filter(Boolean) as string[];
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Header title="Início" iconName="view-dashboard" />
+        <ErrorMessage message={error} onRetry={refresh} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <Header title="Início" iconName="view-dashboard" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={refresh} />
+        }
+      >
         {/* Month Selector */}
         <TouchableOpacity style={styles.monthSelector} onPress={() => setShowPicker(true)}>
           <RNText style={styles.monthSelectorText}>
-            {getMonthName(selectedMonth)} {selectedYear} ▼
+            {getMonthName(selectedMonth)} {selectedYear}
           </RNText>
+          <MaterialCommunityIcons name="chevron-down" size={14} color={colors.primary} />
         </TouchableOpacity>
 
         {/* HERO - Main Metric */}
         <View style={styles.heroCard}>
           <RNText style={styles.heroLabel}>Gasto Total do Mês</RNText>
           <RNText style={styles.heroValue}>{formatMoney(stats?.totalSpent || 0)}</RNText>
-          <View style={styles.heroBadge}>
-            <RNText style={styles.heroBadgeText}>+12% vs mês anterior</RNText>
+          <View
+            style={[
+              styles.heroBadge,
+              comparisonTone === 'positive'
+                ? styles.heroBadgePositive
+                : comparisonTone === 'negative'
+                  ? styles.heroBadgeNegative
+                  : styles.heroBadgeNeutral,
+            ]}
+          >
+            <RNText style={styles.heroBadgeText}>{comparisonText}</RNText>
           </View>
         </View>
 
@@ -76,17 +134,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             <RNText style={styles.metricLabel}>Compras do mês</RNText>
             <RNText style={styles.metricValue}>{stats?.purchaseCount || 0}</RNText>
           </View>
-          
+
           <View style={[styles.metricCard, styles.metricOrange]}>
             <RNText style={styles.metricLabel}>Itens únicos</RNText>
             <RNText style={styles.metricValue}>{stats?.itemCount || 0}</RNText>
           </View>
-          
+
           <View style={[styles.metricCard, styles.metricPurple]}>
             <RNText style={styles.metricLabel}>Economia estimada</RNText>
             <RNText style={styles.metricValue}>{formatMoney(stats?.savings || 0)}</RNText>
           </View>
-          
+
           <View style={[styles.metricCard, styles.metricBlue]}>
             <RNText style={styles.metricLabel}>Ticket médio</RNText>
             <RNText style={styles.metricValue}>
@@ -100,12 +158,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           <RNText style={styles.sectionTitle}>Ações Rápidas</RNText>
 
           {/* Action 1 - Gerenciar Compras (Primary) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCardPrimary}
             onPress={() => navigation.navigate('ScanQRCode')}
           >
             <View style={styles.actionIconContainer}>
-              <RNText style={styles.actionIcon}>🛒</RNText>
+              <MaterialCommunityIcons name="cart" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
               <RNText style={styles.actionTitle}>Gerenciar Compras</RNText>
@@ -117,12 +175,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </TouchableOpacity>
 
           {/* Action 2 - Regra de 3 */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('PurchasesTab')}
           >
             <View style={[styles.actionIconContainer, styles.actionIconBlue]}>
-              <RNText style={styles.actionIcon}>📊</RNText>
+              <MaterialCommunityIcons name="chart-bar" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
               <RNText style={styles.actionTitleSecondary}>Regra de 3</RNText>
@@ -131,12 +189,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </TouchableOpacity>
 
           {/* Action 3 - Relatórios */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('ReportsTab')}
           >
             <View style={[styles.actionIconContainer, styles.actionIconPurple]}>
-              <RNText style={styles.actionIcon}>📈</RNText>
+              <MaterialCommunityIcons name="trending-up" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
               <RNText style={styles.actionTitleSecondary}>Relatórios</RNText>
@@ -148,21 +206,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         {/* Insights */}
         <View style={styles.insightsCard}>
           <RNText style={styles.insightsTitle}>Insights deste mês</RNText>
-          
-          <View style={styles.insightItem}>
-            <RNText style={styles.insightIcon}>✓</RNText>
-            <RNText style={styles.insightText}>Passarela Center teve melhores preços</RNText>
-          </View>
-          
-          <View style={styles.insightItem}>
-            <RNText style={styles.insightIcon}>✓</RNText>
-            <RNText style={styles.insightText}>Arroz 5kg variou R$ 3,50 entre mercados</RNText>
-          </View>
-          
-          <View style={styles.insightItem}>
-            <RNText style={styles.insightIcon}>💡</RNText>
-            <RNText style={styles.insightText}>Economia potencial: R$ 45,00/mês</RNText>
-          </View>
+
+          {insights.length === 0 ? (
+            <RNText style={styles.insightEmptyText}>
+              Sem dados suficientes para gerar insights neste período.
+            </RNText>
+          ) : (
+            insights.map((insight, index) => (
+              <View key={`${insight}-${index}`} style={styles.insightItem}>
+                <View style={styles.insightIconContainer}>
+                  <MaterialCommunityIcons
+                    name={index === insights.length - 1 ? 'lightbulb-on-outline' : 'check'}
+                    size={12}
+                    color={colors.primaryText}
+                  />
+                </View>
+                <RNText style={styles.insightText}>{insight}</RNText>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -192,6 +254,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   monthSelectorText: {
     color: colors.primary,
@@ -212,19 +277,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   heroValue: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 32,
     fontWeight: 'bold',
     marginBottom: 12,
   },
   heroBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 12,
   },
+  heroBadgeNeutral: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  heroBadgePositive: {
+    backgroundColor: 'rgba(30,142,62,0.28)',
+  },
+  heroBadgeNegative: {
+    backgroundColor: 'rgba(255,59,48,0.28)',
+  },
   heroBadgeText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -260,7 +333,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metricValue: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -298,9 +371,6 @@ const styles = StyleSheet.create({
   },
   actionIconPurple: {
     backgroundColor: colors.secondary,
-  },
-  actionIcon: {
-    fontSize: 20,
   },
   actionContent: {
     flex: 1,
@@ -358,20 +428,22 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
+  insightEmptyText: {
+    fontSize: 13,
+    color: colors.mutedText,
+  },
   insightItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
   },
-  insightIcon: {
+  insightIconContainer: {
     width: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: colors.success,
-    color: colors.primaryText,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 10,
     overflow: 'hidden',
   },

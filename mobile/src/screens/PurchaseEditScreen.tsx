@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Text as RNText } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TextInput, Menu } from 'react-native-paper';
 import { purchaseService, supermarketService } from '../services';
 import { Purchase, Supermarket } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
 type PurchaseEditScreenProps = {
@@ -15,6 +16,8 @@ type PurchaseEditScreenProps = {
 
 export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigation, route }) => {
   const { purchaseId } = route.params;
+  const isNewPurchase = purchaseId === 0;
+  const headerTitle = isNewPurchase ? 'Compra Manual' : 'Editar Compra';
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [supermarkets, setSupermarkets] = useState<Supermarket[]>([]);
   const [date, setDate] = useState('');
@@ -24,30 +27,38 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
   const [isSaving, setIsSaving] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [purchaseId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
-      const data = await purchaseService.getPurchaseById(purchaseId);
-      setPurchase(data);
-      setDate(data.date || '');
-      setTotalPrice(String(data.totalPrice ?? 0));
-      setSelectedSupermarketId(data.supermarket?.id ?? null);
+      if (!isNewPurchase) {
+        const data = await purchaseService.getPurchaseById(purchaseId);
+        setPurchase(data);
+        setDate(data.date || '');
+        setTotalPrice(String(data.totalPrice ?? 0));
+        setSelectedSupermarketId(data.supermarket?.id ?? null);
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        setDate(today);
+        setTotalPrice('');
+        setSelectedSupermarketId(null);
+      }
 
       const supermarketsResult = await supermarketService.getSupermarkets(0, 200);
       setSupermarkets(supermarketsResult.data || []);
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao carregar compra');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar compra';
+      Alert.alert('Erro', message);
       navigation.goBack();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isNewPurchase, purchaseId, navigation]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = async () => {
-    if (!purchase?.isManual) {
+    if (!isNewPurchase && !purchase?.isManual) {
       Alert.alert('Compra importada', 'Compras importadas via NFC-e não podem ser alteradas.');
       return;
     }
@@ -65,15 +76,27 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
     setIsSaving(true);
     try {
-      await purchaseService.updatePurchase(purchaseId, {
-        date: date.trim(),
-        totalPrice: total,
-        supermarketId: selectedSupermarketId,
-      });
-      Alert.alert('Sucesso', 'Compra atualizada com sucesso');
-      navigation.goBack();
-    } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao atualizar compra');
+      if (isNewPurchase) {
+        const created = await purchaseService.createManualPurchase({
+          date: date.trim(),
+          totalPrice: total,
+          supermarketId: selectedSupermarketId ?? undefined,
+          items: [],
+        });
+        Alert.alert('Sucesso', 'Compra manual criada com sucesso');
+        navigation.navigate('PurchaseDetail', { purchaseId: created.id });
+      } else {
+        await purchaseService.updatePurchase(purchaseId, {
+          date: date.trim(),
+          totalPrice: total,
+          supermarketId: selectedSupermarketId,
+        });
+        Alert.alert('Sucesso', 'Compra atualizada com sucesso');
+        navigation.goBack();
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar compra';
+      Alert.alert('Erro', message);
     } finally {
       setIsSaving(false);
     }
@@ -84,9 +107,9 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <RNText style={styles.backIcon}>←</RNText>
+            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
           </TouchableOpacity>
-          <RNText style={styles.headerTitle}>Editar Compra</RNText>
+          <RNText style={styles.headerTitle}>{headerTitle}</RNText>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
@@ -100,9 +123,9 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <RNText style={styles.backIcon}>←</RNText>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
-        <RNText style={styles.headerTitle}>Editar Compra</RNText>
+        <RNText style={styles.headerTitle}>{headerTitle}</RNText>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -144,7 +167,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
                   ? supermarkets.find((s) => s.id === selectedSupermarketId)?.name || 'Selecionar'
                   : 'Sem supermercado'}
               </RNText>
-              <RNText style={styles.menuCaret}>▼</RNText>
+              <MaterialCommunityIcons name="chevron-down" size={14} color={colors.mutedText} />
             </TouchableOpacity>
           }
         >
@@ -198,11 +221,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  backIcon: {
-    color: colors.primaryText,
-    fontSize: 24,
-    fontWeight: '600',
-  },
   headerTitle: {
     color: colors.primaryText,
     fontSize: 18,
@@ -253,10 +271,6 @@ const styles = StyleSheet.create({
   menuText: {
     color: colors.text,
     fontSize: 15,
-  },
-  menuCaret: {
-    color: colors.mutedText,
-    fontSize: 12,
   },
   saveButton: {
     backgroundColor: colors.success,

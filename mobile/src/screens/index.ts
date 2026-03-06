@@ -10,3 +10,4 @@ export { DraftDetailScreen } from './DraftDetailScreen';
 export { ReportsScreen } from './ReportsScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { ScanQRCodeScreen } from './ScanQRCodeScreen';
+export { EditProfileScreen } from './EditProfileScreen';

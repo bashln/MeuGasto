@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text as RNText } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Purchase } from '../types';
 import { formatMoney, formatDate } from '../utils';
 import { colors } from '../theme/colors';
@@ -47,14 +48,19 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({ purchase, onPress, o
           </TouchableOpacity>
 
           <View style={styles.sideActions}>
-            <TouchableOpacity style={styles.editButton} onPress={() => onEdit?.(purchase)}>
-              <RNText style={styles.actionIcon}>✏️</RNText>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => onEdit?.(purchase)}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            >
+              <MaterialCommunityIcons name="pencil" size={18} color={colors.primaryText} />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => onDelete?.(purchase)}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             >
-              <RNText style={styles.actionIcon}>🗑️</RNText>
+              <MaterialCommunityIcons name="trash-can" size={18} color={colors.primaryText} />
             </TouchableOpacity>
           </View>
         </View>
@@ -125,21 +131,18 @@ const styles = StyleSheet.create({
   },
   editButton: {
     backgroundColor: colors.warning,
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   deleteButton: {
     backgroundColor: colors.danger,
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  actionIcon: {
-    fontSize: 16,
   },
 });

@@ -1,17 +1,26 @@
 import { supabase } from '../lib/supabaseClient';
-import { Rascunho, RascunhoFilter, CreateRascunhoRequest, UpdateRascunhoRequest } from '../types';
-import { authService } from './authService';
+import { Draft, DraftFilter, CreateDraftRequest, UpdateDraftRequest } from '../types';
+import { getCurrentUserId } from './authService';
+import { purchaseService } from './purchaseService';
+import { DraftItem, parseContent, serializeContent } from './draftContent';
 
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
+type PaginationInfo = {
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+};
+
+type DraftUpdateData = {
+  updated_at: string;
+  content?: string;
+  total_price?: number;
+  supermarket_id?: number;
 };
 
 export const draftService = {
-  async getDrafts(filter?: RascunhoFilter): Promise<{ data: Rascunho[]; page: any }> {
+  async getDrafts(filter?: DraftFilter): Promise<{ data: Draft[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
 
     let query = supabase
@@ -19,7 +28,7 @@ export const draftService = {
       .select(`
         *,
         supermarket:supermarkets(*)
-      `)
+      `, { count: 'exact' })
       .eq('user_id', userId);
 
     if (filter?.supermarketId) {
@@ -40,24 +49,28 @@ export const draftService = {
     }
 
     return {
-      data: (drafts || []).map(d => ({
-        id: d.id,
-        supermarket: d.supermarket,
-        conteudo: d.content,
-        totalPrice: parseFloat(d.total_price) || 0,
-        createdAt: d.created_at,
-        updatedAt: d.updated_at,
-      })),
+      data: (drafts || []).map(d => {
+        const { notes } = parseContent(d.content);
+        return {
+          id: d.id,
+          supermarket: d.supermarket,
+          content: notes,
+          totalPrice: parseFloat(d.total_price) || 0,
+          createdAt: d.created_at,
+          updatedAt: d.updated_at,
+        };
+      }),
       page: {
         pageNumber: page,
         pageSize: size,
         totalElements: count || 0,
         totalPages: Math.ceil((count || 0) / size),
+        last: from + size >= (count || 0),
       },
     };
   },
 
-  async getDraftById(id: number): Promise<Rascunho> {
+  async getDraftById(id: number): Promise<Draft> {
     const userId = await getCurrentUserId();
 
     const { data: draft, error } = await supabase
@@ -74,26 +87,33 @@ export const draftService = {
       throw new Error(error.message);
     }
 
+    const { notes, items } = parseContent(draft.content);
+
     return {
       id: draft.id,
       supermarket: draft.supermarket,
-      conteudo: draft.content,
+      content: notes,
+      items,
       totalPrice: parseFloat(draft.total_price) || 0,
       createdAt: draft.created_at,
       updatedAt: draft.updated_at,
     };
   },
 
-  async createDraft(data: CreateRascunhoRequest): Promise<Rascunho> {
+  async createDraft(data: CreateDraftRequest): Promise<Draft> {
     const userId = await getCurrentUserId();
+
+    const items: DraftItem[] = data.items || [];
+    const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const content = serializeContent(data.content, items);
 
     const { data: draft, error } = await supabase
       .from('drafts')
       .insert({
         user_id: userId,
         supermarket_id: data.supermarketId || null,
-        content: data.conteudo,
-        total_price: 0,
+        content,
+        total_price: totalPrice,
       })
       .select()
       .single();
@@ -105,14 +125,21 @@ export const draftService = {
     return this.getDraftById(draft.id);
   },
 
-  async updateDraft(id: number, data: UpdateRascunhoRequest): Promise<Rascunho> {
+  async updateDraft(id: number, data: UpdateDraftRequest): Promise<Draft> {
     const userId = await getCurrentUserId();
 
-    const updateData: any = {
+    const updateData: DraftUpdateData = {
       updated_at: new Date().toISOString(),
     };
 
-    if (data.conteudo !== undefined) updateData.content = data.conteudo;
+    if (data.content !== undefined || data.items !== undefined) {
+      const notes = data.content ?? '';
+      const items: DraftItem[] = data.items ?? [];
+      const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      updateData.content = serializeContent(notes, items);
+      updateData.total_price = totalPrice;
+    }
+
     if (data.supermarketId !== undefined) updateData.supermarket_id = data.supermarketId;
 
     const { error } = await supabase
@@ -143,7 +170,20 @@ export const draftService = {
   },
 
   async convertDraftToPurchase(id: number): Promise<void> {
-    // Funcionalidade não implementada ainda
-    throw new Error('Convert draft to purchase not implemented yet');
+    const draft = await this.getDraftById(id);
+
+    await purchaseService.createManualPurchase({
+      supermarketId: draft.supermarket?.id,
+      date: new Date().toISOString().split('T')[0],
+      totalPrice: draft.totalPrice,
+      items: (draft.items || []).map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+      })),
+    });
+
+    await this.deleteDraft(id);
   },
 };
