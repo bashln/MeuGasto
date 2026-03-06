@@ -55,10 +55,10 @@ export interface Purchase {
   updatedAt: string;
 }
 
-export interface Rascunho {
+export interface Draft {
   id: number;
   supermarket?: Supermarket;
-  conteudo: string;
+  content: string;
   items?: Array<{
     name: string;
     quantity: number;
@@ -94,15 +94,15 @@ export interface PurchaseFilter {
   size?: number;
 }
 
-export interface RascunhoFilter {
+export interface DraftFilter {
   supermarketId?: number;
   page?: number;
   size?: number;
 }
 
-export interface CreateRascunhoRequest {
+export interface CreateDraftRequest {
   supermarketId?: number;
-  conteudo: string;
+  content: string;
   items: Array<{
     name: string;
     quantity: number;
@@ -111,9 +111,9 @@ export interface CreateRascunhoRequest {
   }>;
 }
 
-export interface UpdateRascunhoRequest {
+export interface UpdateDraftRequest {
   supermarketId?: number;
-  conteudo?: string;
+  content?: string;
   items?: Array<{
     name: string;
     quantity: number;
@@ -132,28 +132,3 @@ export interface DashboardStats {
   itemCount: number;
   savings: number;
 }
-
-export type RootStackParamList = {
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
-  Main: undefined;
-  Dashboard: undefined;
-  Purchases: undefined;
-  PurchaseDetail: { purchaseId: number };
-  PurchaseEdit: { purchaseId: number };
-  Drafts: undefined;
-  DraftDetail: { draftId: number };
-  Reports: undefined;
-  Profile: undefined;
-  ScanQRCode: undefined;
-  EditProfile: undefined;
-};
-
-export type MainTabParamList = {
-  DashboardTab: undefined;
-  PurchasesTab: undefined;
-  DraftsTab: undefined;
-  ReportsTab: undefined;
-  ProfileTab: undefined;
-};

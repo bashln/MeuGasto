@@ -23,10 +23,6 @@ export const formatDateInput = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
 
-export const parseDate = (dateString: string): Date => {
-  return new Date(dateString);
-};
-
 export const getMonthName = (month: number): string => {
   const months = [
     'Janeiro',

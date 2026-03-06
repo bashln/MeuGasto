@@ -1,7 +1,31 @@
 import { supabase } from '../lib/supabaseClient';
 import { getCurrentUserId } from './authService';
 
-const SCRAPER_HOST = 'nfce-scraper.herokuapp.com';
+const DEFAULT_SCRAPER_URL = 'https://nfce-scraper.herokuapp.com';
+
+const normalizeScraperBaseUrl = (value?: string): string => {
+  if (!value?.trim()) {
+    return DEFAULT_SCRAPER_URL;
+  }
+
+  const input = value.trim();
+  const withProtocol = /^https?:\/\//i.test(input) ? input : `https://${input}`;
+
+  try {
+    const parsed = new URL(withProtocol);
+    parsed.hash = '';
+    parsed.search = '';
+    return parsed.toString().replace(/\/$/, '');
+  } catch {
+    return DEFAULT_SCRAPER_URL;
+  }
+};
+
+export const NFCE_SCRAPER_BASE_URL = normalizeScraperBaseUrl(
+  process.env.NFCE_SCRAPER_URL || process.env.EXPO_PUBLIC_NFCE_SCRAPER_URL
+);
+
+const SCRAPER_HOST = new URL(NFCE_SCRAPER_BASE_URL).hostname;
 
 interface NFCeItem {
   item: string;
@@ -152,9 +176,84 @@ export const isAllowedNfceUrl = (value: string): boolean => {
   }
 };
 
-const normalizeQrCodeToUrl = (qrCodeData: string): string => {
-  // Agora buildNFCeUrl já faz todo o trabalho de parsing
-  return buildNFCeUrl(qrCodeData);
+const normalizeCnpj = (cnpj?: string): string | null => {
+  if (!cnpj) {
+    return null;
+  }
+
+  return cnpj.replace(/\D/g, '');
+};
+
+const findOrCreateSupermarket = async (
+  userId: string,
+  supermarketId: number | undefined,
+  data: {
+    storeName?: string;
+    cnpj?: string;
+    city?: string;
+    state?: string;
+    requireNonManual?: boolean;
+    allowCnpjLikeMatch?: boolean;
+    createIfMissing?: boolean;
+  }
+): Promise<number | undefined> => {
+  let actualSupermarketId = supermarketId;
+
+  if (!actualSupermarketId && data.cnpj) {
+    const cnpjDigits = normalizeCnpj(data.cnpj);
+
+    if (data.allowCnpjLikeMatch && cnpjDigits) {
+      const { data: existingCnpj } = await supabase
+        .from('supermarkets')
+        .select('id')
+        .like('cnpj', `%${cnpjDigits}%`)
+        .limit(1)
+        .single();
+
+      if (existingCnpj) {
+        actualSupermarketId = existingCnpj.id;
+      }
+    }
+
+    if (!actualSupermarketId) {
+      let query = supabase
+        .from('supermarkets')
+        .select('id')
+        .eq('cnpj', data.cnpj)
+        .limit(1);
+
+      if (data.requireNonManual) {
+        query = query.eq('manual', false);
+      }
+
+      const { data: existing } = await query.single();
+
+      if (existing) {
+        actualSupermarketId = existing.id;
+      }
+    }
+  }
+
+  if (!actualSupermarketId && data.createIfMissing && data.storeName) {
+    const { data: created, error: createError } = await supabase
+      .from('supermarkets')
+      .insert({
+        name: data.storeName,
+        cnpj: data.cnpj || null,
+        city: data.city || null,
+        state: data.state || null,
+        manual: false,
+        user_id: userId,
+      })
+      .select()
+      .single();
+
+    if (!createError && created) {
+      actualSupermarketId = created.id;
+    }
+  }
+
+  return actualSupermarketId;
 };
 
 export const nfceService = {
@@ -167,7 +266,7 @@ export const nfceService = {
     if (accessKey.length !== 44) {
       throw new Error('Chave de acesso inválida. Deve ter 44 dígitos.');
     }
-    const url = normalizeQrCodeToUrl(qrCodeData);
+    const url = buildNFCeUrl(qrCodeData);
 
     if (__DEV__) {
       console.warn('Consultando NFC-e com URL:', url);
@@ -175,7 +274,7 @@ export const nfceService = {
 
     try {
       const response = await fetch(
-        `https://nfce-scraper.herokuapp.com/nfce?nfce_url=${encodeURIComponent(url)}`
+        `${NFCE_SCRAPER_BASE_URL}/nfce?nfce_url=${encodeURIComponent(url)}`
       );
 
       if (!response.ok) {
@@ -224,25 +323,11 @@ export const nfceService = {
     const nfceData = await this.consultQRCode(qrCodeData);
     const accessKey = extractAccessKeyFromQRCode(qrCodeData);
 
-    let actualSupermarketId = supermarketId;
-
-    if (!actualSupermarketId) {
-      const supermarketInfo = nfceData.supermarket;
-      if (supermarketInfo?.cnpj) {
-        const { data: existing } = await supabase
-          .from('supermarkets')
-          .select('id')
-          .eq('cnpj', supermarketInfo.cnpj)
-          .eq('manual', false)
-          .limit(1)
-          .single();
-
-        if (existing) {
-          actualSupermarketId = existing.id;
-        }
-      }
-
-    }
+    const actualSupermarketId = await findOrCreateSupermarket(userId, supermarketId, {
+      cnpj: nfceData.supermarket?.cnpj,
+      requireNonManual: true,
+      createIfMissing: false,
+    });
 
     const itemsPayload = nfceData.items.map(item => ({
       name: item.item,
@@ -306,63 +391,14 @@ export const nfceService = {
   }> {
     const userId = await getCurrentUserId();
 
-    let actualSupermarketId = supermarketId;
-
-    // Helper para normalizar CNPJ (remove pontuação)
-    const normalizeCnpj = (cnpj?: string): string | null => {
-      if (!cnpj) return null;
-      return cnpj.replace(/\D/g, '');
-    };
-
-    // Tentar encontrar supermercado existente pelo CNPJ
-    if (!actualSupermarketId && scrapedData.cnpj) {
-      const cnpjDigits = normalizeCnpj(scrapedData.cnpj);
-      if (cnpjDigits) {
-        // Primeiro tenta buscar pelo CNPJ com dígitos
-        const { data: existingCnpj } = await supabase
-          .from('supermarkets')
-          .select('id')
-          .like('cnpj', `%${cnpjDigits}%`)
-          .limit(1)
-          .single();
-        
-        if (existingCnpj) {
-          actualSupermarketId = existingCnpj.id;
-        } else {
-          // Tenta pelo CNPJ com pontuação original
-          const { data: existing } = await supabase
-            .from('supermarkets')
-            .select('id')
-            .eq('cnpj', scrapedData.cnpj)
-            .limit(1)
-            .single();
-          
-          if (existing) {
-            actualSupermarketId = existing.id;
-          }
-        }
-      }
-    }
-
-    // Criar supermercado automaticamente se não existir
-    if (!actualSupermarketId && scrapedData.storeName) {
-      const { data: created, error: createError } = await supabase
-        .from('supermarkets')
-        .insert({
-          name: scrapedData.storeName,
-          cnpj: scrapedData.cnpj || null,
-          city: scrapedData.city || null,
-          state: scrapedData.state || null,
-          manual: false,
-          user_id: userId,
-        })
-        .select()
-        .single();
-
-      if (!createError && created) {
-        actualSupermarketId = created.id;
-      }
-    }
+    const actualSupermarketId = await findOrCreateSupermarket(userId, supermarketId, {
+      storeName: scrapedData.storeName,
+      cnpj: scrapedData.cnpj,
+      city: scrapedData.city,
+      state: scrapedData.state,
+      allowCnpjLikeMatch: true,
+      createIfMissing: true,
+    });
 
     // Parse emittedAt para data (formato: DD/MM/YYYY HH:MM:SS)
     let purchaseDate = new Date().toISOString().split('T')[0];

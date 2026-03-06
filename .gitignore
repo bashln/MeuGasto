@@ -11,6 +11,9 @@ QWEN.md
 .env
 .env.local
 .env.*.local
+mobile/.env
+mobile/.env.local
+mobile/.env.*.local
 
 # Logs
 logs/

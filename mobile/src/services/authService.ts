@@ -135,18 +135,6 @@ export const authService = {
     };
   },
 
-  async getStoredSession(): Promise<{ accessToken: string | null; refreshToken: string | null }> {
-    const session = await SecureStore.getItemAsync('supabase_session');
-    if (session) {
-      return { accessToken: session, refreshToken: null };
-    }
-    return { accessToken: null, refreshToken: null };
-  },
-
-  async saveSession(sessionData: string): Promise<void> {
-    await SecureStore.setItemAsync('supabase_session', sessionData);
-  },
-
   async forgotPassword(email: string): Promise<void> {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) {

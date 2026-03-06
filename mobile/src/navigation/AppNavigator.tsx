@@ -21,7 +21,7 @@ import {
   ScanQRCodeScreen,
   EditProfileScreen,
 } from '../screens';
-import { RootStackParamList, MainTabParamList } from '../types';
+import { RootStackParamList, MainTabParamList } from './types';
 import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

@@ -19,6 +19,19 @@ type PurchaseUpdateData = {
   updated_at: string;
 };
 
+const mapPurchaseItems = (items: unknown): Purchase['products'] => {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return safeItems.map((item: PurchaseItemRow) => ({
+    id: item.id,
+    name: item.name,
+    code: item.code,
+    quantity: Number(item.quantity) || 1,
+    unit: item.unit,
+    price: Number(item.price) || 0,
+  }));
+};
+
 export const purchaseService = {
   async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
     const userId = await getCurrentUserId();
@@ -64,7 +77,6 @@ export const purchaseService = {
     }
 
     const purchaseData = (purchases || []).map((purchase) => {
-      const safeItems = Array.isArray(purchase.items) ? purchase.items : [];
       return {
         id: purchase.id,
         supermarket: purchase.supermarket,
@@ -72,14 +84,7 @@ export const purchaseService = {
         date: purchase.date,
         totalPrice: parseFloat(purchase.total_price) || 0,
         isManual: purchase.manual,
-        products: safeItems.map((item: PurchaseItemRow) => ({
-          id: item.id,
-          name: item.name,
-          code: item.code,
-          quantity: Number(item.quantity) || 1,
-          unit: item.unit,
-          price: Number(item.price) || 0,
-        })),
+        products: mapPurchaseItems(purchase.items),
         createdAt: purchase.created_at,
         updatedAt: purchase.updated_at,
       };
@@ -118,8 +123,6 @@ export const purchaseService = {
       throw new Error(error.message);
     }
 
-    const safeItems = Array.isArray(purchase.items) ? purchase.items : [];
-
     return {
       id: purchase.id,
       supermarket: purchase.supermarket,
@@ -127,14 +130,7 @@ export const purchaseService = {
       date: purchase.date,
       totalPrice: parseFloat(purchase.total_price) || 0,
       isManual: purchase.manual,
-      products: safeItems.map((item: PurchaseItemRow) => ({
-        id: item.id,
-        name: item.name,
-        code: item.code,
-        quantity: Number(item.quantity) || 1,
-        unit: item.unit,
-        price: Number(item.price) || 0,
-      })),
+      products: mapPurchaseItems(purchase.items),
       createdAt: purchase.created_at,
       updatedAt: purchase.updated_at,
     };

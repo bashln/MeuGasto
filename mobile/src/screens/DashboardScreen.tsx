@@ -6,7 +6,7 @@ import { formatMoney, getMonthName } from '../utils';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
-import { RootStackParamList, MainTabParamList } from '../types';
+import { RootStackParamList, MainTabParamList } from '../navigation/types';
 import { Header, MonthYearPicker, ErrorMessage } from '../components';
 import { colors } from '../theme/colors';
 
@@ -23,6 +23,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
     topItems,
     supermarketData,
     monthlyTotals,
+    previousYearMonthlyTotals,
     selectedMonth,
     selectedYear,
     setSelectedMonth,
@@ -43,17 +44,33 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
   const currentMonthTotal =
     monthlyTotals.find(m => m.month === selectedMonth)?.total || 0;
   const previousMonthTotal =
-    selectedMonth > 1
-      ? monthlyTotals.find(m => m.month === selectedMonth - 1)?.total || 0
-      : 0;
-  const comparisonPercent =
-    previousMonthTotal > 0
-      ? Math.round(((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100)
-      : null;
-  const comparisonText =
-    comparisonPercent === null
-      ? 'Sem base para comparação'
-      : `${comparisonPercent >= 0 ? '+' : ''}${comparisonPercent}% vs mês anterior`;
+    selectedMonth === 1
+      ? previousYearMonthlyTotals.find(m => m.month === 12)?.total || 0
+      : monthlyTotals.find(m => m.month === selectedMonth - 1)?.total || 0;
+  let comparisonText = 'Sem base para comparação';
+  let comparisonTone: 'positive' | 'negative' | 'neutral' = 'neutral';
+
+  if (previousMonthTotal === 0) {
+    if (currentMonthTotal > 0) {
+      comparisonText = 'Início de registro neste mês';
+    } else {
+      comparisonText = 'Sem gastos neste e no mês anterior';
+    }
+  } else if (currentMonthTotal === 0) {
+    comparisonText = '-100% vs mês anterior';
+    comparisonTone = 'positive';
+  } else {
+    const comparisonPercent = Math.round(
+      ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100,
+    );
+    comparisonText = `${comparisonPercent >= 0 ? '+' : ''}${comparisonPercent}% vs mês anterior`;
+
+    if (comparisonPercent > 0) {
+      comparisonTone = 'negative';
+    } else if (comparisonPercent < 0) {
+      comparisonTone = 'positive';
+    }
+  }
 
   const topItem = topItems[0];
   const topMarket = supermarketData
@@ -97,7 +114,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
         <View style={styles.heroCard}>
           <RNText style={styles.heroLabel}>Gasto Total do Mês</RNText>
           <RNText style={styles.heroValue}>{formatMoney(stats?.totalSpent || 0)}</RNText>
-          <View style={styles.heroBadge}>
+          <View
+            style={[
+              styles.heroBadge,
+              comparisonTone === 'positive'
+                ? styles.heroBadgePositive
+                : comparisonTone === 'negative'
+                  ? styles.heroBadgeNegative
+                  : styles.heroBadgeNeutral,
+            ]}
+          >
             <RNText style={styles.heroBadgeText}>{comparisonText}</RNText>
           </View>
         </View>
@@ -257,10 +283,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   heroBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 12,
+  },
+  heroBadgeNeutral: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  heroBadgePositive: {
+    backgroundColor: 'rgba(30,142,62,0.28)',
+  },
+  heroBadgeNegative: {
+    backgroundColor: 'rgba(255,59,48,0.28)',
   },
   heroBadgeText: {
     color: colors.primaryText,
