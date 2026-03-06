@@ -5,7 +5,7 @@ import { NFCeWebView, QRCodeScanner } from '../components';
 import { nfceService, purchaseService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
 import { colors } from '../theme/colors';
 

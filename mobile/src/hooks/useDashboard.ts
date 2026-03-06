@@ -9,6 +9,7 @@ interface UseDashboardResult {
   topItems: Array<{ name: string; quantity: number; total: number }>;
   supermarketData: Array<{ supermarket: string; total: number }>;
   monthlyTotals: Array<{ month: number; total: number }>;
+  previousYearMonthlyTotals: Array<{ month: number; total: number }>;
   selectedMonth: number;
   selectedYear: number;
   setSelectedMonth: (month: number) => void;
@@ -24,6 +25,7 @@ export const useDashboard = (): UseDashboardResult => {
   const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
   const [supermarketData, setSupermarketData] = useState<Array<{ supermarket: string; total: number }>>([]);
   const [monthlyTotals, setMonthlyTotals] = useState<Array<{ month: number; total: number }>>([]);
+  const [previousYearMonthlyTotals, setPreviousYearMonthlyTotals] = useState<Array<{ month: number; total: number }>>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -40,16 +42,20 @@ export const useDashboard = (): UseDashboardResult => {
     const { startDate, endDate } = getMonthRange(selectedMonth, selectedYear);
     
     try {
-      const [statsData, itemsData, marketsData, monthlyData] = await Promise.all([
+      const [statsData, itemsData, marketsData, monthlyData, previousYearMonthlyData] = await Promise.all([
         reportService.getDashboardStats(selectedMonth, selectedYear),
         reportService.getTopItems(5, startDate, endDate),
         reportService.getExpensesBySupermarket(startDate, endDate),
         reportService.getMonthlyExpenses(selectedYear),
+        selectedMonth === 1
+          ? reportService.getMonthlyExpenses(selectedYear - 1)
+          : Promise.resolve([] as Array<{ month: number; total: number }>),
       ]);
       setStats(statsData);
       setTopItems(itemsData);
       setSupermarketData(marketsData);
       setMonthlyTotals(monthlyData);
+      setPreviousYearMonthlyTotals(previousYearMonthlyData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar dashboard';
       setError(message);
@@ -73,6 +79,7 @@ export const useDashboard = (): UseDashboardResult => {
     topItems,
     supermarketData,
     monthlyTotals,
+    previousYearMonthlyTotals,
     selectedMonth,
     selectedYear,
     setSelectedMonth,

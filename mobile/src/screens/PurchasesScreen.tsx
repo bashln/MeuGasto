@@ -6,7 +6,7 @@ import { usePurchases } from '../context';
 import { Header, PurchaseCard, Loading, ErrorMessage } from '../components';
 import { Purchase, PurchaseFilter } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { formatMoney } from '../utils';
 import { colors } from '../theme/colors';
 

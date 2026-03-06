@@ -2,27 +2,27 @@ import { supabase } from '../lib/supabaseClient';
 import { DashboardStats } from '../types';
 import { getCurrentUserId } from './authService';
 
+const buildDateRange = (month?: number, year?: number): { startDate: string; endDate: string } => {
+  if (month && year) {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { startDate, endDate };
+  }
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+  const endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { startDate, endDate };
+};
+
 export const reportService = {
   async getDashboardStats(month?: number, year?: number): Promise<DashboardStats> {
     const userId = await getCurrentUserId();
-
-    // Construir range de datas para o mês/ano especificado
-    let startDate: string;
-    let endDate: string;
-
-    if (month && year) {
-      startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    } else {
-      // Mês atual por padrão
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-      startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-      const lastDay = new Date(currentYear, currentMonth, 0).getDate();
-      endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    }
+    const { startDate, endDate } = buildDateRange(month, year);
 
     // Buscar compras do período
     const { data: purchases, error: purchasesError } = await supabase

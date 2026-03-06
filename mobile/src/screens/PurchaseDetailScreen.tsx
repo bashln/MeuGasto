@@ -7,7 +7,7 @@ import { formatMoney, formatDate } from '../utils';
 import { Loading, ErrorMessage, Header } from '../components';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
 type PurchaseDetailScreenProps = {

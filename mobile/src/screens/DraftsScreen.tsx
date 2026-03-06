@@ -4,9 +4,9 @@ import { Text, FAB, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDrafts } from '../context';
 import { DraftCard, Header, Loading, ErrorMessage } from '../components';
-import { Rascunho } from '../types';
+import { Draft } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
 type DraftsScreenProps = {
@@ -49,11 +49,11 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
     await loadMoreDrafts(buildServerFilter(nextPage));
   }, [buildServerFilter, hasMore, isLoading, isLoadingMore, loadMoreDrafts, page?.pageNumber]);
 
-  const handleDraftPress = (draft: Rascunho) => {
+  const handleDraftPress = (draft: Draft) => {
     navigation.navigate('DraftDetail', { draftId: draft.id });
   };
 
-  const handleDeleteDraft = (draft: Rascunho) => {
+  const handleDeleteDraft = (draft: Draft) => {
     Alert.alert(
       'Excluir Rascunho',
       'Tem certeza que deseja excluir este rascunho?',
@@ -73,7 +73,7 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
   };
 
   const filteredDrafts = drafts.filter((draft) => {
-    const content = draft.conteudo.toLowerCase();
+    const content = draft.content.toLowerCase();
     const supermarketName = draft.supermarket?.name?.toLowerCase() || '';
     return (
       content.includes(searchQuery.toLowerCase()) ||

@@ -12,7 +12,7 @@ import { Text, TextInput } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authService } from "../services";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../types";
+import { RootStackParamList } from '../navigation/types';
 import { colors } from "../theme/colors";
 
 type ForgotPasswordScreenProps = {

@@ -308,7 +308,7 @@ export const ReportsScreen: React.FC = () => {
   const renderMercadosView = () => {
     const sorted = [...supermarketData].sort((a, b) => b.total - a.total);
     const grandTotal = sorted.reduce((sum, s) => sum + s.total, 0);
-    const maxTotal = sorted.length > 0 ? sorted[0].total : 1;
+    const maxTotal = sorted.length > 0 ? sorted[0].total : 0;
 
     return (
       <>
@@ -329,7 +329,12 @@ export const ReportsScreen: React.FC = () => {
               <RNText style={styles.emptyComparisonText}>Nenhum dado disponível.</RNText>
             </View>
           ) : (
-            sorted.map((item, index) => (
+            sorted.map((item, index) => {
+              const widthPercent = maxTotal > 0
+                ? Math.min((item.total / maxTotal) * 100, 100)
+                : 0;
+
+              return (
               <View
                 key={`${item.supermarket}-${index}`}
                 style={[styles.mercadoRow, index === sorted.length - 1 && styles.tableRowLast]}
@@ -339,10 +344,11 @@ export const ReportsScreen: React.FC = () => {
                   <RNText style={styles.mercadoTotal}>{formatMoney(item.total)}</RNText>
                 </View>
                 <View style={styles.mercadoBarContainer}>
-                  <View style={[styles.mercadoBar, { width: `${(item.total / maxTotal) * 100}%` }]} />
+                  <View style={[styles.mercadoBar, { width: `${widthPercent}%` }]} />
                 </View>
               </View>
-            ))
+              );
+            })
           )}
         </View>
       </>

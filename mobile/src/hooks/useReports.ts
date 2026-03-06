@@ -103,14 +103,19 @@ export const useReports = (): UseReportsResult => {
 
   useEffect(() => {
     if (reportType !== 'itens') return;
-    if (topItems.length === 0) {
-      setSelectedItem('');
-      return;
-    }
-    if (!selectedItem || !topItems.find(item => item.name === selectedItem)) {
-      setSelectedItem(topItems[0]?.name || '');
-    }
-  }, [reportType, topItems, selectedItem]);
+    setSelectedItem((prevSelectedItem) => {
+      if (topItems.length === 0) {
+        return prevSelectedItem ? '' : prevSelectedItem;
+      }
+
+      const hasSelectedItem = topItems.some(item => item.name === prevSelectedItem);
+      if (hasSelectedItem) {
+        return prevSelectedItem;
+      }
+
+      return topItems[0]?.name ?? '';
+    });
+  }, [reportType, topItems]);
 
   return {
     isLoading,

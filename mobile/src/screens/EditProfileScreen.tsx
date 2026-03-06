@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RootStackParamList, MainTabParamList } from '../types';
+import { RootStackParamList, MainTabParamList } from '../navigation/types';
 import { useAuth } from '../context';
 import { authService } from '../services';
 import { colors } from '../theme/colors';

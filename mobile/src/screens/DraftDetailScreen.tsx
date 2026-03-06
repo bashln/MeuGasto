@@ -12,12 +12,12 @@ import {
   Card,
 } from 'react-native-paper';
 import { useDrafts } from '../context';
-import { Rascunho } from '../types';
+import { Draft } from '../types';
 import { formatMoney, formatDate } from '../utils';
 import { Loading, ErrorMessage, Header } from '../components';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
 type DraftDetailScreenProps = {
@@ -39,14 +39,14 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
   const { draftId } = route.params;
   const { getDraft, createDraft, updateDraft, deleteDraft, convertToPurchase } = useDrafts();
   
-  const [draft, setDraft] = useState<Rascunho | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
 
   // Form state
-  const [conteudo, setConteudo] = useState('');
+  const [content, setContent] = useState('');
   const [items, setItems] = useState<DraftItem[]>([]);
   const [newItem, setNewItem] = useState<DraftItem>({ name: '', quantity: 1, unit: 'un', price: 0 });
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
@@ -57,7 +57,7 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
     try {
       const data = await getDraft(draftId);
       setDraft(data);
-      setConteudo(data.conteudo);
+      setContent(data.content);
       setItems(data.items ?? []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar rascunho';
@@ -76,7 +76,7 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
   }, [isNewDraft, loadDraft]);
 
   const handleSave = async () => {
-    if (!conteudo.trim() && items.length === 0) {
+    if (!content.trim() && items.length === 0) {
       Alert.alert('Erro', 'Adicione uma descrição ou pelo menos um item');
       return;
     }
@@ -85,9 +85,9 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
 
     try {
       if (isNewDraft) {
-        await createDraft({ conteudo, items });
+        await createDraft({ content, items });
       } else {
-        await updateDraft(draftId, { conteudo, items });
+        await updateDraft(draftId, { content, items });
       }
       navigation.goBack();
     } catch (err: unknown) {
@@ -187,8 +187,8 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
         <Surface style={styles.formCard} elevation={2}>
           <TextInput
             label="Descrição"
-            value={conteudo}
-            onChangeText={setConteudo}
+            value={content}
+            onChangeText={setContent}
             mode="outlined"
             multiline
             numberOfLines={3}

@@ -63,7 +63,7 @@ describe('draftService.getDraftById', () => {
 
     const result = await draftService.getDraftById(1);
 
-    expect(result.conteudo).toBe('Compra de quinta');
+    expect(result.content).toBe('Compra de quinta');
     expect(result.items).toEqual([{ name: 'Leite', quantity: 2, unit: 'l', price: 3.5 }]);
     expect(result.totalPrice).toBe(7);
   });
@@ -77,7 +77,7 @@ describe('draftService.getDraftById', () => {
 
     const result = await draftService.getDraftById(1);
 
-    expect(result.conteudo).toBe('texto livre antigo');
+    expect(result.content).toBe('texto livre antigo');
     expect(result.items).toEqual([]);
   });
 
@@ -112,7 +112,7 @@ describe('draftService.createDraft', () => {
     });
     (supabase.from as jest.Mock).mockReturnValue(chain);
 
-    const result = await draftService.createDraft({ conteudo: 'Lista', items });
+    const result = await draftService.createDraft({ content: 'Lista', items });
 
     // Verifica que o insert recebeu o JSON correto
     const insertCall = chain.insert.mock.calls[0][0];
@@ -141,7 +141,7 @@ describe('draftService.createDraft', () => {
     });
     (supabase.from as jest.Mock).mockReturnValue(chain);
 
-    await draftService.createDraft({ conteudo: '', items });
+    await draftService.createDraft({ content: '', items });
 
     const insertCall = chain.insert.mock.calls[0][0];
     expect(insertCall.total_price).toBe(15);
@@ -155,7 +155,7 @@ describe('draftService.createDraft', () => {
     });
     (supabase.from as jest.Mock).mockReturnValue(chain);
 
-    await draftService.createDraft({ conteudo: 'sem itens', items: [] });
+    await draftService.createDraft({ content: 'sem itens', items: [] });
 
     const insertCall = chain.insert.mock.calls[0][0];
     expect(insertCall.total_price).toBe(0);
@@ -167,7 +167,7 @@ describe('draftService.createDraft', () => {
 describe('draftService.convertDraftToPurchase', () => {
   const DRAFT_WITH_ITEMS = {
     id: 1,
-    conteudo: 'Compra de quinta',
+    content: 'Compra de quinta',
     items: [
       { name: 'Leite', quantity: 2, unit: 'l', price: 3.5 },
       { name: 'Pão', quantity: 1, unit: 'un', price: 5.0 },

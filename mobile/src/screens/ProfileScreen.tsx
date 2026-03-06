@@ -8,7 +8,7 @@ import { authService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
-import { RootStackParamList, MainTabParamList } from '../types';
+import { RootStackParamList, MainTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { Header } from '../components';
 import appConfig from '../../app.json';

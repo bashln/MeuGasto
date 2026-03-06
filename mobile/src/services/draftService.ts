@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { Rascunho, RascunhoFilter, CreateRascunhoRequest, UpdateRascunhoRequest } from '../types';
+import { Draft, DraftFilter, CreateDraftRequest, UpdateDraftRequest } from '../types';
 import { getCurrentUserId } from './authService';
 import { purchaseService } from './purchaseService';
 import { DraftItem, parseContent, serializeContent } from './draftContent';
@@ -20,7 +20,7 @@ type DraftUpdateData = {
 };
 
 export const draftService = {
-  async getDrafts(filter?: RascunhoFilter): Promise<{ data: Rascunho[]; page: PaginationInfo }> {
+  async getDrafts(filter?: DraftFilter): Promise<{ data: Draft[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
 
     let query = supabase
@@ -54,7 +54,7 @@ export const draftService = {
         return {
           id: d.id,
           supermarket: d.supermarket,
-          conteudo: notes,
+          content: notes,
           totalPrice: parseFloat(d.total_price) || 0,
           createdAt: d.created_at,
           updatedAt: d.updated_at,
@@ -70,7 +70,7 @@ export const draftService = {
     };
   },
 
-  async getDraftById(id: number): Promise<Rascunho> {
+  async getDraftById(id: number): Promise<Draft> {
     const userId = await getCurrentUserId();
 
     const { data: draft, error } = await supabase
@@ -92,7 +92,7 @@ export const draftService = {
     return {
       id: draft.id,
       supermarket: draft.supermarket,
-      conteudo: notes,
+      content: notes,
       items,
       totalPrice: parseFloat(draft.total_price) || 0,
       createdAt: draft.created_at,
@@ -100,12 +100,12 @@ export const draftService = {
     };
   },
 
-  async createDraft(data: CreateRascunhoRequest): Promise<Rascunho> {
+  async createDraft(data: CreateDraftRequest): Promise<Draft> {
     const userId = await getCurrentUserId();
 
     const items: DraftItem[] = data.items || [];
     const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const content = serializeContent(data.conteudo, items);
+    const content = serializeContent(data.content, items);
 
     const { data: draft, error } = await supabase
       .from('drafts')
@@ -125,15 +125,15 @@ export const draftService = {
     return this.getDraftById(draft.id);
   },
 
-  async updateDraft(id: number, data: UpdateRascunhoRequest): Promise<Rascunho> {
+  async updateDraft(id: number, data: UpdateDraftRequest): Promise<Draft> {
     const userId = await getCurrentUserId();
 
     const updateData: DraftUpdateData = {
       updated_at: new Date().toISOString(),
     };
 
-    if (data.conteudo !== undefined || data.items !== undefined) {
-      const notes = data.conteudo ?? '';
+    if (data.content !== undefined || data.items !== undefined) {
+      const notes = data.content ?? '';
       const items: DraftItem[] = data.items ?? [];
       const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
       updateData.content = serializeContent(notes, items);
