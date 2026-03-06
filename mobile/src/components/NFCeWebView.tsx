@@ -2,28 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, ActivityIndicator, Text, Button } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../theme/colors';
-import { NFCE_ALLOWED_HOSTS } from '../services/nfceService';
+import { NFCeScrapedData, validateAndSanitizeNFCePayload } from '../lib/nfcePayloadValidation';
+import { isAllowedNfceUrl } from '../services/nfceService';
 import { NFCE_SCRAPE_SCRIPT } from '../utils/nfceScraperScript';
 
 const DEBUG = __DEV__ || false;
 
-interface NFCeItem {
-  name: string;
-  quantity: number;
-  unit: string;
-  unityPrice: number;
-  totalPrice: number;
-}
-
-interface NFCeScrapedData {
-  storeName: string;
-  cnpj: string;
-  city: string;
-  state: string;
-  date: string;
-  time?: string;
-  total: number;
-  items: NFCeItem[];
+interface WebViewNavigationRequest {
+  url: string;
+  isTopFrame?: boolean;
 }
 
 interface NFCeWebViewProps {
@@ -34,6 +21,19 @@ interface NFCeWebViewProps {
   onCancel: () => void;
   timeout?: number;
 }
+
+export const shouldAllowNfceNavigationRequest = (request: WebViewNavigationRequest): boolean => {
+  if (!request.url) {
+    return false;
+  }
+
+  if (request.url === 'about:blank') {
+    return true;
+  }
+
+  const topFrame = request.isTopFrame !== false;
+  return isAllowedNfceUrl(request.url, { requireExpectedPath: topFrame });
+};
 
 export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   visible,
@@ -66,20 +66,13 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     }
   };
 
-  const isAllowedNavigation = (targetUrl?: string): boolean => {
-    if (!targetUrl) return false;
-    if (targetUrl === 'about:blank') return true;
-
-    try {
-      const parsed = new URL(targetUrl);
-      return NFCE_ALLOWED_HOSTS.has(parsed.hostname);
-    } catch {
-      return false;
-    }
-  };
-
   useEffect(() => {
     if (visible) {
+      if (!isAllowedNfceUrl(url, { requireExpectedPath: true })) {
+        onError('URL NFC-e bloqueada por seguranca.');
+        return;
+      }
+
       setStatusMessage('Isso pode levar alguns segundos.');
 
       // Configurar timeout
@@ -99,7 +92,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     return () => {
       clearAllTimeouts();
     };
-  }, [visible, timeout, onError]);
+  }, [visible, timeout, onError, url]);
 
   const handleMessage = (event: { nativeEvent: { data?: string } }) => {
     try {
@@ -115,13 +108,15 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
       } else if (message.type === 'NFCE_SCRAPE_RESULT') {
         clearAllTimeouts();
         if (message.ok) {
-          onSuccess(message.data);
+          const sanitizedPayload = validateAndSanitizeNFCePayload(message.data);
+          onSuccess(sanitizedPayload);
         } else {
           onError(message.error || 'Erro ao extrair dados da nota fiscal');
         }
       }
     } catch (e) {
       console.error('[NFCeWebView] Erro ao parsear mensagem:', e);
+      onError('Falha ao validar dados da NFC-e. Tente novamente.');
     }
   };
 
@@ -148,10 +143,8 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     }
   };
 
-  const handleShouldStartLoadWithRequest = (request: { url: string }) => {
-    const isAllowed = isAllowedNavigation(request.url);
-
-    if (!isAllowed) {
+  const handleShouldStartLoadWithRequest = (request: WebViewNavigationRequest) => {
+    if (!shouldAllowNfceNavigationRequest(request)) {
       onError('Navegação bloqueada por segurança. Tente novamente.');
       return false;
     }

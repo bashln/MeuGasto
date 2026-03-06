@@ -193,4 +193,148 @@ npm run lint          # ESLint
 
 ---
 
+## 🔒 Plano de Correção de Segurança
+
+**Auditoria realizada em:** 06/03/2026  
+**Status:** Em implementação
+
+### Resumo de Riscos Identificados
+
+| ID | Vulnerabilidade | Severidade | Impacto |
+|----|-----------------|------------|---------|
+| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado |
+| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário |
+| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados |
+| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros |
+| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos |
+
+---
+
+### 📋 Plano de Correção Faseado
+
+#### FASE 1: Hotfixes Imediatos (48 horas)
+
+**Objetivo:** Mitigar riscos críticos com impacto imediato na segurança.
+
+| Item | ID | Ação | Prioridade | Esforço | Risco Reduzido |
+|------|----|------|------------|---------|----------------|
+| 1.1 | SEC-001 | Migrar AsyncStorage para SecureStore na sessão Supabase | P0 | 4h | Token inacessível sem root |
+| 1.2 | SEC-002 | Implementar hash da chave NFC-e antes de envio ao scraper | P0 | 3h | Privacidade preservada |
+| 1.3 | SEC-003 | Adicionar validação JSON Schema no retorno do WebView | P1 | 4h | Prevenção de injeção |
+| 1.4 | SEC-005 | Reforçar whitelist com validação de path e protocolo | P1 | 2h | Bloqueio de navegação maliciosa |
+
+**Critérios de Aceite Fase 1:**
+- [ ] Tokens Supabase armazenados em SecureStore (expo-secure-store)
+- [ ] Chaves NFC-e hasheadas (SHA-256) antes do envio ao scraper externo
+- [ ] WebView valida estrutura dos dados via JSON Schema antes de processar
+- [ ] Whitelist valida protocolo HTTPS, hostname E path permitidos
+- [ ] Testes de segurança passam (injeção de scripts, tokens expostos)
+
+**Artefatos a Modificar:**
+```
+mobile/src/lib/supabaseClient.ts          # SEC-001: SecureStore
+mobile/src/services/nfceService.ts        # SEC-002: Hash de chaves
+mobile/src/components/NFCeWebView.tsx     # SEC-003: Sanitização
+mobile/src/utils/nfceValidator.ts         # SEC-003: Schema validation
+mobile/src/services/nfceService.ts        # SEC-005: URL validation
+```
+
+---
+
+#### FASE 2: Hardening (7 dias)
+
+**Objetivo:** Implementar controles de segurança robustos e auditoria.
+
+| Item | ID | Ação | Prioridade | Esforço | Risco Reduzido |
+|------|----|------|------------|---------|----------------|
+| 2.1 | SEC-004 | Adicionar validações rigorosas na função SQL create_purchase_with_items | P0 | 6h | Integridade dos dados |
+| 2.2 | SEC-002 | Implementar criptografia de dados sensíveis em trânsito | P1 | 4h | Confidencialidade |
+| 2.3 | SEC-003 | Content Security Policy no WebView | P1 | 3h | Mitigação XSS |
+| 2.4 | Geral | Implementar logging de segurança | P2 | 4h | Auditoria e detecção |
+| 2.5 | SEC-001 | Rotação automática de tokens | P2 | 3h | Minimizar janela de exposição |
+
+**Critérios de Aceite Fase 2:**
+- [ ] Função SQL valida: tamanho máximo de strings, ranges numéricos, formato de data
+- [ ] Comunicação com scraper usa TLS 1.3 e cert pinning
+- [ ] WebView com CSP restritivo (script-src 'none', connect-src 'self')
+- [ ] Logs de segurança: tentativas de navegação bloqueadas, validações falhas
+- [ ] Tokens rotacionados a cada 7 dias ou em eventos de segurança
+
+**Artefatos a Modificar:**
+```
+mobile/supabase_schema.sql                # SEC-004: Validações SQL
+mobile/src/services/nfceService.ts        # SEC-002: TLS/Cert pinning
+mobile/src/components/NFCeWebView.tsx     # SEC-003: CSP headers
+mobile/src/utils/securityLogger.ts        # Geral: Logging
+mobile/src/lib/supabaseClient.ts          # SEC-001: Token rotation
+```
+
+---
+
+#### FASE 3: Reforço e Documentação (30 dias)
+
+**Objetivo:** Consolidar postura de segurança e documentação.
+
+| Item | ID | Ação | Prioridade | Esforço | Risco Reduzido |
+|------|----|------|------------|---------|----------------|
+| 3.1 | Geral | Pentest automatizado no CI/CD | P1 | 8h | Detecção contínua |
+| 3.2 | SEC-002 | Cache local de NFC-e (evita reenvio) | P2 | 6h | Redução de tráfego sensível |
+| 3.3 | SEC-003 | Sandbox isolada para WebView | P2 | 8h | Containment |
+| 3.4 | Geral | Documentação de segurança para devs | P2 | 4h | Conscientização |
+| 3.5 | Geral | Treinamento de segurança (OWASP Mobile) | P3 | 4h | Prevenção proativa |
+
+**Critérios de Aceite Fase 3:**
+- [ ] Pipeline CI executa: dependency-check, SAST (Semgrep), secrets scanning
+- [ ] NFC-e consultada uma única vez, cache criptografado localmente
+- [ ] WebView executa em processo isolado (Android) / WKProcessPool (iOS)
+- [ ] Guia de segurança para desenvolvedores publicado
+- [ ] Checklist de segurança em PRs
+
+**Artefatos a Modificar:**
+```
+.github/workflows/security.yml            # 3.1: CI Security
+mobile/src/services/nfceCacheService.ts   # 3.2: Cache criptografado
+mobile/src/components/NFCeWebView.tsx     # 3.3: Sandboxing
+SECURITY.md                               # 3.4: Documentação
+```
+
+---
+
+### 🔗 Dependências entre Tarefas
+
+```
+FASE 1 (48h)
+├── SEC-001 [Bloqueia] → SEC-002, SEC-004
+├── SEC-002 [Independente]
+├── SEC-003 [Independente]
+└── SEC-005 [Independente]
+
+FASE 2 (7d)
+├── SEC-004 [Depende SEC-001]
+├── SEC-002-hardening [Depende SEC-002-hotfix]
+├── SEC-003-csp [Depende SEC-003-validation]
+├── Logging [Independente]
+└── Token rotation [Depende SEC-001]
+
+FASE 3 (30d)
+├── Pentest [Depende FASE 1+2]
+├── Cache [Depende SEC-002]
+├── Sandbox [Depende SEC-003]
+└── Docs [Independente]
+```
+
+---
+
+### 📊 Métricas de Segurança
+
+| Métrica | Baseline (06/03) | Meta Fase 1 | Meta Fase 2 | Meta Fase 3 |
+|---------|------------------|-------------|-------------|-------------|
+| Vulnerabilidades Críticas | 1 | 0 | 0 | 0 |
+| Vulnerabilidades Altas | 3 | 2 | 0 | 0 |
+| Dados sensíveis em texto plano | Sim | Não | Não | Não |
+| Cobertura de validação de entrada | 30% | 60% | 90% | 95% |
+| Tempo médio de detecção (MTTD) | N/A | N/A | 24h | 1h |
+
+---
+
 *Última atualização: 06/03/2026*

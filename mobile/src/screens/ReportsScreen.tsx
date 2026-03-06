@@ -4,10 +4,19 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useReports } from '../hooks/useReports';
 import { formatMoney, getMonthName } from '../utils';
 import { Header, Loading, ErrorMessage } from '../components';
+import { toCsvRow } from '../lib/csvSecurity';
 import { colors } from '../theme/colors';
 
 const currentYear = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+const EMPTY_ITEM_REPORT = {
+  totalQuantity: 0,
+  totalSpent: 0,
+  averagePrice: 0,
+  purchaseCount: 0,
+  bySupermarket: [] as Array<{ supermarket: string; averagePrice: number; totalQuantity: number; totalSpent: number }>,
+};
 
 export const ReportsScreen: React.FC = () => {
   const {
@@ -27,32 +36,36 @@ export const ReportsScreen: React.FC = () => {
   } = useReports();
 
   // TODO(vNext): reativar filtro de periodo de analise com opcoes dinamicas.
-  // const [selectedPeriod, setSelectedPeriod] = useState('Últimos 6 meses');
-  const [selectedMarket] = useState('Todos');
-  const [sortBy] = useState('Preço');
+  const selectedMarket = 'Todos';
+  const sortBy = 'Preço';
   const [itemPickerVisible, setItemPickerVisible] = useState(false);
 
   const handleExportCSV = async () => {
     let csvString = '';
 
     if (reportType === 'geral') {
-      csvString = 'Mês,Total\n' +
-        monthlyData.map(m => `${getMonthName(m.month)},${m.total.toFixed(2)}`).join('\n');
+      csvString = [
+        toCsvRow(['Mes', 'Total']),
+        ...monthlyData.map(m => toCsvRow([getMonthName(m.month), m.total.toFixed(2)])),
+      ].join('\n');
     } else if (reportType === 'itens') {
-      const itemReportData = itemReport || {
-        totalQuantity: 0,
-        totalSpent: 0,
-        averagePrice: 0,
-        purchaseCount: 0,
-        bySupermarket: [],
-      };
-      csvString = 'Supermercado,Preço Médio,Qtd Total,Total Gasto\n' +
-        itemReportData.bySupermarket.map(row =>
-          `${row.supermarket},${row.averagePrice.toFixed(2)},${row.totalQuantity},${row.totalSpent.toFixed(2)}`
-        ).join('\n');
+      const itemReportData = itemReport || EMPTY_ITEM_REPORT;
+      csvString = [
+        toCsvRow(['Supermercado', 'Preco Medio', 'Qtd Total', 'Total Gasto']),
+        ...itemReportData.bySupermarket.map(row =>
+          toCsvRow([
+            row.supermarket,
+            row.averagePrice.toFixed(2),
+            row.totalQuantity,
+            row.totalSpent.toFixed(2),
+          ])
+        ),
+      ].join('\n');
     } else if (reportType === 'mercados') {
-      csvString = 'Supermercado,Total\n' +
-        supermarketData.map(s => `${s.supermarket},${s.total.toFixed(2)}`).join('\n');
+      csvString = [
+        toCsvRow(['Supermercado', 'Total']),
+        ...supermarketData.map(s => toCsvRow([s.supermarket, s.total.toFixed(2)])),
+      ].join('\n');
     }
 
     try {
@@ -80,13 +93,7 @@ export const ReportsScreen: React.FC = () => {
 
   const totalItems = topItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const itemReportData = itemReport || {
-    totalQuantity: 0,
-    totalSpent: 0,
-    averagePrice: 0,
-    purchaseCount: 0,
-    bySupermarket: [],
-  };
+  const itemReportData = itemReport || EMPTY_ITEM_REPORT;
 
   const hasItemData = itemReportData.totalQuantity > 0;
   const comparisonPrices = itemReportData.bySupermarket
@@ -123,19 +130,22 @@ export const ReportsScreen: React.FC = () => {
       <View style={styles.chartCard}>
         <RNText style={styles.chartTitle}>Evolução de Gastos</RNText>
         <View style={styles.chartArea}>
-          {chartData.map((item, index) => (
+          {(() => {
+            const maxChartValue = Math.max(...chartData.map(d => d.value)) || 1;
+            return chartData.map((item, index) => (
             <View key={index} style={styles.chartBarContainer}>
               <View style={styles.chartBarWrapper}>
                 <View
                   style={[
                     styles.chartBar,
-                    { height: `${Math.min((item.value / (Math.max(...chartData.map(d => d.value)) || 1)) * 100, 100)}%` }
+                    { height: `${Math.min((item.value / maxChartValue) * 100, 100)}%` }
                   ]}
                 />
               </View>
               <RNText style={styles.chartLabel}>{item.month}</RNText>
             </View>
-          ))}
+          ));
+          })()}
         </View>
       </View>
 
@@ -284,18 +294,11 @@ export const ReportsScreen: React.FC = () => {
                   {formatMoney(row.averagePrice)}
                 </RNText>
                 <View style={styles.statusContainer}>
-                  {statusLabel === 'Melhor preço' && (
-                    <RNText style={styles.statusBest}>{statusLabel}</RNText>
-                  )}
-                  {statusLabel === 'Mais caro' && (
-                    <RNText style={styles.statusWorst}>{statusLabel}</RNText>
-                  )}
-                  {statusLabel === '-' && (
-                    <RNText style={styles.statusMedium}>{statusLabel}</RNText>
-                  )}
-                  {statusLabel === 'Único' && (
-                    <RNText style={styles.statusMedium}>{statusLabel}</RNText>
-                  )}
+                  <RNText style={
+                    statusLabel === 'Melhor preço' ? styles.statusBest
+                    : statusLabel === 'Mais caro' ? styles.statusWorst
+                    : styles.statusMedium
+                  }>{statusLabel}</RNText>
                 </View>
               </View>
             );

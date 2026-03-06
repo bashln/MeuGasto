@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner } from '../components';
+import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
 import { nfceService, purchaseService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,22 +13,6 @@ import { colors } from '../theme/colors';
 type ScanQRCodeScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ScanQRCode'>;
 };
-
-interface ScrapedData {
-  storeName?: string;
-  cnpj?: string;
-  emittedAt?: string;
-  city?: string;
-  state?: string;
-  total: number;
-  items: Array<{
-    name: string;
-    quantity: number;
-    unit: string;
-    unityPrice?: number;
-    totalPrice?: number;
-  }>;
-}
 
 export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -77,7 +62,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     setShowCamera(false);
   };
 
-  const handleWebViewSuccess = async (scrapedData: ScrapedData) => {
+  const handleWebViewSuccess = async (scrapedData: NFCeScrapedData) => {
     try {
       if (__DEV__) {
         console.warn('Dados extraídos:', scrapedData);

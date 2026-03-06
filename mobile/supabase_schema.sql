@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS purchases (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE purchases DROP CONSTRAINT IF EXISTS purchases_access_key_format_check;
+ALTER TABLE purchases ADD CONSTRAINT purchases_access_key_format_check
+  CHECK (access_key IS NULL OR access_key ~ '^\d{44}$');
+
+ALTER TABLE purchases DROP CONSTRAINT IF EXISTS purchases_total_price_range_check;
+ALTER TABLE purchases ADD CONSTRAINT purchases_total_price_range_check
+  CHECK (total_price >= 0 AND total_price <= 99999999.99);
+
 -- =============================================
 -- ITEMS TABLE
 -- =============================================
@@ -61,6 +69,26 @@ CREATE TABLE IF NOT EXISTS items (
   price DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_name_length_check;
+ALTER TABLE items ADD CONSTRAINT items_name_length_check
+  CHECK (char_length(btrim(name)) > 0 AND char_length(name) <= 200);
+
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_code_length_check;
+ALTER TABLE items ADD CONSTRAINT items_code_length_check
+  CHECK (code IS NULL OR char_length(code) <= 80);
+
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_unit_length_check;
+ALTER TABLE items ADD CONSTRAINT items_unit_length_check
+  CHECK (unit IS NULL OR char_length(unit) <= 16);
+
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_quantity_range_check;
+ALTER TABLE items ADD CONSTRAINT items_quantity_range_check
+  CHECK (quantity > 0 AND quantity <= 99999);
+
+ALTER TABLE items DROP CONSTRAINT IF EXISTS items_price_range_check;
+ALTER TABLE items ADD CONSTRAINT items_price_range_check
+  CHECK (price >= 0 AND price <= 99999999.99);
 
 -- =============================================
 -- DRAFTS TABLE
@@ -241,7 +269,85 @@ SECURITY INVOKER
 AS $$
 DECLARE
   v_purchase_id INTEGER;
+  v_max_items INTEGER := 300;
+  v_max_text_length INTEGER := 200;
+  v_max_code_length INTEGER := 80;
+  v_max_unit_length INTEGER := 16;
+  v_item JSONB;
+  v_item_count INTEGER;
+  v_name TEXT;
+  v_code TEXT;
+  v_unit TEXT;
+  v_quantity NUMERIC;
+  v_price NUMERIC;
+  v_line_total NUMERIC;
 BEGIN
+  IF p_total_price IS NULL OR p_total_price < 0 OR p_total_price > 99999999.99 THEN
+    RAISE EXCEPTION 'total_price fora do intervalo permitido';
+  END IF;
+
+  IF p_access_key IS NOT NULL THEN
+    p_access_key := btrim(p_access_key);
+    IF p_access_key = '' THEN
+      p_access_key := NULL;
+    ELSIF p_access_key !~ '^\d{44}$' THEN
+      RAISE EXCEPTION 'access_key invalida: deve conter 44 digitos';
+    END IF;
+  END IF;
+
+  IF p_items IS NULL THEN
+    p_items := '[]'::JSONB;
+  END IF;
+
+  IF jsonb_typeof(p_items) <> 'array' THEN
+    RAISE EXCEPTION 'items deve ser um array JSON';
+  END IF;
+
+  v_item_count := jsonb_array_length(p_items);
+  IF v_item_count > v_max_items THEN
+    RAISE EXCEPTION 'limite de % itens por compra excedido', v_max_items;
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+  LOOP
+    v_name := btrim(COALESCE(v_item->>'name', ''));
+    v_code := NULLIF(btrim(COALESCE(v_item->>'code', '')), '');
+    v_unit := NULLIF(btrim(COALESCE(v_item->>'unit', '')), '');
+
+    IF char_length(v_name) = 0 OR char_length(v_name) > v_max_text_length THEN
+      RAISE EXCEPTION 'item.name invalido: tamanho maximo de % caracteres', v_max_text_length;
+    END IF;
+
+    IF v_code IS NOT NULL AND char_length(v_code) > v_max_code_length THEN
+      RAISE EXCEPTION 'item.code invalido: tamanho maximo de % caracteres', v_max_code_length;
+    END IF;
+
+    IF v_unit IS NOT NULL AND char_length(v_unit) > v_max_unit_length THEN
+      RAISE EXCEPTION 'item.unit invalido: tamanho maximo de % caracteres', v_max_unit_length;
+    END IF;
+
+    BEGIN
+      v_quantity := COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1);
+      v_price := COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0);
+    EXCEPTION
+      WHEN invalid_text_representation THEN
+        RAISE EXCEPTION 'item.quantity/item.price contem valor nao numerico';
+    END;
+
+    IF v_quantity <= 0 OR v_quantity > 99999 THEN
+      RAISE EXCEPTION 'item.quantity fora do intervalo permitido';
+    END IF;
+
+    IF v_price < 0 OR v_price > 99999999.99 THEN
+      RAISE EXCEPTION 'item.price fora do intervalo permitido';
+    END IF;
+
+    v_line_total := ROUND(v_quantity * v_price, 2);
+    IF v_line_total < 0 OR v_line_total > 99999999.99 THEN
+      RAISE EXCEPTION 'item.total_price fora do intervalo permitido';
+    END IF;
+  END LOOP;
+
   IF p_access_key IS NOT NULL THEN
     SELECT id
       INTO v_purchase_id
@@ -284,29 +390,26 @@ BEGIN
        LIMIT 1;
   END;
 
-  IF p_items IS NOT NULL AND jsonb_typeof(p_items) = 'array' AND jsonb_array_length(p_items) > 0 THEN
-    INSERT INTO items (
-      purchase_id,
-      name,
-      code,
-      quantity,
-      unit,
-      price
-    )
-    SELECT
-      v_purchase_id,
-      item.name,
-      NULLIF(item.code, ''),
-      COALESCE(item.quantity, 1),
-      NULLIF(item.unit, ''),
-      COALESCE(item.price, 0)
-    FROM jsonb_to_recordset(p_items) AS item(
-      name TEXT,
-      code TEXT,
-      quantity NUMERIC,
-      unit TEXT,
-      price NUMERIC
-    );
+  IF v_item_count > 0 THEN
+    FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+    LOOP
+      INSERT INTO items (
+        purchase_id,
+        name,
+        code,
+        quantity,
+        unit,
+        price
+      )
+      VALUES (
+        v_purchase_id,
+        btrim(v_item->>'name'),
+        NULLIF(btrim(COALESCE(v_item->>'code', '')), ''),
+        COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1),
+        NULLIF(btrim(COALESCE(v_item->>'unit', '')), ''),
+        COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0)
+      );
+    END LOOP;
   END IF;
 
   RETURN QUERY SELECT v_purchase_id;
