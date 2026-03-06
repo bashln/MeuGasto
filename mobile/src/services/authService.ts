@@ -135,6 +135,23 @@ export const authService = {
     };
   },
 
+  async getSessionFast(): Promise<{ user: AuthUser | null }> {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session?.user) {
+      return { user: null };
+    }
+
+    return {
+      user: {
+        id: session.user.id,
+        email: session.user.email || '',
+        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+        role: 'USER',
+      },
+    };
+  },
+
   async forgotPassword(email: string): Promise<void> {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) {

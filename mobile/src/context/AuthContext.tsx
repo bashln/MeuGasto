@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 import { authService } from '../services/authService';
 import { AuthUser } from '../types';
 import { supabase } from '../lib/supabaseClient';
+
+SplashScreen.preventAutoHideAsync();
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -19,44 +22,63 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const AUTH_TIMEOUT_MS = 8000;
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    let isMounted = true;
+    let resolved = false;
+
+    const resolve = (authUser: AuthUser | null) => {
+      if (resolved || !isMounted) return;
+      resolved = true;
+      setUser(authUser);
+      setIsLoading(false);
+      SplashScreen.hideAsync();
+    };
+
+    const timeoutId = setTimeout(() => {
+      console.warn('Auth timeout — falling through to login');
+      resolve(null);
+    }, AUTH_TIMEOUT_MS);
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session?.user) {
-        setUser(null);
+        resolve(null);
         return;
       }
 
+      // Immediately set user from session (no network call)
+      const sessionUser: AuthUser = {
+        id: session.user.id,
+        email: session.user.email || '',
+        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+        role: 'USER',
+      };
+      resolve(sessionUser);
+
+      // Background: fetch full profile and update seamlessly
       try {
-        const { user: currentUser } = await authService.getSession();
-        setUser(currentUser);
+        const { user: fullUser } = await authService.getSession();
+        if (isMounted && fullUser) {
+          setUser(fullUser);
+        }
       } catch (error) {
-        console.error('Auth state sync failed:', error);
+        console.error('Background profile fetch failed:', error);
       }
     });
 
     return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
-
-  const checkAuth = async () => {
-    try {
-      const { user: currentUser } = await authService.getSession();
-      setUser(currentUser);
-    } catch (error) {
-      console.error('Auth check failed:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const login = async (email: string, password: string) => {
     const response = await authService.login({ email, password });
