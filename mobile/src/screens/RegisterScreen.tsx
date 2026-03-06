@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
 import {
-  Text,
   TextInput,
-  Button,
-  useTheme,
 } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
 import { colors } from '../theme/colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 
 type RegisterScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -22,7 +20,6 @@ const BENEFITS = [
 ];
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
   const { register } = useAuth();
 
   const [name, setName] = useState('');
@@ -54,9 +51,10 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 
     try {
       await register(email.trim(), password, name.trim());
-    } catch (err: any) {
-      console.log('Register error:', err);
-      setError(err.message || 'Erro ao criar conta');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao criar conta';
+      console.warn('Register error:', err);
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -71,16 +69,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <RNText style={styles.backIcon}>←</RNText>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
         </TouchableOpacity>
 
         <View style={styles.logoContainer}>
           <View style={styles.logoIcon}>
-            <RNText style={styles.logoText}>📄</RNText>
+            <MaterialCommunityIcons name="receipt" size={36} color={colors.primaryText} />
           </View>
         </View>
 
@@ -186,7 +184,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
           {BENEFITS.map((benefit, index) => (
             <View key={index} style={styles.benefitItem}>
               <View style={styles.checkIcon}>
-                <RNText style={styles.checkText}>✓</RNText>
+                <MaterialCommunityIcons name="check" size={12} color={colors.primaryText} />
               </View>
               <RNText style={styles.benefitText}>{benefit}</RNText>
             </View>
@@ -213,10 +211,6 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: 8,
   },
-  backIcon: {
-    fontSize: 24,
-    color: colors.primary,
-  },
   logoContainer: {
     alignItems: 'center',
     marginBottom: 20,
@@ -233,9 +227,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 8,
-  },
-  logoText: {
-    fontSize: 32,
   },
   header: {
     alignItems: 'center',
@@ -295,7 +286,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   registerButtonText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -336,11 +327,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
-  },
-  checkText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   benefitText: {
     color: colors.mutedText,

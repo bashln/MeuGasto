@@ -1,36 +1,28 @@
 import { supabase } from '../lib/supabaseClient';
 import { DashboardStats } from '../types';
-import { authService } from './authService';
+import { getCurrentUserId } from './authService';
 
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
+const buildDateRange = (month?: number, year?: number): { startDate: string; endDate: string } => {
+  if (month && year) {
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { startDate, endDate };
   }
-  return user.id;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+  const endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { startDate, endDate };
 };
 
 export const reportService = {
   async getDashboardStats(month?: number, year?: number): Promise<DashboardStats> {
     const userId = await getCurrentUserId();
-
-    // Construir range de datas para o mês/ano especificado
-    let startDate: string;
-    let endDate: string;
-
-    if (month && year) {
-      startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    } else {
-      // Mês atual por padrão
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth() + 1;
-      startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-      const lastDay = new Date(currentYear, currentMonth, 0).getDate();
-      endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    }
+    const { startDate, endDate } = buildDateRange(month, year);
 
     // Buscar compras do período
     const { data: purchases, error: purchasesError } = await supabase
@@ -107,38 +99,19 @@ export const reportService = {
   ): Promise<Array<{ supermarket: string; total: number }>> {
     const userId = await getCurrentUserId();
 
-    let query = supabase
-      .from('purchases')
-      .select(`
-        total_price,
-        supermarket:supermarkets(name)
-      `)
-      .eq('user_id', userId);
-
-    if (startDate) {
-      query = query.gte('date', startDate);
-    }
-    if (endDate) {
-      query = query.lte('date', endDate);
-    }
-
-    const { data: purchases, error } = await query;
+    const { data, error } = await supabase.rpc('report_expenses_by_supermarket', {
+      p_user_id: userId,
+      p_start_date: startDate ?? null,
+      p_end_date: endDate ?? null,
+    });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    // Agrupar por supermercado
-    const supermarketTotals: Record<string, number> = {};
-    (purchases || []).forEach((p: any) => {
-      const supermarket = p.supermarket;
-      const name = (Array.isArray(supermarket) ? supermarket[0]?.name : supermarket?.name) || 'Sem supermercado';
-      supermarketTotals[name] = (supermarketTotals[name] || 0) + (parseFloat(p.total_price) || 0);
-    });
-
-    return Object.entries(supermarketTotals).map(([supermarket, total]) => ({
-      supermarket,
-      total,
+    return ((data as Array<{ supermarket: string; total: number | string }> | null) ?? []).map(row => ({
+      supermarket: row.supermarket,
+      total: Number(row.total) || 0,
     }));
   },
 
@@ -149,10 +122,55 @@ export const reportService = {
   ): Promise<Array<{ name: string; quantity: number; total: number }>> {
     const userId = await getCurrentUserId();
 
-    // Buscar compras do período
+    const { data, error } = await supabase.rpc('report_top_items', {
+      p_user_id: userId,
+      p_limit: limit,
+      p_start_date: startDate ?? null,
+      p_end_date: endDate ?? null,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return ((data as Array<{ name: string; quantity: number | string; total: number | string }> | null) ?? []).map(row => ({
+      name: row.name,
+      quantity: Number(row.quantity) || 0,
+      total: Number(row.total) || 0,
+    }));
+  },
+
+  async getItemReport(
+    itemName: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    totalQuantity: number;
+    totalSpent: number;
+    averagePrice: number;
+    purchaseCount: number;
+    bySupermarket: Array<{
+      supermarket: string;
+      totalQuantity: number;
+      totalSpent: number;
+      averagePrice: number;
+    }>;
+  }> {
+    const userId = await getCurrentUserId();
+
+    if (!itemName) {
+      return {
+        totalQuantity: 0,
+        totalSpent: 0,
+        averagePrice: 0,
+        purchaseCount: 0,
+        bySupermarket: [],
+      };
+    }
+
     let purchasesQuery = supabase
       .from('purchases')
-      .select('id')
+      .select('id, supermarket:supermarkets(name), date')
       .eq('user_id', userId);
 
     if (startDate) {
@@ -169,35 +187,73 @@ export const reportService = {
     }
 
     const purchaseIds = purchases?.map(p => p.id) || [];
-
     if (purchaseIds.length === 0) {
-      return [];
+      return {
+        totalQuantity: 0,
+        totalSpent: 0,
+        averagePrice: 0,
+        purchaseCount: 0,
+        bySupermarket: [],
+      };
     }
 
-    // Buscar itens
+    const supermarketByPurchaseId: Record<number, string> = {};
+    const purchasesWithMarket = (purchases ?? []) as Array<{
+      id: number;
+      supermarket: { name?: string } | Array<{ name?: string }> | null;
+    }>;
+    purchasesWithMarket.forEach((p) => {
+      const supermarket = p.supermarket;
+      const name = (Array.isArray(supermarket) ? supermarket[0]?.name : supermarket?.name) || 'Sem supermercado';
+      supermarketByPurchaseId[p.id] = name;
+    });
+
     const { data: items, error: itemsError } = await supabase
       .from('items')
-      .select('name, quantity, price')
-      .in('purchase_id', purchaseIds);
+      .select('purchase_id, name, quantity, price')
+      .in('purchase_id', purchaseIds)
+      .eq('name', itemName);
 
     if (itemsError) {
       throw new Error(itemsError.message);
     }
 
-    // Agrupar por nome
-    const itemTotals: Record<string, { quantity: number; total: number }> = {};
+    let totalQuantity = 0;
+    let totalSpent = 0;
+    const purchaseIdSet = new Set<number>();
+    const bySupermarketTotals: Record<string, { totalQuantity: number; totalSpent: number }> = {};
+
     (items || []).forEach(item => {
-      const name = item.name || 'Sem nome';
-      if (!itemTotals[name]) {
-        itemTotals[name] = { quantity: 0, total: 0 };
+      const quantity = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.price) || 0;
+      const itemTotal = quantity * price;
+      const purchaseId = item.purchase_id as number;
+      const supermarketName = supermarketByPurchaseId[purchaseId] || 'Sem supermercado';
+
+      totalQuantity += quantity;
+      totalSpent += itemTotal;
+      purchaseIdSet.add(purchaseId);
+
+      if (!bySupermarketTotals[supermarketName]) {
+        bySupermarketTotals[supermarketName] = { totalQuantity: 0, totalSpent: 0 };
       }
-      itemTotals[name].quantity += parseFloat(item.quantity) || 0;
-      itemTotals[name].total += (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
+      bySupermarketTotals[supermarketName].totalQuantity += quantity;
+      bySupermarketTotals[supermarketName].totalSpent += itemTotal;
     });
 
-    return Object.entries(itemTotals)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, limit);
+    const bySupermarket = Object.entries(bySupermarketTotals).map(([supermarket, data]) => ({
+      supermarket,
+      totalQuantity: data.totalQuantity,
+      totalSpent: data.totalSpent,
+      averagePrice: data.totalQuantity > 0 ? data.totalSpent / data.totalQuantity : 0,
+    }));
+
+    return {
+      totalQuantity,
+      totalSpent,
+      averagePrice: totalQuantity > 0 ? totalSpent / totalQuantity : 0,
+      purchaseCount: purchaseIdSet.size,
+      bySupermarket,
+    };
   },
 };

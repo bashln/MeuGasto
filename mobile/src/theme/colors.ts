@@ -1,5 +1,6 @@
 export const colors = {
   primary: '#FF6B35',
+  primaryDark: '#8C3A1D',
   primaryText: '#FFFFFF',
   backgroundApp: '#EAF2F4',
   backgroundAuth: '#FFFFFF',
@@ -11,10 +12,10 @@ export const colors = {
   subtitleText: '#7A7A7A',
   inputBackground: '#F7F7F7',
   inputAltBackground: '#EFEFEF',
-  success: '#34C759',
-  secondary: '#7B61FF',
+  success: '#1E8E3E',
+  secondary: '#5B46CC',
   warning: '#F59E0B',
-  info: '#2F80ED',
+  info: '#1D5FBF',
   danger: '#FF3B30',
   dangerBackground: '#FFEBEE',
 };

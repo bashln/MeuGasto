@@ -2,11 +2,18 @@
 node_modules/
 dist/
 dist-ssr/
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QWEN.md
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+mobile/.env
+mobile/.env.local
+mobile/.env.*.local
 
 # Logs
 logs/

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Projeto Mercado",
-    "slug": "projeto-mercado-mobile",
+    "name": "MeuGasto",
+    "slug": "meugasto",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,18 +13,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prati.projetomercado"
+      "bundleIdentifier": "com.prati.meugasto"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#1976d2"
       },
-      "package": "com.prati.projetomercado",
+      "package": "com.prati.meugasto",
       "permissions": [
-        "CAMERA",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -34,7 +32,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Projeto Mercado to access your camera to scan QR codes."
+          "cameraPermission": "Permitir que o MeuGasto acesse a câmera para escanear QR Codes de NFC-e."
         }
       ],
       "expo-secure-store",
@@ -45,6 +43,12 @@
       "eas": {
         "projectId": "58567750-47a6-4955-a5f2-db6032189fc1"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/58567750-47a6-4955-a5f2-db6032189fc1"
     }
   }
 }

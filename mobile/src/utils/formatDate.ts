@@ -4,6 +4,7 @@ export const formatDate = (dateString: string): string => {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(date);
 };
 
@@ -20,10 +21,6 @@ export const formatDateTime = (dateString: string): string => {
 
 export const formatDateInput = (date: Date): string => {
   return date.toISOString().split('T')[0];
-};
-
-export const parseDate = (dateString: string): Date => {
-  return new Date(dateString);
 };
 
 export const getMonthName = (month: number): string => {

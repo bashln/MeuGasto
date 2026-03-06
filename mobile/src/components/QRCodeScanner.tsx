@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Button, Text, useTheme, Surface } from 'react-native-paper';
 
@@ -59,7 +59,11 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose })
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       />
       <View style={styles.overlay} pointerEvents="box-none">
-        <View style={styles.topOverlay} />
+        <View style={styles.topOverlay}>
+          <Text style={styles.topInstructionText}>
+            Aponte a câmera para o QR Code da NFC-e.
+          </Text>
+        </View>
         <View style={styles.middleRow}>
           <View style={styles.sideOverlay} />
           <View style={styles.scanArea}>
@@ -71,9 +75,6 @@ export const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScan, onClose })
           <View style={styles.sideOverlay} />
         </View>
         <View style={styles.bottomOverlay}>
-          <Text style={styles.instructionText}>
-            Posicione o QR Code dentro da área
-          </Text>
           {scanned && (
             <Button
               mode="contained"
@@ -106,6 +107,14 @@ const styles = StyleSheet.create({
   topOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  topInstructionText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
   },
   middleRow: {
     flexDirection: 'row',
@@ -155,11 +164,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     paddingTop: 30,
-  },
-  instructionText: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 20,
   },
   rescanButton: {
     marginBottom: 10,

@@ -1,21 +1,59 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, TextInput, ActivityIndicator } from 'react-native';
 import {
-  Text,
   Avatar,
 } from 'react-native-paper';
 import { useAuth } from '../context';
+import { authService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { RootStackParamList, MainTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { Header } from '../components';
+import appConfig from '../../app.json';
 
 type ProfileScreenProps = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Profile'>;
+  navigation: CompositeNavigationProp<
+    BottomTabNavigationProp<MainTabParamList, 'ProfileTab'>,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
 };
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const { user, logout } = useAuth();
+  const appVersion = appConfig?.expo?.version || '0.3.0-alpha';
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmNewPassword) {
+      Alert.alert('Erro', 'Preencha a nova senha e a confirmação');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Erro', 'As senhas não coincidem');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      await authService.changePassword(newPassword);
+      setNewPassword('');
+      setConfirmNewPassword('');
+      Alert.alert('Sucesso', 'Senha alterada com sucesso');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível alterar a senha';
+      Alert.alert('Erro', message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert('Sair da conta', 'Tem certeza que deseja sair?', [
@@ -63,9 +101,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         <View style={styles.infoCard}>
           <View style={styles.cardHeader}>
             <RNText style={styles.cardTitle}>Informações Pessoais</RNText>
-            <TouchableOpacity style={styles.editButton}>
-              <RNText style={styles.editButtonText}>✏️ Editar Perfil</RNText>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
@@ -81,6 +116,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
               <RNText style={styles.inputText}>{user?.email || 'Não informado'}</RNText>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.changePasswordButton}
+            onPress={() => navigation.navigate('EditProfile')}
+          >
+            <RNText style={styles.changePasswordButtonText}>Editar Perfil</RNText>
+          </TouchableOpacity>
         </View>
 
         {/* Card Alterar Senha */}
@@ -88,34 +130,46 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           <RNText style={styles.cardTitle}>Alterar Senha</RNText>
 
           <View style={styles.inputGroup}>
-            <RNText style={styles.inputLabel}>Senha Atual</RNText>
-            <View style={styles.inputField}>
-              <RNText style={styles.inputPlaceholder}>••••••••</RNText>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
             <RNText style={styles.inputLabel}>Nova Senha</RNText>
-            <View style={styles.inputField}>
-              <RNText style={styles.inputPlaceholder}>••••••••</RNText>
-            </View>
+            <TextInput
+              style={styles.inputField}
+              secureTextEntry
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedText}
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
           </View>
 
           <View style={styles.inputGroup}>
             <RNText style={styles.inputLabel}>Confirmar nova senha</RNText>
-            <View style={styles.inputField}>
-              <RNText style={styles.inputPlaceholder}>••••••••</RNText>
-            </View>
+            <TextInput
+              style={styles.inputField}
+              secureTextEntry
+              placeholder="••••••••"
+              placeholderTextColor={colors.mutedText}
+              value={confirmNewPassword}
+              onChangeText={setConfirmNewPassword}
+            />
           </View>
 
-          <TouchableOpacity style={styles.changePasswordButton}>
-            <RNText style={styles.changePasswordButtonText}>Alterar Senha</RNText>
+          <TouchableOpacity
+            style={styles.changePasswordButton}
+            onPress={handleChangePassword}
+            disabled={isChangingPassword}
+          >
+            {isChangingPassword
+              ? <ActivityIndicator size="small" color={colors.primaryText} />
+              : <RNText style={styles.changePasswordButtonText}>Alterar Senha</RNText>
+            }
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <RNText style={styles.logoutButtonText}>Sair</RNText>
         </TouchableOpacity>
+
+        <RNText style={styles.versionText}>Versão {appVersion}</RNText>
       </ScrollView>
     </View>
   );
@@ -177,28 +231,14 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
-  },
-  editButton: {
-    backgroundColor: colors.success,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  editButtonText: {
-    color: colors.primaryText,
-    fontSize: 13,
-    fontWeight: '500',
   },
   inputGroup: {
     marginBottom: 16,
@@ -249,5 +289,11 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
+  },
+  versionText: {
+    color: colors.mutedText,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 16,
   },
 });

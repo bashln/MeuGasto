@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import * as SecureStore from 'expo-secure-store';
+import { clearSupabaseSessionStorage } from '../lib/secureSessionStorage';
 import { AuthUser } from '../types';
 
 interface AuthResult {
@@ -16,6 +16,13 @@ interface RegisterRequest {
   password: string;
   name: string;
 }
+
+export const getCurrentUserId = async (): Promise<string> => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw new Error(error.message);
+  if (!session?.user?.id) throw new Error('User not authenticated');
+  return session.user.id;
+};
 
 export const authService = {
   async register(userData: RegisterRequest): Promise<AuthResult> {
@@ -97,7 +104,7 @@ export const authService = {
     if (error) {
       throw new Error(error.message);
     }
-    await SecureStore.deleteItemAsync('supabase_session');
+    await clearSupabaseSessionStorage();
   },
 
   async getSession(): Promise<{ user: AuthUser | null }> {
@@ -128,22 +135,28 @@ export const authService = {
     };
   },
 
-  async getStoredSession(): Promise<{ accessToken: string | null; refreshToken: string | null }> {
-    const session = await SecureStore.getItemAsync('supabase_session');
-    if (session) {
-      return { accessToken: session, refreshToken: null };
-    }
-    return { accessToken: null, refreshToken: null };
-  },
-
-  async saveSession(sessionData: string): Promise<void> {
-    await SecureStore.setItemAsync('supabase_session', sessionData);
-  },
-
   async forgotPassword(email: string): Promise<void> {
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) {
       throw error;
+    }
+  },
+
+  async changePassword(newPassword: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  async updateProfile(name: string): Promise<void> {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error(userError?.message || 'Usuário não autenticado');
+    }
+    const { error } = await supabase.from('profiles').update({ name }).eq('id', user.id);
+    if (error) {
+      throw new Error(error.message);
     }
   },
 };

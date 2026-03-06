@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert } from 'react-native';
-import { Text, FAB, useTheme } from 'react-native-paper';
-import { usePurchases, useAuth } from '../context';
+import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { FAB } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { usePurchases } from '../context';
 import { Header, PurchaseCard, Loading, ErrorMessage } from '../components';
 import { Purchase, PurchaseFilter } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import { formatMoney } from '../utils';
 import { colors } from '../theme/colors';
 
@@ -14,25 +15,45 @@ type PurchasesScreenProps = {
 };
 
 export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) => {
-  const theme = useTheme();
-  const { purchases, isLoading, error, fetchPurchases, deletePurchase } = usePurchases();
+  const { purchases, isLoading, isLoadingMore, hasMore, page, error, fetchPurchases, loadMorePurchases, deletePurchase } = usePurchases();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadPurchases();
-  }, []);
+  const PAGE_SIZE = 20;
+
+  const buildServerFilter = useCallback((pageNumber = 0): PurchaseFilter => {
+    const isManual = filterType === 'all' ? undefined : filterType === 'manual';
+
+    return {
+      page: pageNumber,
+      size: PAGE_SIZE,
+      isManual,
+    };
+  }, [filterType]);
 
   const loadPurchases = useCallback(async (filter?: PurchaseFilter) => {
     await fetchPurchases(filter);
   }, [fetchPurchases]);
 
+  useEffect(() => {
+    loadPurchases(buildServerFilter(0));
+  }, [loadPurchases, buildServerFilter]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadPurchases();
+    await loadPurchases(buildServerFilter(0));
     setRefreshing(false);
-  }, [loadPurchases]);
+  }, [loadPurchases, buildServerFilter]);
+
+  const onEndReached = useCallback(async () => {
+    if (!hasMore || isLoading || isLoadingMore) {
+      return;
+    }
+
+    const nextPage = (page?.pageNumber ?? 0) + 1;
+    await loadMorePurchases(buildServerFilter(nextPage));
+  }, [buildServerFilter, hasMore, isLoading, isLoadingMore, loadMorePurchases, page?.pageNumber]);
 
   const handlePurchasePress = (purchase: Purchase) => {
     navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
@@ -42,13 +63,26 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
     navigation.navigate('ScanQRCode');
   };
 
-  const handleDeletePurchase = async (purchase: Purchase) => {
-    try {
-      await deletePurchase(purchase.id);
-      await loadPurchases();
-    } catch (err) {
-      console.log('Erro ao deletar:', err);
-    }
+  const handleDeletePurchase = (purchase: Purchase) => {
+    Alert.alert(
+      'Excluir compra',
+      'Tem certeza que deseja excluir esta compra?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePurchase(purchase.id);
+              await loadPurchases(buildServerFilter(0));
+            } catch (err) {
+              console.warn('Erro ao deletar:', err);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleEditPurchase = (purchase: Purchase) => {
@@ -81,7 +115,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
   }
 
   if (error) {
-    return <ErrorMessage message={error} onRetry={() => loadPurchases()} />;
+    return <ErrorMessage message={error} onRetry={() => loadPurchases(buildServerFilter(0))} />;
   }
 
   return (
@@ -106,13 +140,14 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
 
       {/* Campo de Busca */}
       <View style={styles.searchContainer}>
-        <RNText style={styles.searchIcon}>🔍</RNText>
-        <RNText
+        <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedText} style={{ marginRight: 10 }} />
+        <TextInput
           style={styles.searchInput}
-          onPress={() => {}}
-        >
-          {searchQuery || "Buscar compras..."}
-        </RNText>
+          placeholder="Buscar compras..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={colors.mutedText}
+        />
       </View>
 
       {/* Filtros */}
@@ -155,16 +190,37 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="cart-off" size={48} color={colors.mutedText} style={{ marginBottom: 12 }} />
             <RNText style={styles.emptyText}>Nenhuma compra encontrada</RNText>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => navigation.navigate('ScanQRCode')}
+            >
+              <RNText style={styles.emptyButtonText}>Escanear cupom fiscal</RNText>
+            </TouchableOpacity>
           </View>
         }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.listFooter}>
+              <ActivityIndicator color={colors.primary} />
+              <RNText style={styles.footerText}>Carregando mais compras...</RNText>
+            </View>
+          ) : !hasMore && purchases.length > 0 ? (
+            <View style={styles.listFooter}>
+              <RNText style={styles.footerText}>Fim da lista</RNText>
+            </View>
+          ) : null
+        }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.4}
       />
 
       <FAB
         icon="plus"
         style={styles.fab}
         onPress={handleAddPurchase}
-        color="#fff"
+        color={colors.primaryText}
       />
     </View>
   );
@@ -183,7 +239,7 @@ const styles = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: colors.mutedText,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     padding: 12,
     alignItems: 'center',
@@ -213,14 +269,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 48,
   },
-  searchIcon: {
-    fontSize: 16,
-    marginRight: 10,
-  },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: colors.mutedText,
+    color: colors.text,
   },
   filtersContainer: {
     flexDirection: 'row',
@@ -258,11 +310,34 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 14,
   },
+  emptyButton: {
+    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  emptyButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   fab: {
     position: 'absolute',
     right: 16,
     bottom: 90,
     backgroundColor: colors.success,
     borderRadius: 16,
+  },
+  listFooter: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footerText: {
+    color: colors.mutedText,
+    fontSize: 12,
   },
 });

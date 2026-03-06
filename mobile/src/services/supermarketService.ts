@@ -1,17 +1,16 @@
 import { supabase } from '../lib/supabaseClient';
 import { Supermarket } from '../types';
-import { authService } from './authService';
+import { getCurrentUserId } from './authService';
 
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
+type PaginationInfo = {
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
 };
 
 export const supermarketService = {
-  async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: any }> {
+  async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
 
     const from = page * size;

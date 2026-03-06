@@ -1,30 +1,59 @@
 import { supabase } from '../lib/supabaseClient';
-import { Purchase, PurchaseFilter, NfceRequest } from '../types';
-import { authService } from './authService';
+import { Purchase, PurchaseFilter, NfceRequest, PageResponse } from '../types';
+import { getCurrentUserId } from './authService';
 import { nfceService } from './nfceService';
 
-const getCurrentUserId = async (): Promise<string> => {
-  const { user } = await authService.getSession();
-  if (!user?.id) {
-    throw new Error('User not authenticated');
-  }
-  return user.id;
+type PurchaseItemRow = {
+  id: number;
+  name: string;
+  code?: string;
+  quantity: number | string;
+  unit: string;
+  price: number | string;
+};
+
+type PurchaseUpdateData = {
+  date?: string;
+  total_price?: number;
+  supermarket_id?: number | null;
+  updated_at: string;
+};
+
+const mapPurchaseItems = (items: unknown): Purchase['products'] => {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return safeItems.map((item: PurchaseItemRow) => ({
+    id: item.id,
+    name: item.name,
+    code: item.code,
+    quantity: Number(item.quantity) || 1,
+    unit: item.unit,
+    price: Number(item.price) || 0,
+  }));
 };
 
 export const purchaseService = {
-  async getPurchases(filter?: PurchaseFilter): Promise<Purchase[]> {
+  async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
     const userId = await getCurrentUserId();
+    const page = filter?.page ?? 0;
+    const size = filter?.size ?? 20;
+    const from = page * size;
+    const to = from + size - 1;
     
     let query = supabase
       .from('purchases')
       .select(`
         *,
-        supermarket:supermarkets(*)
-      `)
+        supermarket:supermarkets(*),
+        items(*)
+      `, { count: 'exact' })
       .eq('user_id', userId);
 
     if (filter?.supermarketId) {
       query = query.eq('supermarket_id', filter.supermarketId);
+    }
+    if (filter?.isManual !== undefined) {
+      query = query.eq('manual', filter.isManual);
     }
     if (filter?.startDate) {
       query = query.gte('date', filter.startDate);
@@ -32,55 +61,48 @@ export const purchaseService = {
     if (filter?.endDate) {
       query = query.lte('date', filter.endDate);
     }
-    if (filter?.minPrice) {
+    if (filter?.minPrice !== undefined) {
       query = query.gte('total_price', filter.minPrice);
     }
-    if (filter?.maxPrice) {
+    if (filter?.maxPrice !== undefined) {
       query = query.lte('total_price', filter.maxPrice);
     }
 
-    const { data: purchases, error } = await query.order('date', { ascending: false });
+    const { data: purchases, error, count } = await query
+      .order('date', { ascending: false })
+      .range(from, to);
 
     if (error) {
       throw new Error(error.message);
     }
 
-    // Buscar items para cada purchase
-    const purchasesWithItems = await Promise.all(
-      (purchases || []).map(async (purchase) => {
-        const { data: items, error: itemsError } = await supabase
-          .from('items')
-          .select('*')
-          .eq('purchase_id', purchase.id);
+    const purchaseData = (purchases || []).map((purchase) => {
+      return {
+        id: purchase.id,
+        supermarket: purchase.supermarket,
+        accessKey: purchase.access_key,
+        date: purchase.date,
+        totalPrice: parseFloat(purchase.total_price) || 0,
+        isManual: purchase.manual,
+        products: mapPurchaseItems(purchase.items),
+        createdAt: purchase.created_at,
+        updatedAt: purchase.updated_at,
+      };
+    });
 
-        if (itemsError) {
-          console.log('[DEBUG getPurchases] Erro ao buscar items:', itemsError);
-        }
-        
-        const safeItems = Array.isArray(items) ? items : [];
+    const totalElements = count || 0;
+    const totalPages = Math.ceil(totalElements / size);
 
-        return {
-          id: purchase.id,
-          supermarket: purchase.supermarket,
-          accessKey: purchase.access_key,
-          date: purchase.date,
-          totalPrice: parseFloat(purchase.total_price) || 0,
-          isManual: purchase.manual,
-          products: safeItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            code: item.code,
-            quantity: parseFloat(item.quantity) || 1,
-            unit: item.unit,
-            price: parseFloat(item.price) || 0,
-          })),
-          createdAt: purchase.created_at,
-          updatedAt: purchase.updated_at,
-        };
-      })
-    );
-
-    return purchasesWithItems;
+    return {
+      data: purchaseData,
+      page: {
+        pageNumber: page,
+        pageSize: size,
+        totalElements,
+        totalPages,
+        last: totalPages === 0 ? true : page >= totalPages - 1,
+      },
+    };
   },
 
   async getPurchaseById(id: number): Promise<Purchase> {
@@ -90,7 +112,8 @@ export const purchaseService = {
       .from('purchases')
       .select(`
         *,
-        supermarket:supermarkets(*)
+        supermarket:supermarkets(*),
+        items(*)
       `)
       .eq('id', id)
       .eq('user_id', userId)
@@ -100,18 +123,6 @@ export const purchaseService = {
       throw new Error(error.message);
     }
 
-    const { data: items, error: itemsError } = await supabase
-      .from('items')
-      .select('*')
-      .eq('purchase_id', purchase.id);
-
-    if (itemsError) {
-      console.log('[DEBUG getPurchaseById] Erro ao buscar items:', itemsError);
-    }
-    console.log('[DEBUG getPurchaseById] Items retornados:', items?.length, 'purchase_id:', purchase.id);
-
-    const safeItems = Array.isArray(items) ? items : [];
-
     return {
       id: purchase.id,
       supermarket: purchase.supermarket,
@@ -119,14 +130,7 @@ export const purchaseService = {
       date: purchase.date,
       totalPrice: parseFloat(purchase.total_price) || 0,
       isManual: purchase.manual,
-      products: (items || []).map(item => ({
-        id: item.id,
-        name: item.name,
-        code: item.code,
-        quantity: parseFloat(item.quantity) || 1,
-        unit: item.unit,
-        price: parseFloat(item.price) || 0,
-      })),
+      products: mapPurchaseItems(purchase.items),
       createdAt: purchase.created_at,
       updatedAt: purchase.updated_at,
     };
@@ -150,43 +154,34 @@ export const purchaseService = {
   }): Promise<Purchase> {
     const userId = await getCurrentUserId();
 
-    // Passo 1: Criar purchase
-    const { data: newPurchase, error: purchaseError } = await supabase
-      .from('purchases')
-      .insert({
-        user_id: userId,
-        supermarket_id: purchase.supermarketId || null,
-        date: purchase.date,
-        total_price: purchase.totalPrice,
-        manual: true,
-      })
-      .select()
-      .single();
-
-    if (purchaseError) {
-      throw new Error(purchaseError.message);
-    }
-
-    // Passo 2: Criar items com purchase_id
-    if (purchase.items?.length > 0) {
-      const itemsToInsert = purchase.items.map(item => ({
-        purchase_id: newPurchase.id,
+    const itemsPayload = (purchase.items ?? []).map(item => ({
         name: item.name,
+        code: '',
         quantity: item.quantity,
         unit: item.unit,
         price: item.price,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('items')
-        .insert(itemsToInsert);
+    const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
+      p_user_id: userId,
+      p_supermarket_id: purchase.supermarketId || null,
+      p_access_key: null,
+      p_date: purchase.date,
+      p_total_price: purchase.totalPrice,
+      p_manual: true,
+      p_items: itemsPayload,
+    });
 
-      if (itemsError) {
-        throw new Error(itemsError.message);
-      }
+    if (purchaseError) {
+      throw new Error(purchaseError.message);
     }
 
-    return this.getPurchaseById(newPurchase.id);
+    const purchaseId = createdPurchase?.[0]?.purchase_id;
+    if (!purchaseId) {
+      throw new Error('Não foi possível criar a compra manual');
+    }
+
+    return this.getPurchaseById(purchaseId);
   },
 
   async updatePurchase(
@@ -199,11 +194,10 @@ export const purchaseService = {
   ): Promise<Purchase> {
     const userId = await getCurrentUserId();
 
-    const updateData: any = {};
+    const updateData: PurchaseUpdateData = { updated_at: new Date().toISOString() };
     if (updates.date) updateData.date = updates.date;
-    if (updates.totalPrice) updateData.total_price = updates.totalPrice;
+    if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
     if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
-    updateData.updated_at = new Date().toISOString();
 
     const { error } = await supabase
       .from('purchases')

@@ -9,9 +9,10 @@ import {
   Text as RNText,
 } from "react-native";
 import { Text, TextInput } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authService } from "../services";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../types";
+import { RootStackParamList } from '../navigation/types';
 import { colors } from "../theme/colors";
 
 type ForgotPasswordScreenProps = {
@@ -49,18 +50,19 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
         "Enviamos um link de recuperação para seu e-mail.",
       );
       navigation.goBack();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as { message?: string; status?: number; code?: string; name?: string };
       if (__DEV__) {
         console.error("forgotPassword error:", {
-          message: err?.message,
-          status: err?.status,
-          code: err?.code,
-          name: err?.name,
+          message: errorObj?.message,
+          status: errorObj?.status,
+          code: errorObj?.code,
+          name: errorObj?.name,
           raw: err,
         });
       }
 
-      if (err?.code === "email_address_invalid") {
+      if (errorObj?.code === "email_address_invalid") {
         setError(
           "Esse domínio não recebe e-mails de recuperação. Use um e-mail com domínio válido.",
         );
@@ -83,7 +85,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <RNText style={styles.backIcon}>←</RNText>
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
         <RNText style={styles.headerTitle}>Recuperar Senha</RNText>
         <View style={styles.headerSpacer} />
@@ -147,11 +149,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-  },
-  backIcon: {
-    color: colors.primaryText,
-    fontSize: 24,
-    fontWeight: "600",
   },
   headerTitle: {
     color: colors.primaryText,
