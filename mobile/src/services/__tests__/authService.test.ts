@@ -55,6 +55,6 @@ describe('authService', () => {
 
     await authService.logout();
 
-    expect(mockDeleteItemAsync).toHaveBeenCalledWith('supabase_session');
+    expect(mockDeleteItemAsync).toHaveBeenCalledWith('supabase.auth.token');
   });
 });

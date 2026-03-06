@@ -42,4 +42,22 @@ describe('nfceService URL and allowlist', () => {
   it('bloqueia URL com host fora da allowlist', () => {
     expect(isAllowedNfceUrl('https://malicious.example.com/path')).toBe(false);
   });
+
+  it('bloqueia URL sem HTTPS', () => {
+    expect(isAllowedNfceUrl('http://www.sefaz.sc.gov.br/nfce/consulta?p=1')).toBe(false);
+  });
+
+  it('valida path esperado quando solicitado', () => {
+    expect(
+      isAllowedNfceUrl('https://www.sefaz.sc.gov.br/nfce/consulta?p=1', {
+        requireExpectedPath: true,
+      })
+    ).toBe(true);
+
+    expect(
+      isAllowedNfceUrl('https://www.sefaz.sc.gov.br/outro?p=1', {
+        requireExpectedPath: true,
+      })
+    ).toBe(false);
+  });
 });

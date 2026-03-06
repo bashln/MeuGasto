@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import * as SecureStore from 'expo-secure-store';
+import { clearSupabaseSessionStorage } from '../lib/secureSessionStorage';
 import { AuthUser } from '../types';
 
 interface AuthResult {
@@ -104,7 +104,7 @@ export const authService = {
     if (error) {
       throw new Error(error.message);
     }
-    await SecureStore.deleteItemAsync('supabase_session');
+    await clearSupabaseSessionStorage();
   },
 
   async getSession(): Promise<{ user: AuthUser | null }> {

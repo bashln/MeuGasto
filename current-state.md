@@ -210,4 +210,97 @@ npm run lint       # ESLint
 
 ---
 
+## 🚨 Status de Segurança
+
+### Auditoria de Segurança - 06/03/2026
+
+#### Vulnerabilidades Ativas
+
+| ID | Componente | Severidade | Descrição | Status |
+|----|------------|------------|-----------|--------|
+| SEC-001 | `supabaseClient.ts` | 🔴 Crítica | Sessão armazenada em AsyncStorage (não criptografado) | 🟡 Em correção |
+| SEC-002 | `nfceService.ts` | 🟡 Alta | Chave NFC-e enviada em texto plano para scraper externo | 🟡 Em correção |
+| SEC-003 | `NFCeWebView.tsx` | 🟡 Alta | Dados do scraper injetados sem validação de schema | 🟡 Em correção |
+| SEC-004 | `supabase_schema.sql` | 🟡 Alta | `create_purchase_with_items` sem validação rigorosa de inputs | 🟡 Em correção |
+| SEC-005 | `nfceService.ts` | 🟡 Média | Whitelist de URLs valida apenas hostname | 🟡 Em correção |
+
+#### Resumo do Plano de Correção
+
+**FASE 1 - Hotfixes (48h):**
+- Migrar armazenamento de sessão para SecureStore
+- Implementar hash de chaves NFC-e antes do envio
+- Adicionar validação JSON Schema no WebView
+- Reforçar whitelist de URLs
+
+**FASE 2 - Hardening (7 dias):**
+- Validações rigorosas na função SQL
+- Cert pinning e TLS 1.3
+- Content Security Policy no WebView
+- Logging de segurança
+
+**FASE 3 - Reforço (30 dias):**
+- Pentest automatizado no CI/CD
+- Cache criptografado de NFC-e
+- Sandbox isolada para WebView
+- Documentação e treinamento
+
+#### Checklist de Implementação
+
+**Fase 1 (48h):**
+- [ ] SEC-001: SecureStore implementado
+- [ ] SEC-002: Hash SHA-256 de chaves NFC-e
+- [ ] SEC-003: Schema validation no WebView
+- [ ] SEC-005: URL validation reforçada
+- [ ] Testes de segurança passando
+
+**Fase 2 (7 dias):**
+- [ ] SEC-004: Validações SQL implementadas
+- [ ] SEC-002: TLS 1.3 + cert pinning
+- [ ] SEC-003: CSP headers configurados
+- [ ] Sistema de logging de segurança
+- [ ] Rotação automática de tokens
+
+**Fase 3 (30 dias):**
+- [ ] CI/CD com security scanning
+- [ ] Cache criptografado local
+- [ ] WebView sandboxed
+- [ ] SECURITY.md publicado
+
+#### Métricas de Segurança
+
+| Indicador | Valor Atual | Meta |
+|-----------|-------------|------|
+| Vulnerabilidades Críticas | 1 | 0 |
+| Vulnerabilidades Altas | 3 | 0 |
+| Dados sensíveis em texto plano | Sim | Não |
+| Cobertura de validação de entrada | 30% | 95% |
+
+---
+
+## Próximas Tarefas (Atualizado)
+
+### Prioridade Crítica (Segurança)
+1. [ ] **SEC-001:** Migrar sessão Supabase para SecureStore
+2. [ ] **SEC-002:** Hash de chaves NFC-e antes do envio ao scraper
+3. [ ] **SEC-003:** Validar dados do WebView com JSON Schema
+4. [ ] **SEC-004:** Adicionar validações em create_purchase_with_items
+5. [ ] **SEC-005:** Reforçar whitelist de navegação
+
+### Prioridade Alta (Funcionalidades)
+6. [ ] Categorização automática de produtos
+7. [ ] Edição de itens individuais em compras
+8. [ ] Melhorar cobertura de estados no scraping
+
+### Prioridade Média
+9. [ ] Alertas de variação de preço
+10. [ ] Exportação PDF
+11. [ ] Sincronização offline
+
+### Infraestrutura
+12. [ ] GitHub Releases
+13. [ ] CI/CD pipeline (incluir security scanning)
+14. [ ] Testes E2E
+
+---
+
 *Documento atualizado em: 06/03/2026*
