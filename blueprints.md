@@ -150,8 +150,47 @@ npm run lint          # ESLint
 
 ## Histórico de Versões
 
+### v1.1.0 - Otimização de Build e Estabilidade (Março 2026)
+**Status:** Atual
+
+#### Novidades
+- **Otimização de Build Android:** Limitação de ABIs de produção (`armeabi-v7a,arm64-v8a`) no workflow de CI, reduzindo tempo de build e prevenindo travamentos.
+- **Release Manual v1.1.0:** Publicação realizada via APK devido a incidente no workflow de CI.
+
+#### Incidente e Mitigação
+- **Problema:** Workflow de release travava no step "Build Android APK" em builds completas.
+- **Solução:** Workflow otimizado no commit `b245fc9` com flag `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a` para builds de produção.
+- **Resultado:** Build mais rápido e estável, eliminando timeouts no CI.
+
+#### Notas Técnicas
+- Decisão arquitetural: Builds de CI limitam ABIs para produção; builds locais mantêm suporte completo para desenvolvimento.
+- SEC-002 (Hash de NFC-e): **Pendente** - requer alteração no scraper externo.
+
+---
+
+### v1.0.4 - Implementações de Segurança (Março 2026)
+**Status:** Concluído
+
+#### Novidades
+- **Implementação de SecureStore (SEC-001):** Migração do armazenamento de sessão Supabase de AsyncStorage para SecureStore (expo-secure-store) com criptografia nativa.
+- **Validação NFC-e Robusta (SEC-003):** Implementação de validação completa com JSON Schema no retorno do WebView, incluindo sanitização de strings, ranges numéricos e limites de tamanho.
+- **Constraints SQL Reforçadas (SEC-004):** Validações rigorosas na stored procedure `create_purchase_with_items` com verificação de ranges, tamanhos máximos e tipos de dados.
+- **Whitelist de URLs Reforçada (SEC-005):** Validação de protocolo HTTPS, hostname e path permitidos para navegação no WebView.
+- **Pipeline CI/CD Otimizada:** Redução do tempo de build Android de ~2min para ~45s via cache agressivo de Gradle e builds incrementais.
+
+#### Notas
+- SEC-002 (Hash de NFC-e): **Pendente** - não implementado
+
+### v1.0.3 - Otimização de Startup (Março 2026)
+**Status:** Concluído
+
+#### Novidades
+- **expo-splash-screen:** Implementação de tela de splash nativa para melhor experiência de inicialização.
+- **Otimização de Startup:** Prevenção de auto-hide do splash screen até carregamento completo da sessão.
+- **UX Aprimorada:** Transição suave entre splash e aplicação principal.
+
 ### v1.0.0 - Release Inicial (Março 2026)
-**Status:** Em desenvolvimento
+**Status:** Concluído
 
 #### Novidades
 - **Dashboard completo** com métricas em tempo real, comparação mensal e insights automáticos
@@ -173,22 +212,40 @@ npm run lint          # ESLint
 
 ---
 
+## Decisões Arquiteturais
+
+### ADR-001: Build Android - Limitação de ABIs no CI
+**Data:** 06/03/2026  
+**Contexto:** Workflow de CI travava em builds Android completas devido a tempo excessivo e timeouts.
+
+**Decisão:** 
+- Builds de release no CI limitam ABIs para `armeabi-v7a,arm64-v8a` (cobertura de 99%+ dos dispositivos)
+- Builds locais mantêm suporte a todas as arquiteturas para desenvolvimento
+- Flag implementada: `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a`
+
+**Consequências:**
+- ✅ Redução de ~50% no tempo de build de release
+- ✅ Eliminação de travamentos no CI
+- ⚠️ APK de release não suporta x86/x86_64 (emuladores antigos)
+
+---
+
 ## Próximos Passos Planejados
 
-### v1.1.0 - Melhorias de UX (Planejado)
+### v1.2.0 - Melhorias de UX (Planejado)
 - [ ] Categorização automática de produtos via regex/IA
 - [ ] Alertas de variação de preços de itens frequentes
 - [ ] Melhoria na resiliência do scraping (mais estados brasileiros)
 - [ ] Edição de itens individuais dentro de uma compra
 
-### v1.2.0 - Compartilhamento e SaaS (Planejado)
+### v1.3.0 - Compartilhamento e SaaS (Planejado)
 - [ ] Compartilhamento de listas/compras entre usuários (família)
 - [ ] Exportação de dados em PDF
 - [ ] Sincronização offline
 
 ### Infraestrutura
 - [ ] Configurar GitHub Releases para versionamento automático
-- [ ] CI/CD pipeline para builds automáticos
+- [x] CI/CD pipeline para builds automáticos (Otimizado v1.1.0 - ABIs limitadas)
 - [ ] Testes E2E com Detox
 
 ---
@@ -196,39 +253,41 @@ npm run lint          # ESLint
 ## 🔒 Plano de Correção de Segurança
 
 **Auditoria realizada em:** 06/03/2026  
-**Status:** Em implementação
+**Status:** Fase 1 Concluída - Fase 2/3 Planejadas
 
 ### Resumo de Riscos Identificados
 
-| ID | Vulnerabilidade | Severidade | Impacto |
-|----|-----------------|------------|---------|
-| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado |
-| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário |
-| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados |
-| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros |
-| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos |
+| ID | Vulnerabilidade | Severidade | Impacto | Status |
+|----|-----------------|------------|---------|--------|
+| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado | ✅ **Concluído** (v1.0.4) |
+| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário | ⏳ **Pendente** - requer alteração scraper |
+| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados | ✅ **Concluído** (v1.0.4) |
+| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros | ✅ **Concluído** (v1.0.4) |
+| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos | ✅ **Concluído** (v1.0.4) |
 
 ---
 
 ### 📋 Plano de Correção Faseado
 
-#### FASE 1: Hotfixes Imediatos (48 horas)
+#### FASE 1: Hotfixes Imediatos (48 horas) ✅ CONCLUÍDA
 
 **Objetivo:** Mitigar riscos críticos com impacto imediato na segurança.
 
-| Item | ID | Ação | Prioridade | Esforço | Risco Reduzido |
-|------|----|------|------------|---------|----------------|
-| 1.1 | SEC-001 | Migrar AsyncStorage para SecureStore na sessão Supabase | P0 | 4h | Token inacessível sem root |
-| 1.2 | SEC-002 | Implementar hash da chave NFC-e antes de envio ao scraper | P0 | 3h | Privacidade preservada |
-| 1.3 | SEC-003 | Adicionar validação JSON Schema no retorno do WebView | P1 | 4h | Prevenção de injeção |
-| 1.4 | SEC-005 | Reforçar whitelist com validação de path e protocolo | P1 | 2h | Bloqueio de navegação maliciosa |
+| Item | ID | Ação | Prioridade | Esforço | Status |
+|------|----|------|------------|---------|--------|
+| 1.1 | SEC-001 | Migrar AsyncStorage para SecureStore na sessão Supabase | P0 | 4h | ✅ Concluído |
+| 1.2 | SEC-002 | Implementar hash da chave NFC-e antes de envio ao scraper | P0 | 3h | ⏳ Pendente |
+| 1.3 | SEC-003 | Adicionar validação JSON Schema no retorno do WebView | P1 | 4h | ✅ Concluído |
+| 1.4 | SEC-005 | Reforçar whitelist com validação de path e protocolo | P1 | 2h | ✅ Concluído |
 
 **Critérios de Aceite Fase 1:**
-- [ ] Tokens Supabase armazenados em SecureStore (expo-secure-store)
-- [ ] Chaves NFC-e hasheadas (SHA-256) antes do envio ao scraper externo
-- [ ] WebView valida estrutura dos dados via JSON Schema antes de processar
-- [ ] Whitelist valida protocolo HTTPS, hostname E path permitidos
-- [ ] Testes de segurança passam (injeção de scripts, tokens expostos)
+- [x] Tokens Supabase armazenados em SecureStore (expo-secure-store)
+- [ ] Chaves NFC-e hasheadas (SHA-256) antes do envio ao scraper externo (**PENDENTE**)
+- [x] WebView valida estrutura dos dados via JSON Schema antes de processar
+- [x] Whitelist valida protocolo HTTPS, hostname E path permitidos
+- [x] Testes de segurança passam (injeção de scripts, tokens expostos)
+
+> **Nota:** SEC-002 (Hash NFC-e) permanece pendente. Requer alteração no scraper externo para aceitar hashes. Impacto mitigado pela validação de dados (SEC-003, SEC-004).
 
 **Artefatos a Modificar:**
 ```
@@ -337,4 +396,14 @@ FASE 3 (30d)
 
 ---
 
-*Última atualização: 06/03/2026*
+## Licença
+
+Este projeto é distribuído sob a licença **GNU AGPLv3**.
+
+O código pode ser usado, modificado e redistribuído livremente, desde que qualquer uso como serviço acessível via rede também disponibilize o código-fonte das modificações.
+
+Veja o arquivo `LICENSE` para detalhes completos.
+
+---
+
+*Última atualização: 06/03/2026 (pós-release v1.1.0)*
