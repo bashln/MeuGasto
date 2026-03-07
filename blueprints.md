@@ -271,6 +271,32 @@ npm run lint          # ESLint
 **Lição Aprendida:**
 > No Expo 54 + React Native 0.81.5, o Metro bundler processa `EXPO_PUBLIC_*` em tempo de build. O arquivo `.env` criado no workflow pode não ser lido corretamente pelo Metro durante o bundle. Variáveis devem estar disponíveis como environment variables do shell/OS durante todo o processo de build.
 
+### Troubleshooting: Erro "Falha de configuração do servidor de autenticação"
+
+Se o app Android mostrar o erro "Falha de configuracao do servidor de autenticacao" após o build:
+
+1. **Verificar se as variáveis estão no APK:**
+   ```bash
+   unzip -p app-release.apk assets/index.android.bundle | xxd | grep -i "xiguamct"
+   ```
+   Se aparecer algo como `ard/project/xigu`, as variáveis estão embedadas corretamente.
+
+2. **Verificar se o projeto Supabase está ativo:**
+   - Acessar https://supabase.com/dashboard
+   - Confirmar que o projeto não está pausado
+   - Verificar se as chaves estão corretas
+
+3. **Verificar as GitHub Secrets:**
+   - Settings → Secrets and variables → Actions
+   - Confirmar que `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` estão configurados
+
+4. **Verificar os logs do CI:**
+   - Actions → Workflow run → "Validate environment variables" deve mostrar ✅
+
+5. **Verificar se o SecureStore funciona:**
+   - O app usa SecureStore para sessão. Em alguns dispositivos pode falhar.
+   - O código tem fallback para in-memory storage.
+
 ---
 
 ## Próximos Passos Planejados

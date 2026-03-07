@@ -8,27 +8,54 @@ export interface SessionStorageAdapter {
   removeItem: (key: string) => Promise<void>;
 }
 
+const inMemoryStore: Record<string, string> = {};
+
+const createInMemoryStorage = (): SessionStorageAdapter => ({
+  getItem: async (key: string) => inMemoryStore[key] || null,
+  setItem: async (key: string, value: string) => { inMemoryStore[key] = value; },
+  removeItem: async (key: string) => { delete inMemoryStore[key]; },
+});
+
+let useInMemory = false;
+
 const getItem = async (key: string): Promise<string | null> => {
+  if (useInMemory) {
+    return inMemoryStore[key] || null;
+  }
   try {
     return await SecureStore.getItemAsync(key);
   } catch (error) {
-    throw new Error(`Failed to read secure storage key "${key}": ${String(error)}`);
+    console.warn('[SecureSessionStorage] SecureStore getItem failed, using in-memory:', error);
+    useInMemory = true;
+    return inMemoryStore[key] || null;
   }
 };
 
 const setItem = async (key: string, value: string): Promise<void> => {
+  if (useInMemory) {
+    inMemoryStore[key] = value;
+    return;
+  }
   try {
     await SecureStore.setItemAsync(key, value);
   } catch (error) {
-    throw new Error(`Failed to write secure storage key "${key}": ${String(error)}`);
+    console.warn('[SecureSessionStorage] SecureStore setItem failed, using in-memory:', error);
+    useInMemory = true;
+    inMemoryStore[key] = value;
   }
 };
 
 const removeItem = async (key: string): Promise<void> => {
+  if (useInMemory) {
+    delete inMemoryStore[key];
+    return;
+  }
   try {
     await SecureStore.deleteItemAsync(key);
   } catch (error) {
-    throw new Error(`Failed to remove secure storage key "${key}": ${String(error)}`);
+    console.warn('[SecureSessionStorage] SecureStore removeItem failed, using in-memory:', error);
+    useInMemory = true;
+    delete inMemoryStore[key];
   }
 };
 
