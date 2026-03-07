@@ -1,6 +1,15 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { DashboardStats } from '../types';
 import { getCurrentUserId } from './authService';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
+  }
+  return client;
+};
 
 const buildDateRange = (month?: number, year?: number): { startDate: string; endDate: string } => {
   if (month && year) {
@@ -22,9 +31,9 @@ const buildDateRange = (month?: number, year?: number): { startDate: string; end
 export const reportService = {
   async getDashboardStats(month?: number, year?: number): Promise<DashboardStats> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
     const { startDate, endDate } = buildDateRange(month, year);
 
-    // Buscar compras do período
     const { data: purchases, error: purchasesError } = await supabase
       .from('purchases')
       .select('id, total_price')
@@ -39,7 +48,6 @@ export const reportService = {
     const purchaseCount = purchases?.length || 0;
     const totalSpent = purchases?.reduce((sum, p) => sum + (parseFloat(p.total_price) || 0), 0) || 0;
 
-    // Buscar todos os itens das compras do período
     const purchaseIds = purchases?.map(p => p.id) || [];
     let itemCount = 0;
 
@@ -58,12 +66,13 @@ export const reportService = {
       totalSpent,
       purchaseCount,
       itemCount,
-      savings: 0, // Por enquanto não calculado
+      savings: 0,
     };
   },
 
   async getMonthlyExpenses(year: number): Promise<Array<{ month: number; total: number }>> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data: purchases, error } = await supabase
       .from('purchases')
@@ -76,7 +85,6 @@ export const reportService = {
       throw new Error(error.message);
     }
 
-    // Agrupar por mês
     const monthlyTotals: Record<number, number> = {};
     for (let m = 1; m <= 12; m++) {
       monthlyTotals[m] = 0;
@@ -98,6 +106,7 @@ export const reportService = {
     endDate?: string
   ): Promise<Array<{ supermarket: string; total: number }>> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data, error } = await supabase.rpc('report_expenses_by_supermarket', {
       p_user_id: userId,
@@ -121,6 +130,7 @@ export const reportService = {
     endDate?: string
   ): Promise<Array<{ name: string; quantity: number; total: number }>> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data, error } = await supabase.rpc('report_top_items', {
       p_user_id: userId,
@@ -157,6 +167,7 @@ export const reportService = {
     }>;
   }> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     if (!itemName) {
       return {

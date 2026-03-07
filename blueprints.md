@@ -230,9 +230,58 @@ npm run lint          # ESLint
 
 ---
 
+### ADR-002: Gerenciamento de Variáveis de Ambiente em Builds CI/CD
+**Data:** 07/03/2026  
+**Contexto:** App Android compilado via CI/CD travava na tela inicial porque variáveis `EXPO_PUBLIC_*` não estavam sendo embedadas no bundle JavaScript.
+
+**Decisão:**
+1. **Workflow CI/CD deve explicitamente exportar variáveis** nos steps críticos (`npm ci`, `expo prebuild`, `gradlew build`)
+2. **Validação obrigatória:** Step de debug deve verificar presença das variáveis antes do build
+3. **Fallback seguro:** App deve detectar configuração ausente e mostrar tela de erro clara ao usuário
+4. **Documentação:** Comentários explicativos no workflow sobre a necessidade de env explícitos
+
+**Implementação:**
+```yaml
+# Todas as variáveis EXPO_PUBLIC_* devem estar em env: em steps críticos
+- name: Install dependencies
+  env:
+    EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+  run: npm ci
+
+- name: Generate native project
+  env:
+    EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+  run: npx expo prebuild --clean --platform android
+
+- name: Build Android APK
+  env:
+    EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+    EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+  run: ./gradlew assembleRelease
+```
+
+**Consequências:**
+- ✅ Builds CI/CD embedam corretamente as variáveis no bundle
+- ✅ Debugging facilitado com validação explícita
+- ✅ UX melhorada com mensagens de erro claras
+- ⚠️ Manutenção adicional: variáveis precisam ser duplicadas em múltiplos steps
+
+**Lição Aprendida:**
+> No Expo 54 + React Native 0.81.5, o Metro bundler processa `EXPO_PUBLIC_*` em tempo de build. O arquivo `.env` criado no workflow pode não ser lido corretamente pelo Metro durante o bundle. Variáveis devem estar disponíveis como environment variables do shell/OS durante todo o processo de build.
+
+---
+
 ## Próximos Passos Planejados
 
-### v1.2.0 - Melhorias de UX (Planejado)
+### v1.2.0 - Correções de Build e Resiliência (LANÇADO)
+- [x] Corrigir variáveis de ambiente em builds CI/CD (ADR-002)
+- [x] Adicionar fallback para SecureStore indisponível
+- [x] Adicionar validação de configuração no app
+- [ ] Corrigir testes unitários (TypeScript errors)
+
+### v1.2.x - Melhorias de UX (Planejado)
 - [ ] Categorização automática de produtos via regex/IA
 - [ ] Alertas de variação de preços de itens frequentes
 - [ ] Melhoria na resiliência do scraping (mais estados brasileiros)
@@ -245,7 +294,7 @@ npm run lint          # ESLint
 
 ### Infraestrutura
 - [ ] Configurar GitHub Releases para versionamento automático
-- [x] CI/CD pipeline para builds automáticos (Otimizado v1.1.0 - ABIs limitadas)
+- [x] CI/CD pipeline para builds automáticos (Otimizado v1.1.0 - ABIs limitadas + ADR-002)
 - [ ] Testes E2E com Detox
 
 ---

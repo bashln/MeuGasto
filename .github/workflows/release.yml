@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -46,23 +49,55 @@ jobs:
           path: ~/android-sdk
           key: ${{ runner.os }}-android-sdk-${{ hashFiles('mobile/app.json') }}
 
-      - name: Install dependencies
-        working-directory: ./mobile
-        run: npm ci
-
       - name: Create .env file
         working-directory: ./mobile
         run: |
-          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" > .env
-          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_SUPABASE_URL=$EXPO_PUBLIC_SUPABASE_URL" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$EXPO_PUBLIC_SUPABASE_ANON_KEY" >> .env
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm ci
+
+      - name: Validate environment variables
+        working-directory: ./mobile
+        run: |
+          if [ -z "$EXPO_PUBLIC_SUPABASE_URL" ]; then
+            echo "❌ EXPO_PUBLIC_SUPABASE_URL is not set"
+            exit 1
+          fi
+          if [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "❌ EXPO_PUBLIC_SUPABASE_ANON_KEY is not set"
+            exit 1
+          fi
+          echo "✅ Environment variables are configured"
 
       - name: Generate native project
         working-directory: ./mobile
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: npx expo prebuild --clean --platform android
 
       - name: Build Android APK
         working-directory: ./mobile/android
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: ./gradlew assembleRelease --no-daemon --parallel --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+
+      - name: Validate APK size
+        run: |
+          APK_SIZE=$(stat -c%s mobile/android/app/build/outputs/apk/release/app-release.apk)
+          MIN_SIZE=40000000
+          if [ $APK_SIZE -lt $MIN_SIZE ]; then
+            echo "⚠️ APK muito pequeno ($APK_SIZE bytes). Possível problema no build."
+            exit 1
+          fi
+          echo "✓ APK size: $APK_SIZE bytes"
 
       - name: Prepare release asset
         run: cp mobile/android/app/build/outputs/apk/release/app-release.apk "mobile/android/app/build/outputs/apk/release/MeuGasto-${{ github.ref_name }}.apk"

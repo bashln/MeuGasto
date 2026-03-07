@@ -1,6 +1,15 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { NFCeScrapedData, validateAccessKey, validateAndSanitizeNFCePayload } from '../lib/nfcePayloadValidation';
 import { getCurrentUserId } from './authService';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
+  }
+  return client;
+};
 
 const DEFAULT_SCRAPER_URL = 'https://nfce-scraper.herokuapp.com';
 
@@ -216,6 +225,7 @@ const findOrCreateSupermarket = async (
     createIfMissing?: boolean;
   }
 ): Promise<number | undefined> => {
+  const supabase = getClient();
   let actualSupermarketId = supermarketId;
 
   if (!actualSupermarketId && data.cnpj) {
@@ -334,6 +344,7 @@ export const nfceService = {
     total: number;
     itemCount: number;
   }> {
+    const supabase = getClient();
     const userId = await getCurrentUserId();
 
     const nfceData = await this.consultQRCode(qrCodeData);
@@ -391,6 +402,7 @@ export const nfceService = {
     total: number;
     itemCount: number;
   }> {
+    const supabase = getClient();
     const userId = await getCurrentUserId();
     const sanitizedPayload: NFCeScrapedData = validateAndSanitizeNFCePayload(scrapedData);
     const sanitizedAccessKey = validateAccessKey(accessKey);

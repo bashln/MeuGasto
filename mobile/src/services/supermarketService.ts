@@ -1,6 +1,15 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { Supermarket } from '../types';
 import { getCurrentUserId } from './authService';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
+  }
+  return client;
+};
 
 type PaginationInfo = {
   pageNumber: number;
@@ -12,6 +21,7 @@ type PaginationInfo = {
 export const supermarketService = {
   async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const from = page * size;
     const to = from + size - 1;
@@ -48,6 +58,8 @@ export const supermarketService = {
   },
 
   async getSupermarketById(id: number): Promise<Supermarket> {
+    const supabase = getClient();
+
     const { data, error } = await supabase
       .from('supermarkets')
       .select('*')
@@ -77,6 +89,7 @@ export const supermarketService = {
     state: string;
   }): Promise<Supermarket> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data: supermarket, error } = await supabase
       .from('supermarkets')
@@ -114,8 +127,8 @@ export const supermarketService = {
     }
   ): Promise<Supermarket> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
-    // Verificar se é manual
     const { data: existing } = await supabase
       .from('supermarkets')
       .select('manual, user_id')
@@ -158,8 +171,8 @@ export const supermarketService = {
 
   async deleteSupermarket(id: number): Promise<void> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
-    // Verificar se é manual
     const { data: existing } = await supabase
       .from('supermarkets')
       .select('manual, user_id')
@@ -174,7 +187,6 @@ export const supermarketService = {
       throw new Error('Acesso negado');
     }
 
-    // Verificar se tem compras associadas
     const { count } = await supabase
       .from('purchases')
       .select('*', { count: 'exact', head: true })
@@ -196,6 +208,7 @@ export const supermarketService = {
 
   async searchSupermarkets(query: string): Promise<Supermarket[]> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data: supermarkets, error } = await supabase
       .from('supermarkets')
