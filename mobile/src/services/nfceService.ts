@@ -1,53 +1,16 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { NFCeScrapedData, validateAccessKey, validateAndSanitizeNFCePayload } from '../lib/nfcePayloadValidation';
 import { getCurrentUserId } from './authService';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-const DEFAULT_SCRAPER_URL = 'https://nfce-scraper.herokuapp.com';
-
-const normalizeScraperBaseUrl = (value?: string): string => {
-  if (!value?.trim()) {
-    return DEFAULT_SCRAPER_URL;
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
   }
-
-  const input = value.trim();
-  const withProtocol = /^https?:\/\//i.test(input) ? input : `https://${input}`;
-
-  try {
-    const parsed = new URL(withProtocol);
-    parsed.hash = '';
-    parsed.search = '';
-    return parsed.toString().replace(/\/$/, '');
-  } catch {
-    return DEFAULT_SCRAPER_URL;
-  }
+  return client;
 };
 
-export const NFCE_SCRAPER_BASE_URL = normalizeScraperBaseUrl(
-  process.env.NFCE_SCRAPER_URL || process.env.EXPO_PUBLIC_NFCE_SCRAPER_URL
-);
-
-const SCRAPER_HOST = new URL(NFCE_SCRAPER_BASE_URL).hostname;
-
-interface NFCeItem {
-  item: string;
-  id: number;
-  unity: string;
-  amount: number;
-  unity_price: number;
-  price: number;
-}
-
-interface NFCeData {
-  items: NFCeItem[];
-  total: number;
-  supermarket?: {
-    name: string;
-    cnpj?: string;
-    city?: string;
-    state?: string;
-  };
-  date?: string;
-}
 
 export const extractAccessKeyFromQRCode = (qrCodeData: string): string => {
   const pValue = parseQrInput(qrCodeData);
@@ -142,7 +105,6 @@ export const buildNFCeUrl = (input: string): string => {
 
 // Derive allowed hosts and path prefixes from STATE_URLS (single source of truth)
 export const NFCE_ALLOWED_HOSTS = new Set<string>([
-  SCRAPER_HOST,
   ...Object.values(STATE_URLS).map(url => new URL(url).hostname),
 ]);
 
@@ -153,7 +115,7 @@ export const NFCE_ALLOWED_PATH_PREFIXES: Record<string, string[]> = Object.value
     if (!acc[hostname].includes(pathname)) acc[hostname].push(pathname);
     return acc;
   },
-  { [SCRAPER_HOST]: ['/nfce'] } as Record<string, string[]>,
+  {} as Record<string, string[]>,
 );
 
 export const isAllowedNfceUrl = (
@@ -216,6 +178,7 @@ const findOrCreateSupermarket = async (
     createIfMissing?: boolean;
   }
 ): Promise<number | undefined> => {
+  const supabase = getClient();
   let actualSupermarketId = supermarketId;
 
   if (!actualSupermarketId && data.cnpj) {
@@ -276,111 +239,6 @@ const findOrCreateSupermarket = async (
 };
 
 export const nfceService = {
-  async consultQRCode(qrCodeData: string): Promise<NFCeData> {
-    const accessKey = extractAccessKeyFromQRCode(qrCodeData);
-    if (__DEV__) {
-      console.warn('Chave extraída:', accessKey, '- Comprimento:', accessKey.length);
-    }
-    
-    const url = buildNFCeUrl(qrCodeData);
-
-    if (__DEV__) {
-      console.warn('Consultando NFC-e com URL:', url);
-    }
-
-    try {
-      const response = await fetch(
-        `${NFCE_SCRAPER_BASE_URL}/nfce?nfce_url=${encodeURIComponent(url)}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status}`);
-      }
-
-      const items: NFCeItem[] = await response.json();
-
-      if (__DEV__) {
-        console.warn('Items recebidos:', items);
-      }
-
-      if (!items || items.length === 0) {
-        throw new Error('Nenhum item encontrado na nota fiscal.');
-      }
-
-      const total = items.reduce((sum, item) => sum + item.price, 0);
-
-      return {
-        items,
-        total,
-        date: new Date().toISOString().split('T')[0],
-      };
-    } catch (error: unknown) {
-      if (__DEV__) {
-        console.warn('Erro na consulta NFC-e:', error);
-      }
-      if (error instanceof Error && error.message.includes('Nenhum item')) {
-        throw error;
-      }
-      throw new Error('Erro ao consultar nota fiscal. Verifique a chave de acesso.');
-    }
-  },
-
-  async createPurchaseFromNFCe(
-    qrCodeData: string,
-    supermarketId?: number
-  ): Promise<{
-    purchaseId: number;
-    accessKey: string;
-    total: number;
-    itemCount: number;
-  }> {
-    const userId = await getCurrentUserId();
-
-    const nfceData = await this.consultQRCode(qrCodeData);
-    const accessKey = extractAccessKeyFromQRCode(qrCodeData);
-
-    const actualSupermarketId = await findOrCreateSupermarket(userId, supermarketId, {
-      cnpj: nfceData.supermarket?.cnpj,
-      requireNonManual: true,
-      createIfMissing: false,
-    });
-
-    const itemsPayload = nfceData.items.map(item => ({
-      name: item.item,
-      code: item.id.toString(),
-      quantity: item.amount,
-      unit: item.unity,
-      price: item.unity_price,
-    }));
-
-    const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
-      p_user_id: userId,
-      p_supermarket_id: actualSupermarketId || null,
-      p_access_key: accessKey,
-      p_date: nfceData.date || new Date().toISOString().split('T')[0],
-      p_total_price: nfceData.total,
-      p_manual: false,
-      p_items: itemsPayload,
-    });
-
-    if (purchaseError) {
-      throw new Error(purchaseError.message);
-    }
-
-    const purchaseId = createdPurchase?.[0]?.purchase_id;
-
-    if (!purchaseId) {
-      throw new Error('Não foi possível criar a compra da NFC-e');
-    }
-
-    return {
-      purchaseId,
-      accessKey,
-      total: nfceData.total,
-      itemCount: nfceData.items.length,
-    };
-  },
-
   async createPurchaseFromScrapedData(
     scrapedData: unknown,
     accessKey: string,
@@ -391,6 +249,7 @@ export const nfceService = {
     total: number;
     itemCount: number;
   }> {
+    const supabase = getClient();
     const userId = await getCurrentUserId();
     const sanitizedPayload: NFCeScrapedData = validateAndSanitizeNFCePayload(scrapedData);
     const sanitizedAccessKey = validateAccessKey(accessKey);
@@ -422,7 +281,6 @@ export const nfceService = {
     }));
 
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
-      p_user_id: userId,
       p_supermarket_id: actualSupermarketId || null,
       p_access_key: sanitizedAccessKey,
       p_date: purchaseDate,
