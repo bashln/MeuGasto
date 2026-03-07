@@ -165,8 +165,6 @@ export const purchaseService = {
       price: number;
     }>;
   }): Promise<Purchase> {
-    const userId = await getCurrentUserId();
-
     const itemsPayload = (purchase.items ?? []).map(item => ({
         name: item.name,
         code: '',
@@ -178,7 +176,6 @@ export const purchaseService = {
     const supabase = getClient();
 
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
-      p_user_id: userId,
       p_supermarket_id: purchase.supermarketId || null,
       p_access_key: null,
       p_date: purchase.date,

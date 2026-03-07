@@ -76,6 +76,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
           label="Nome"
           value={name}
           onChangeText={setName}
+          maxLength={100}
           mode="outlined"
           outlineColor={colors.border}
           activeOutlineColor={colors.primary}
