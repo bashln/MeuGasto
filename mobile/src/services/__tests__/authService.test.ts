@@ -1,5 +1,5 @@
-jest.mock('../../lib/supabaseClient', () => ({
-  supabase: {
+jest.mock('../../lib/supabaseClient', () => {
+  const mockClient = {
     auth: {
       getSession: jest.fn(),
       signOut: jest.fn(),
@@ -10,8 +10,14 @@ jest.mock('../../lib/supabaseClient', () => ({
       getUser: jest.fn(),
     },
     from: jest.fn(),
-  },
-}));
+  };
+  return {
+    supabase: mockClient,
+    getSupabaseClient: jest.fn().mockReturnValue(mockClient),
+    isSupabaseConfigured: jest.fn().mockReturnValue(true),
+    supabaseUrl: 'https://mock.supabase.co',
+  };
+});
 
 jest.mock('expo-secure-store', () => ({
   deleteItemAsync: jest.fn(),
@@ -23,9 +29,9 @@ import { authService, getCurrentUserId } from '../authService';
 import { supabase } from '../../lib/supabaseClient';
 import * as SecureStore from 'expo-secure-store';
 
-const mockGetSession = supabase.auth.getSession as jest.Mock;
-const mockSignOut = supabase.auth.signOut as jest.Mock;
-const mockSignInWithPassword = supabase.auth.signInWithPassword as jest.Mock;
+const mockGetSession = supabase!.auth.getSession as jest.Mock;
+const mockSignOut = supabase!.auth.signOut as jest.Mock;
+const mockSignInWithPassword = supabase!.auth.signInWithPassword as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
 
 describe('authService', () => {
