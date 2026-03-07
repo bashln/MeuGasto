@@ -64,10 +64,13 @@ jobs:
         working-directory: ./mobile/android
         run: ./gradlew assembleRelease --no-daemon --parallel --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
 
+      - name: Prepare release asset
+        run: cp mobile/android/app/build/outputs/apk/release/app-release.apk "mobile/android/app/build/outputs/apk/release/MeuGasto-${{ github.ref_name }}.apk"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: mobile/android/app/build/outputs/apk/release/app-release.apk
+          files: mobile/android/app/build/outputs/apk/release/MeuGasto-${{ github.ref_name }}.apk
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
