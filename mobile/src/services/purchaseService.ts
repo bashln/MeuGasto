@@ -1,7 +1,6 @@
 import { getSupabaseClient } from '../lib/supabaseClient';
-import { Purchase, PurchaseFilter, NfceRequest, PageResponse } from '../types';
+import { Purchase, PurchaseFilter, PageResponse } from '../types';
 import { getCurrentUserId } from './authService';
-import { nfceService } from './nfceService';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 const getClient = (): SupabaseClient => {
@@ -147,11 +146,6 @@ export const purchaseService = {
       createdAt: purchase.created_at,
       updatedAt: purchase.updated_at,
     };
-  },
-
-  async createPurchaseFromQRCode(data: NfceRequest): Promise<Purchase> {
-    const result = await nfceService.createPurchaseFromNFCe(data.qrCodeData);
-    return this.getPurchaseById(result.purchaseId);
   },
 
   async createManualPurchase(purchase: {

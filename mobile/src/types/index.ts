@@ -122,9 +122,6 @@ export interface UpdateDraftRequest {
   }>;
 }
 
-export interface NfceRequest {
-  qrCodeData: string;
-}
 
 export interface DashboardStats {
   totalSpent: number;

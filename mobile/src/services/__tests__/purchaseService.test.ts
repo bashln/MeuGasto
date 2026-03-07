@@ -11,11 +11,6 @@ jest.mock('../authService', () => ({
   getCurrentUserId: jest.fn().mockResolvedValue('user-1'),
 }));
 
-jest.mock('../nfceService', () => ({
-  nfceService: {
-    createPurchaseFromNFCe: jest.fn(),
-  },
-}));
 
 import { purchaseService } from '../purchaseService';
 import { supabase } from '../../lib/supabaseClient';
