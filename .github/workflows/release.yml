@@ -56,7 +56,7 @@ jobs:
 
       - name: Build Android APK
         working-directory: ./mobile/android
-        run: ./gradlew assembleRelease --no-daemon --parallel --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+        run: ./gradlew assembleRelease --no-daemon --parallel --build-cache
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
