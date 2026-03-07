@@ -67,6 +67,8 @@ Thumbs.db
 # Mobile (Expo)
 .expo/
 expo-env.d.ts
+mobile/android/
+mobile/ios/
 
 # Misc
 local.properties

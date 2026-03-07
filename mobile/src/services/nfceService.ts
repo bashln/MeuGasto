@@ -418,7 +418,7 @@ export const nfceService = {
       code: '',
       quantity: item.quantity,
       unit: item.unit,
-      price: item.totalPrice ?? item.unityPrice ?? 0,
+      price: item.unityPrice ?? item.totalPrice ?? 0,
     }));
 
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
