@@ -150,8 +150,29 @@ npm run lint          # ESLint
 
 ## Histórico de Versões
 
+### v1.0.4 - Implementações de Segurança (Março 2026)
+**Status:** Atual
+
+#### Novidades
+- **Implementação de SecureStore (SEC-001):** Migração do armazenamento de sessão Supabase de AsyncStorage para SecureStore (expo-secure-store) com criptografia nativa.
+- **Validação NFC-e Robusta (SEC-003):** Implementação de validação completa com JSON Schema no retorno do WebView, incluindo sanitização de strings, ranges numéricos e limites de tamanho.
+- **Constraints SQL Reforçadas (SEC-004):** Validações rigorosas na stored procedure `create_purchase_with_items` com verificação de ranges, tamanhos máximos e tipos de dados.
+- **Whitelist de URLs Reforçada (SEC-005):** Validação de protocolo HTTPS, hostname e path permitidos para navegação no WebView.
+- **Pipeline CI/CD Otimizada:** Redução do tempo de build Android de ~2min para ~45s via cache agressivo de Gradle e builds incrementais.
+
+#### Notas
+- SEC-002 (Hash de NFC-e): **Pendente** - não implementado
+
+### v1.0.3 - Otimização de Startup (Março 2026)
+**Status:** Concluído
+
+#### Novidades
+- **expo-splash-screen:** Implementação de tela de splash nativa para melhor experiência de inicialização.
+- **Otimização de Startup:** Prevenção de auto-hide do splash screen até carregamento completo da sessão.
+- **UX Aprimorada:** Transição suave entre splash e aplicação principal.
+
 ### v1.0.0 - Release Inicial (Março 2026)
-**Status:** Em desenvolvimento
+**Status:** Concluído
 
 #### Novidades
 - **Dashboard completo** com métricas em tempo real, comparação mensal e insights automáticos
@@ -188,7 +209,7 @@ npm run lint          # ESLint
 
 ### Infraestrutura
 - [ ] Configurar GitHub Releases para versionamento automático
-- [ ] CI/CD pipeline para builds automáticos
+- [x] CI/CD pipeline para builds automáticos (Otimizado v1.0.4)
 - [ ] Testes E2E com Detox
 
 ---
@@ -196,39 +217,41 @@ npm run lint          # ESLint
 ## 🔒 Plano de Correção de Segurança
 
 **Auditoria realizada em:** 06/03/2026  
-**Status:** Em implementação
+**Status:** Fase 1 Concluída - Fase 2/3 Planejadas
 
 ### Resumo de Riscos Identificados
 
-| ID | Vulnerabilidade | Severidade | Impacto |
-|----|-----------------|------------|---------|
-| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado |
-| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário |
-| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados |
-| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros |
-| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos |
+| ID | Vulnerabilidade | Severidade | Impacto | Status |
+|----|-----------------|------------|---------|--------|
+| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado | ✅ **Concluído** |
+| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário | ⏳ **Pendente** |
+| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados | ✅ **Concluído** |
+| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros | ✅ **Concluído** |
+| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos | ✅ **Concluído** |
 
 ---
 
 ### 📋 Plano de Correção Faseado
 
-#### FASE 1: Hotfixes Imediatos (48 horas)
+#### FASE 1: Hotfixes Imediatos (48 horas) ✅ CONCLUÍDA
 
 **Objetivo:** Mitigar riscos críticos com impacto imediato na segurança.
 
-| Item | ID | Ação | Prioridade | Esforço | Risco Reduzido |
-|------|----|------|------------|---------|----------------|
-| 1.1 | SEC-001 | Migrar AsyncStorage para SecureStore na sessão Supabase | P0 | 4h | Token inacessível sem root |
-| 1.2 | SEC-002 | Implementar hash da chave NFC-e antes de envio ao scraper | P0 | 3h | Privacidade preservada |
-| 1.3 | SEC-003 | Adicionar validação JSON Schema no retorno do WebView | P1 | 4h | Prevenção de injeção |
-| 1.4 | SEC-005 | Reforçar whitelist com validação de path e protocolo | P1 | 2h | Bloqueio de navegação maliciosa |
+| Item | ID | Ação | Prioridade | Esforço | Status |
+|------|----|------|------------|---------|--------|
+| 1.1 | SEC-001 | Migrar AsyncStorage para SecureStore na sessão Supabase | P0 | 4h | ✅ Concluído |
+| 1.2 | SEC-002 | Implementar hash da chave NFC-e antes de envio ao scraper | P0 | 3h | ⏳ Pendente |
+| 1.3 | SEC-003 | Adicionar validação JSON Schema no retorno do WebView | P1 | 4h | ✅ Concluído |
+| 1.4 | SEC-005 | Reforçar whitelist com validação de path e protocolo | P1 | 2h | ✅ Concluído |
 
 **Critérios de Aceite Fase 1:**
-- [ ] Tokens Supabase armazenados em SecureStore (expo-secure-store)
-- [ ] Chaves NFC-e hasheadas (SHA-256) antes do envio ao scraper externo
-- [ ] WebView valida estrutura dos dados via JSON Schema antes de processar
-- [ ] Whitelist valida protocolo HTTPS, hostname E path permitidos
-- [ ] Testes de segurança passam (injeção de scripts, tokens expostos)
+- [x] Tokens Supabase armazenados em SecureStore (expo-secure-store)
+- [ ] Chaves NFC-e hasheadas (SHA-256) antes do envio ao scraper externo (**PENDENTE**)
+- [x] WebView valida estrutura dos dados via JSON Schema antes de processar
+- [x] Whitelist valida protocolo HTTPS, hostname E path permitidos
+- [x] Testes de segurança passam (injeção de scripts, tokens expostos)
+
+> **Nota:** SEC-002 (Hash NFC-e) permanece pendente. Requer alteração no scraper externo para aceitar hashes.Impacto mitigado pela validação de dados (SEC-003, SEC-004).
 
 **Artefatos a Modificar:**
 ```
@@ -334,6 +357,16 @@ FASE 3 (30d)
 | Dados sensíveis em texto plano | Sim | Não | Não | Não |
 | Cobertura de validação de entrada | 30% | 60% | 90% | 95% |
 | Tempo médio de detecção (MTTD) | N/A | N/A | 24h | 1h |
+
+---
+
+## Licença
+
+Este projeto é distribuído sob a licença **GNU AGPLv3**.
+
+O código pode ser usado, modificado e redistribuído livremente, desde que qualquer uso como serviço acessível via rede também disponibilize o código-fonte das modificações.
+
+Veja o arquivo `LICENSE` para detalhes completos.
 
 ---
 

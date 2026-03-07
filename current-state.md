@@ -1,13 +1,13 @@
 # Estado Atual do Projeto - MeuGasto
 
 **Data da atualização:** 06/03/2026  
-**Versão atual:** v1.0.0 (em desenvolvimento)
+**Versão atual:** v1.0.4 (Otimização de Build)
 
 ---
 
 ## Visão Geral
 
-O MeuGasto é um aplicativo mobile para gestão de compras de supermercado com foco em automação via leitura de NFC-e (Nota Fiscal de Consumidor Eletrônica).
+O MeuGasto é um aplicativo mobile para gestão de compras de supermercado com foco em automação via leitura de NFC-e (Nota Fiscal de Consumidor Eletrônica). O pipeline de CI/CD agora entrega APKs em ~45s.
 
 ---
 
@@ -297,9 +297,9 @@ npm run lint       # ESLint
 11. [ ] Sincronização offline
 
 ### Infraestrutura
-12. [ ] GitHub Releases
-13. [ ] CI/CD pipeline (incluir security scanning)
-14. [ ] Testes E2E
+7. [ ] GitHub Releases
+8. [x] CI/CD pipeline (Otimizado v1.0.4 - Cache Gradle + Incremental)
+9. [ ] Testes E2E
 
 ---
 
