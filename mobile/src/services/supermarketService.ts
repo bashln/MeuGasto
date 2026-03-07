@@ -18,9 +18,18 @@ type PaginationInfo = {
   totalPages: number;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const assertSafeUserId = (userId: string): void => {
+  if (!UUID_RE.test(userId)) {
+    throw new Error('User ID inválido');
+  }
+};
+
 export const supermarketService = {
   async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
+    assertSafeUserId(userId);
     const supabase = getClient();
 
     const from = page * size;
@@ -58,16 +67,33 @@ export const supermarketService = {
   },
 
   async getSupermarketById(id: number): Promise<Supermarket> {
+    const userId = await getCurrentUserId();
     const supabase = getClient();
 
-    const { data, error } = await supabase
+    const { data: ownData, error: ownError } = await supabase
       .from('supermarkets')
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId)
       .single();
 
-    if (error) {
-      throw new Error(error.message);
+    if (ownError && ownError.code !== 'PGRST116') {
+      throw new Error(ownError.message);
+    }
+
+    let data = ownData;
+    if (!data) {
+      const { data: globalData, error: globalError } = await supabase
+        .from('supermarkets')
+        .select('*')
+        .eq('id', id)
+        .is('user_id', null)
+        .single();
+
+      if (globalError) {
+        throw new Error(globalError.message);
+      }
+      data = globalData;
     }
 
     return {
@@ -199,7 +225,8 @@ export const supermarketService = {
     const { error } = await supabase
       .from('supermarkets')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) {
       throw new Error(error.message);
@@ -208,6 +235,7 @@ export const supermarketService = {
 
   async searchSupermarkets(query: string): Promise<Supermarket[]> {
     const userId = await getCurrentUserId();
+    assertSafeUserId(userId);
     const supabase = getClient();
 
     const { data: supermarkets, error } = await supabase

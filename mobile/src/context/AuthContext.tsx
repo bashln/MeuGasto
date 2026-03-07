@@ -42,12 +42,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     const timeoutId = setTimeout(() => {
-      console.warn('Auth timeout — falling through to login');
+      if (__DEV__) {
+        console.warn('Auth timeout — falling through to login');
+      }
       resolve(null);
     }, AUTH_TIMEOUT_MS);
 
     if (!supabase || !isSupabaseConfigured()) {
-      console.warn('Supabase not configured, skipping auth initialization');
+      if (__DEV__) {
+        console.warn('Supabase not configured, skipping auth initialization');
+      }
       resolve(null);
       return;
     }
@@ -62,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         id: session.user.id,
         email: session.user.email || '',
         name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
-        role: 'USER',
+        role: 'user',
       };
       resolve(sessionUser);
 
@@ -72,7 +76,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(fullUser);
         }
       } catch (error) {
-        console.error('Background profile fetch failed:', error);
+        if (__DEV__) {
+          console.error('Background profile fetch failed:', error);
+        }
       }
     }).data.subscription;
 
@@ -81,7 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { user: initialUser } = await authService.getSessionFast();
         resolve(initialUser);
       } catch (error) {
-        console.error('Initial auth bootstrap failed:', error);
+        if (__DEV__) {
+          console.error('Initial auth bootstrap failed:', error);
+        }
         resolve(null);
       }
     })();
