@@ -58,7 +58,7 @@ jobs:
 
       - name: Generate native project
         working-directory: ./mobile
-        run: npx expo prebuild --platform android
+        run: npx expo prebuild --clean --platform android
 
       - name: Build Android APK
         working-directory: ./mobile/android
