@@ -5,7 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2026-03-06
+## [1.1.9] - 2026-03-07
+
+### Fixed
+- Release workflow now regenerates Android native files with `expo prebuild --clean` to avoid stale native metadata
+- iOS builds now set an explicit `buildNumber`
+
+### Changed
+- Bumped mobile app version to `1.1.9`
+- Set Android `versionCode` to `9`
+- Set iOS `buildNumber` to `9`
+
+## [1.1.8] - 2026-03-07
+
+### Fixed
+- Android releases now set an explicit `versionCode`, allowing installed APKs to upgrade correctly
+
+### Changed
+- Bumped mobile app version to `1.1.8`
+- Set Android `versionCode` to `8`
+
+## [1.1.7] - 2026-03-07
+
+### Fixed
+- Login now translates unexpected HTML responses from Supabase Auth into a clear configuration error
+- Added diagnostic logging for the configured Supabase URL/auth endpoint when Android receives non-JSON auth responses
+
+### Changed
+- Bumped mobile app version to `1.1.7`
+
+## [1.1.1] - 2026-03-07
+
+### Fixed
+- Correct NFC-e unit price calculation: now uses `unityPrice` before `totalPrice`
+- Fixed promise rejection warnings in AuthContext.tsx
+
+### Changed
+- Updated AuthContext to handle async SplashScreen calls safely
+
+## [1.1.0] - 2026-03-07
+
+### Fixed
+- GitHub Release workflow now limits ABIs for faster builds (`armeabi-v7a,arm64-v8a`)
+- Release process streamlined to single job
+
+### Changed
+- App version bumped to 1.1.0
 
 ### Fixed
 - Simplified GitHub release workflow to build and publish APK in a single job

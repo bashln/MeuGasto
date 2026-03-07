@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase, supabaseUrl } from '../lib/supabaseClient';
 import { clearSupabaseSessionStorage } from '../lib/secureSessionStorage';
 import { AuthUser } from '../types';
 
@@ -17,6 +17,26 @@ interface RegisterRequest {
   name: string;
 }
 
+const NON_JSON_RESPONSE_ERROR = 'JSON Parse error: Unexpected character: <';
+
+const normalizeAuthError = (error: unknown, action: 'login' | 'register'): Error => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes(NON_JSON_RESPONSE_ERROR)) {
+    console.error(`Supabase ${action} returned non-JSON response`, {
+      supabaseUrl,
+      authEndpoint: `${supabaseUrl}/auth/v1/token?grant_type=password`,
+      hint: 'Check EXPO_PUBLIC_SUPABASE_URL and whether the Android build is using the latest env values.',
+    });
+
+    return new Error(
+      'Falha de configuracao do servidor de autenticacao. Verifique a URL do Supabase no app Android.'
+    );
+  }
+
+  return error instanceof Error ? error : new Error(message);
+};
+
 export const getCurrentUserId = async (): Promise<string> => {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error) throw new Error(error.message);
@@ -26,77 +46,85 @@ export const getCurrentUserId = async (): Promise<string> => {
 
 export const authService = {
   async register(userData: RegisterRequest): Promise<AuthResult> {
-    const { data, error } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: {
-        data: {
-          name: userData.name,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            name: userData.name,
+          },
         },
-      },
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (data.user) {
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        name: userData.name,
-        role: 'USER',
       });
-    }
 
-    return {
-      user: {
-        id: data.user?.id ?? '',
-        email: data.user?.email || userData.email,
-        name: userData.name,
-        role: 'USER',
-      },
-    };
-  },
+      if (error) {
+        throw new Error(error.message);
+      }
 
-  async login(credentials: LoginRequest): Promise<AuthResult> {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: credentials.email,
-      password: credentials.password,
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    // Buscar perfil
-    let userName = credentials.email.split('@')[0];
-    
-    if (data.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name')
-        .eq('id', data.user.id)
-        .single();
-
-      if (profile?.name) {
-        userName = profile.name;
-      } else {
+      if (data.user) {
         await supabase.from('profiles').upsert({
           id: data.user.id,
-          name: userName,
+          name: userData.name,
           role: 'USER',
         });
       }
-    }
 
-    return {
-      user: {
-        id: data.user?.id ?? '',
-        email: data.user?.email || credentials.email,
-        name: userName,
-        role: 'USER',
-      },
-    };
+      return {
+        user: {
+          id: data.user?.id ?? '',
+          email: data.user?.email || userData.email,
+          name: userData.name,
+          role: 'USER',
+        },
+      };
+    } catch (error) {
+      throw normalizeAuthError(error, 'register');
+    }
+  },
+
+  async login(credentials: LoginRequest): Promise<AuthResult> {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Buscar perfil
+      let userName = credentials.email.split('@')[0];
+
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profile?.name) {
+          userName = profile.name;
+        } else {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            name: userName,
+            role: 'USER',
+          });
+        }
+      }
+
+      return {
+        user: {
+          id: data.user?.id ?? '',
+          email: data.user?.email || credentials.email,
+          name: userName,
+          role: 'USER',
+        },
+      };
+    } catch (error) {
+      throw normalizeAuthError(error, 'login');
+    }
   },
 
   async logout(): Promise<void> {

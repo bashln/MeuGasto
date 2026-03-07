@@ -4,7 +4,7 @@ import { authService } from '../services/authService';
 import { AuthUser } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -31,13 +31,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     let isMounted = true;
     let resolved = false;
+    let subscription: { unsubscribe: () => void } | null = null;
 
     const resolve = (authUser: AuthUser | null) => {
       if (resolved || !isMounted) return;
       resolved = true;
       setUser(authUser);
       setIsLoading(false);
-      SplashScreen.hideAsync();
+      void SplashScreen.hideAsync().catch(() => {});
     };
 
     const timeoutId = setTimeout(() => {
@@ -45,15 +46,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       resolve(null);
     }, AUTH_TIMEOUT_MS);
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    subscription = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session?.user) {
         resolve(null);
         return;
       }
 
-      // Immediately set user from session (no network call)
       const sessionUser: AuthUser = {
         id: session.user.id,
         email: session.user.email || '',
@@ -62,7 +60,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
       resolve(sessionUser);
 
-      // Background: fetch full profile and update seamlessly
       try {
         const { user: fullUser } = await authService.getSession();
         if (isMounted && fullUser) {
@@ -71,12 +68,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('Background profile fetch failed:', error);
       }
-    });
+    }).data.subscription;
+
+    void (async () => {
+      try {
+        const { user: initialUser } = await authService.getSessionFast();
+        resolve(initialUser);
+      } catch (error) {
+        console.error('Initial auth bootstrap failed:', error);
+        resolve(null);
+      }
+    })();
 
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
