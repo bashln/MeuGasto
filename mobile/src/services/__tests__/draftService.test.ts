@@ -3,7 +3,14 @@ import { serializeContent } from '../draftContent';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
-jest.mock('../../lib/supabaseClient', () => ({ supabase: { from: jest.fn() } }));
+jest.mock('../../lib/supabaseClient', () => {
+  const mockClient = { from: jest.fn() };
+  return {
+    supabase: mockClient,
+    getSupabaseClient: jest.fn().mockReturnValue(mockClient),
+    isSupabaseConfigured: jest.fn().mockReturnValue(true),
+  };
+});
 jest.mock('../authService', () => ({
   authService: { getSession: jest.fn().mockResolvedValue({ user: { id: 'user-123' } }) },
   getCurrentUserId: jest.fn().mockResolvedValue('user-123'),
@@ -59,7 +66,7 @@ describe('draftService.getDraftById', () => {
     const chain = makeMockChain({
       single: jest.fn().mockResolvedValue({ data: RAW_DRAFT, error: null }),
     });
-    (supabase.from as jest.Mock).mockReturnValue(chain);
+    (supabase!.from as jest.Mock).mockReturnValue(chain);
 
     const result = await draftService.getDraftById(1);
 
@@ -73,7 +80,7 @@ describe('draftService.getDraftById', () => {
     const chain = makeMockChain({
       single: jest.fn().mockResolvedValue({ data: oldDraft, error: null }),
     });
-    (supabase.from as jest.Mock).mockReturnValue(chain);
+    (supabase!.from as jest.Mock).mockReturnValue(chain);
 
     const result = await draftService.getDraftById(1);
 
@@ -85,7 +92,7 @@ describe('draftService.getDraftById', () => {
     const chain = makeMockChain({
       single: jest.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
     });
-    (supabase.from as jest.Mock).mockReturnValue(chain);
+    (supabase!.from as jest.Mock).mockReturnValue(chain);
 
     await expect(draftService.getDraftById(1)).rejects.toThrow('Not found');
   });
@@ -110,7 +117,7 @@ describe('draftService.createDraft', () => {
         .mockResolvedValueOnce({ data: { id: 2 }, error: null })
         .mockResolvedValueOnce({ data: insertedDraft, error: null }),
     });
-    (supabase.from as jest.Mock).mockReturnValue(chain);
+    (supabase!.from as jest.Mock).mockReturnValue(chain);
 
     const result = await draftService.createDraft({ content: 'Lista', items });
 
@@ -139,7 +146,7 @@ describe('draftService.createDraft', () => {
         .mockResolvedValueOnce({ data: { id: 3 }, error: null })
         .mockResolvedValueOnce({ data: { ...RAW_DRAFT, id: 3, content: serializeContent('', items), total_price: '15' }, error: null }),
     });
-    (supabase.from as jest.Mock).mockReturnValue(chain);
+    (supabase!.from as jest.Mock).mockReturnValue(chain);
 
     await draftService.createDraft({ content: '', items });
 
@@ -153,7 +160,7 @@ describe('draftService.createDraft', () => {
         .mockResolvedValueOnce({ data: { id: 4 }, error: null })
         .mockResolvedValueOnce({ data: { ...RAW_DRAFT, id: 4, content: serializeContent('sem itens', []), total_price: '0' }, error: null }),
     });
-    (supabase.from as jest.Mock).mockReturnValue(chain);
+    (supabase!.from as jest.Mock).mockReturnValue(chain);
 
     await draftService.createDraft({ content: 'sem itens', items: [] });
 

@@ -15,36 +15,22 @@ export const isSupabaseConfigured = (): boolean => {
   return true;
 };
 
-const createInMemoryStorage = () => {
-  const store: Record<string, string> = {};
-  return {
-    getItem: async (key: string) => store[key] || null,
-    setItem: async (key: string, value: string) => { store[key] = value; },
-    removeItem: async (key: string) => { delete store[key]; },
-  };
-};
+let _client: SupabaseClient | null | undefined = undefined;
 
 export const getSupabaseClient: () => SupabaseClient | null = () => {
+  if (_client !== undefined) {
+    return _client;
+  }
+
   if (!isSupabaseConfigured()) {
+    _client = null;
     return null;
   }
 
-  let storage = secureSessionStorage;
-  
   try {
-    const testKey = '__test_secure_store__';
-    secureSessionStorage.setItem(testKey, 'test').catch(() => {
-      console.warn('[SupabaseClient] SecureStore not available, using in-memory storage');
-      storage = createInMemoryStorage();
-    });
-  } catch {
-    storage = createInMemoryStorage();
-  }
-
-  try {
-    return createClient(supabaseUrl!, supabaseAnonKey!, {
+    _client = createClient(supabaseUrl!, supabaseAnonKey!, {
       auth: {
-        storage,
+        storage: secureSessionStorage,
         storageKey: SUPABASE_SESSION_STORAGE_KEY,
         autoRefreshToken: true,
         persistSession: true,
@@ -53,8 +39,10 @@ export const getSupabaseClient: () => SupabaseClient | null = () => {
     });
   } catch (error) {
     console.error('[SupabaseClient] Failed to create client:', error);
-    return null;
+    _client = null;
   }
+
+  return _client;
 };
 
 export const supabase = getSupabaseClient();
