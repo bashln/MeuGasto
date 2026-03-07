@@ -48,6 +48,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const injectScriptTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scraperInjectedRef = useRef(false);
 
   const clearAllTimeouts = () => {
     if (timeoutRef.current) {
@@ -74,6 +75,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
       }
 
       setStatusMessage('Isso pode levar alguns segundos.');
+      scraperInjectedRef.current = false;
 
       // Configurar timeout
       clearAllTimeouts();
@@ -106,6 +108,14 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         console.warn('[NFCeWebView] Debug:', message.message);
         setStatusMessage(message.message);
       } else if (message.type === 'NFCE_SCRAPE_RESULT') {
+        if (!scraperInjectedRef.current) {
+          if (DEBUG) {
+            console.warn('[NFCeWebView] Ignorando resultado fora da janela de scraping');
+          }
+          return;
+        }
+
+        scraperInjectedRef.current = false;
         clearAllTimeouts();
         if (message.ok) {
           const sanitizedPayload = validateAndSanitizeNFCePayload(message.data);
@@ -115,7 +125,9 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         }
       }
     } catch (e) {
-      console.error('[NFCeWebView] Erro ao parsear mensagem:', e);
+      if (__DEV__) {
+        console.error('[NFCeWebView] Erro ao parsear mensagem:', e);
+      }
       onError('Falha ao validar dados da NFC-e. Tente novamente.');
     }
   };
@@ -130,6 +142,8 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
       }
 
       injectScriptTimeoutRef.current = setTimeout(() => {
+        scraperInjectedRef.current = true;
+        injectScriptTimeoutRef.current = null;
         webViewRef.current?.injectJavaScript(NFCE_SCRAPE_SCRIPT);
       }, 1000);
     }
@@ -182,12 +196,11 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
             </View>
           )}
           javaScriptEnabled={true}
-          domStorageEnabled={true}
+          domStorageEnabled={false}
           scalesPageToFit={true}
           allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
           allowFileAccess={false}
-          allowsBackForwardNavigationGestures={true}
+          allowsBackForwardNavigationGestures={false}
         />
 
         <View style={styles.footer}>

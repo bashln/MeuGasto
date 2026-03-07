@@ -87,7 +87,7 @@ export const authService = {
         await supabase.from('profiles').upsert({
           id: data.user.id,
           name: userData.name,
-          role: 'USER',
+          role: 'user',
         });
       }
 
@@ -96,7 +96,7 @@ export const authService = {
           id: data.user?.id ?? '',
           email: data.user?.email || userData.email,
           name: userData.name,
-          role: 'USER',
+          role: 'user',
         },
       };
     } catch (error) {
@@ -138,7 +138,7 @@ export const authService = {
           await supabase.from('profiles').upsert({
             id: data.user.id,
             name: userName,
-            role: 'USER',
+            role: 'user',
           });
         }
       }
@@ -148,7 +148,7 @@ export const authService = {
           id: data.user?.id ?? '',
           email: data.user?.email || credentials.email,
           name: userName,
-          role: 'USER',
+          role: 'user',
         },
       };
     } catch (error) {
@@ -188,7 +188,7 @@ export const authService = {
         id: session.user.id,
         email: session.user.email || '',
         name: profile?.name || session.user.email?.split('@')[0] || '',
-        role: profile?.role || 'USER',
+        role: profile?.role || 'user',
       },
     };
   },
@@ -201,12 +201,18 @@ export const authService = {
       return { user: null };
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name, role')
+      .eq('id', session.user.id)
+      .single();
+
     return {
       user: {
         id: session.user.id,
         email: session.user.email || '',
-        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
-        role: 'USER',
+        name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+        role: profile?.role || 'user',
       },
     };
   },

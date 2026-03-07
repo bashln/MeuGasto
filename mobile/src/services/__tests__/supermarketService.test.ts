@@ -8,7 +8,7 @@ jest.mock('../../lib/supabaseClient', () => {
 });
 
 jest.mock('../authService', () => ({
-  getCurrentUserId: jest.fn().mockResolvedValue('user-1'),
+  getCurrentUserId: jest.fn().mockResolvedValue('11111111-1111-4111-8111-111111111111'),
 }));
 
 import { supermarketService } from '../supermarketService';
