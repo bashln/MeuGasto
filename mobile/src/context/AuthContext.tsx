@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import * as SplashScreen from 'expo-splash-screen';
 import { authService } from '../services/authService';
 import { AuthUser } from '../types';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -45,6 +45,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.warn('Auth timeout — falling through to login');
       resolve(null);
     }, AUTH_TIMEOUT_MS);
+
+    if (!supabase || !isSupabaseConfigured()) {
+      console.warn('Supabase not configured, skipping auth initialization');
+      resolve(null);
+      return;
+    }
 
     subscription = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session?.user) {

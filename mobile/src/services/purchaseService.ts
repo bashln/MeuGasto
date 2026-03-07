@@ -1,7 +1,16 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { Purchase, PurchaseFilter, NfceRequest, PageResponse } from '../types';
 import { getCurrentUserId } from './authService';
 import { nfceService } from './nfceService';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
+  }
+  return client;
+};
 
 type PurchaseItemRow = {
   id: number;
@@ -39,6 +48,8 @@ export const purchaseService = {
     const size = filter?.size ?? 20;
     const from = page * size;
     const to = from + size - 1;
+    
+    const supabase = getClient();
     
     let query = supabase
       .from('purchases')
@@ -108,6 +119,8 @@ export const purchaseService = {
   async getPurchaseById(id: number): Promise<Purchase> {
     const userId = await getCurrentUserId();
 
+    const supabase = getClient();
+
     const { data: purchase, error } = await supabase
       .from('purchases')
       .select(`
@@ -162,6 +175,8 @@ export const purchaseService = {
         price: item.price,
       }));
 
+    const supabase = getClient();
+
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
       p_user_id: userId,
       p_supermarket_id: purchase.supermarketId || null,
@@ -199,6 +214,8 @@ export const purchaseService = {
     if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
     if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
 
+    const supabase = getClient();
+
     const { error } = await supabase
       .from('purchases')
       .update(updateData)
@@ -214,6 +231,8 @@ export const purchaseService = {
 
   async deletePurchase(id: number): Promise<void> {
     const userId = await getCurrentUserId();
+
+    const supabase = getClient();
 
     const { error } = await supabase
       .from('purchases')

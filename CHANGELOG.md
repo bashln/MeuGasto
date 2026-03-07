@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-07
+
+### Fixed
+- **Critical:** Fixed app stuck on splash screen - environment variables now properly embedded in release APK bundle
+- Fixed Supabase client initialization with proper error handling and fallback to in-memory storage
+- Fixed AuthContext to handle missing Supabase configuration gracefully
+
+### Changed
+- Updated app version to `1.2.0`
+- Updated Android `versionCode` to `10`
+- Updated iOS `buildNumber` to `10`
+- Improved error logging for debugging configuration issues
+- Release workflow now validates environment variables before build
+
+### Architecture
+- Added ADR-002: Environment Variable Management in CI/CD Builds
+- Workflow now passes environment variables explicitly to all critical build steps
+- Added APK size validation in CI (minimum 40MB)
+
 ## [1.1.9] - 2026-03-07
 
 ### Fixed
