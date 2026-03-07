@@ -11,26 +11,46 @@ const withAndroidSigning = (config) => {
   });
 
   config = withAppBuildGradle(config, (config) => {
-    const gradle = config.modResults.contents;
-    if (gradle.includes('MEUGASTO_STORE_FILE')) return config; // idempotente
+    let gradle = config.modResults.contents;
 
-    const signingConfig = `
-    signingConfigs {
+    const releaseSigningConfig = `
         release {
             storeFile file(MEUGASTO_STORE_FILE)
             storePassword MEUGASTO_STORE_PASSWORD
             keyAlias MEUGASTO_KEY_ALIAS
             keyPassword MEUGASTO_KEY_PASSWORD
-        }
-    }`;
+        }`;
 
-    config.modResults.contents = gradle
-      .replace('buildTypes {', signingConfig + '\n    buildTypes {')
-      .replace(
-        /release \{([^}]*)\}/,
-        (match) => match.includes('signingConfig') ? match :
-          match.replace('{', '{\n            signingConfig signingConfigs.release')
+    if (gradle.includes('signingConfigs {')) {
+      if (!gradle.includes('storeFile file(MEUGASTO_STORE_FILE)')) {
+        gradle = gradle.replace(
+          /signingConfigs\s*\{/,
+          `signingConfigs {${releaseSigningConfig}`
+        );
+      }
+    } else {
+      gradle = gradle.replace(
+        'buildTypes {',
+        `signingConfigs {${releaseSigningConfig}\n    }\n    buildTypes {`
       );
+    }
+
+    gradle = gradle.replace(
+      /(buildTypes\s*\{[\s\S]*?release\s*\{)([\s\S]*?)(\n\s*})/,
+      (_, prefix, body, suffix) => {
+        let normalizedBody = body;
+        normalizedBody = normalizedBody.replace(
+          /^\s*signingConfig\s+signingConfigs\.debug\s*$/m,
+          ''
+        );
+        if (!/signingConfig\s+signingConfigs\.release/.test(normalizedBody)) {
+          normalizedBody = `\n            signingConfig signingConfigs.release${normalizedBody}`;
+        }
+        return `${prefix}${normalizedBody}${suffix}`;
+      }
+    );
+
+    config.modResults.contents = gradle;
     return config;
   });
 
