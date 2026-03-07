@@ -1,6 +1,15 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { Supermarket } from '../types';
 import { getCurrentUserId } from './authService';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
+  }
+  return client;
+};
 
 type PaginationInfo = {
   pageNumber: number;
@@ -9,9 +18,19 @@ type PaginationInfo = {
   totalPages: number;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const assertSafeUserId = (userId: string): void => {
+  if (!UUID_RE.test(userId)) {
+    throw new Error('User ID inválido');
+  }
+};
+
 export const supermarketService = {
   async getSupermarkets(page = 0, size = 20): Promise<{ data: Supermarket[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
+    assertSafeUserId(userId);
+    const supabase = getClient();
 
     const from = page * size;
     const to = from + size - 1;
@@ -48,14 +67,33 @@ export const supermarketService = {
   },
 
   async getSupermarketById(id: number): Promise<Supermarket> {
-    const { data, error } = await supabase
+    const userId = await getCurrentUserId();
+    const supabase = getClient();
+
+    const { data: ownData, error: ownError } = await supabase
       .from('supermarkets')
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId)
       .single();
 
-    if (error) {
-      throw new Error(error.message);
+    if (ownError && ownError.code !== 'PGRST116') {
+      throw new Error(ownError.message);
+    }
+
+    let data = ownData;
+    if (!data) {
+      const { data: globalData, error: globalError } = await supabase
+        .from('supermarkets')
+        .select('*')
+        .eq('id', id)
+        .is('user_id', null)
+        .single();
+
+      if (globalError) {
+        throw new Error(globalError.message);
+      }
+      data = globalData;
     }
 
     return {
@@ -77,6 +115,7 @@ export const supermarketService = {
     state: string;
   }): Promise<Supermarket> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data: supermarket, error } = await supabase
       .from('supermarkets')
@@ -114,8 +153,8 @@ export const supermarketService = {
     }
   ): Promise<Supermarket> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
-    // Verificar se é manual
     const { data: existing } = await supabase
       .from('supermarkets')
       .select('manual, user_id')
@@ -158,8 +197,8 @@ export const supermarketService = {
 
   async deleteSupermarket(id: number): Promise<void> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
-    // Verificar se é manual
     const { data: existing } = await supabase
       .from('supermarkets')
       .select('manual, user_id')
@@ -174,7 +213,6 @@ export const supermarketService = {
       throw new Error('Acesso negado');
     }
 
-    // Verificar se tem compras associadas
     const { count } = await supabase
       .from('purchases')
       .select('*', { count: 'exact', head: true })
@@ -187,7 +225,8 @@ export const supermarketService = {
     const { error } = await supabase
       .from('supermarkets')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId);
 
     if (error) {
       throw new Error(error.message);
@@ -196,6 +235,8 @@ export const supermarketService = {
 
   async searchSupermarkets(query: string): Promise<Supermarket[]> {
     const userId = await getCurrentUserId();
+    assertSafeUserId(userId);
+    const supabase = getClient();
 
     const { data: supermarkets, error } = await supabase
       .from('supermarkets')

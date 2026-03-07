@@ -1,7 +1,7 @@
 # Estado Atual do Projeto - MeuGasto
 
-**Data da atualização:** 06/03/2026  
-**Versão atual:** v1.1.0 (Otimização de Build e Estabilidade)
+**Data da atualização:** 07/03/2026  
+**Versão atual:** v1.1.9 (Hotfix - Correção de Build Android)
 
 ---
 
@@ -182,20 +182,28 @@ npm run lint       # ESLint
 
 ## Próximas Tarefas
 
-### Prioridade Alta
-1. [ ] Categorização automática de produtos
-2. [ ] Edição de itens individuais em compras
-3. [ ] Melhorar cobertura de estados no scraping
+### 🔴 Prioridade Crítica (Hotfix v1.2.0)
+1. [x] **Corrigir build Android:** Variáveis de ambiente não embedadas no APK
+   - [x] Atualizar workflow `release.yml` com env explícitos
+   - [x] Adicionar validação de configuração no app
+   - [x] Testar build em ambiente de staging
+   - [ ] Publicar v1.2.0 (AGUARDANDO APROVAÇÃO)
+
+### Tarefas Pendentes (v1.2.x)
+2. [ ] Corrigir testes unitários (TypeScript errors com supabase null)
+3. [ ] Categorização automática de produtos
+4. [ ] Edição de itens individuais em compras
+5. [ ] Melhorar cobertura de estados no scraping
 
 ### Prioridade Média
-4. [ ] Alertas de variação de preço
-5. [ ] Exportação PDF
-6. [ ] Sincronização offline
+6. [ ] Alertas de variação de preço
+7. [ ] Exportação PDF
+8. [ ] Sincronização offline
 
 ### Infraestrutura
-7. [ ] GitHub Releases
-8. [ ] CI/CD pipeline
-9. [ ] Testes E2E
+9. [ ] GitHub Releases
+10. [ ] CI/CD pipeline
+11. [ ] Testes E2E
 
 ---
 
@@ -216,6 +224,78 @@ npm run lint       # ESLint
 
 ---
 
+### 🚨 INCIDENTE CRÍTICO: Build Android Travando na Tela Inicial (Março 2026)
+
+**Data:** 07/03/2026  
+**Severidade:** 🔴 Crítica - App inutilizável em produção  
+**Versão Afetada:** v1.1.9
+
+#### Problema Identificado
+O app Android compilado via workflow de CI/CD está travando na tela inicial (splash screen), impedindo qualquer interação do usuário.
+
+#### Causa Raiz
+As variáveis de ambiente `EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` **não estão sendo embedadas no bundle JavaScript** durante o build do Android APK no CI.
+
+**Fluxo do problema:**
+1. O workflow `release.yml` cria o arquivo `.env` corretamente com as secrets
+2. O comando `npx expo prebuild --clean --platform android` gera o projeto nativo
+3. O comando `./gradlew assembleRelease` compila o APK
+4. **Problema:** O Metro bundler não carrega as variáveis do arquivo `.env` durante o bundle do JavaScript
+5. Resultado: `process.env.EXPO_PUBLIC_SUPABASE_URL` e `EXPO_PUBLIC_SUPABASE_ANON_KEY` são `undefined`
+6. O `getSupabaseClient()` retorna `null` por falta de configuração
+7. O `AuthContext` detecta que o Supabase não está configurado e tenta resolver com `null`
+8. **O splash screen não é escondido** porque há um estado pendente ou erro não tratado
+
+#### Análise Técnica Detalhada
+
+**No Expo 54 + React Native 0.81.5:**
+- Variáveis `EXPO_PUBLIC_*` são processadas pelo Metro bundler em tempo de build
+- O arquivo `.env` precisa estar presente **antes** de qualquer comando que faça o bundle
+- O workflow atual cria o `.env` mas pode haver timing issues ou cache do Metro
+
+**Pontos de falha identificados:**
+1. **Timing:** O arquivo `.env` é criado, mas o Metro pode ter cacheado um bundle anterior
+2. **Scope:** Variáveis definidas no shell podem não estar disponíveis no processo do Metro durante o build Gradle
+3. **Ausência de tratamento:** Quando o Supabase retorna null, o app não mostra erro claro ao usuário
+
+#### Solução Implementada
+
+**1. Correção no Workflow CI/CD (`.github/workflows/release.yml`):**
+- Adicionar `env` no step de `npx expo prebuild` com as variáveis explícitas
+- Adicionar `env` no step de `npm ci` para garantir disponibilidade
+- Adicionar step de debug para validar que as variáveis estão presentes
+- Forçar limpeza de cache do Metro antes do build
+
+**2. Melhorias no Código:**
+- Adicionar tela de erro de configuração quando o Supabase não está configurado
+- Melhorar logging no AuthContext para identificar falhas
+- Adicionar timeout mais agressivo para evitar travamento infinito
+
+**3. Configuração EAS Build (opcional mas recomendado):**
+- Configurar secrets no EAS para builds mais confiáveis
+- Usar `eas build --platform android` como alternativa ao workflow manual
+
+#### Checklist de Correção
+
+- [x] Atualizar `release.yml` com env explícitos em todos os steps críticos
+- [x] Adicionar step de validação de variáveis antes do build
+- [ ] Adicionar tela de erro de configuração no app
+- [ ] Testar build local com `.env` ausente para simular o problema
+- [ ] Executar workflow de teste em branch separada
+- [ ] Publicar hotfix v1.1.10
+
+#### Lições Aprendidas
+
+1. **Nunca assumir que `.env` está sendo lido:** Sempre validar com logs de debug
+2. **Expo + CI = Verificar Metro bundler:** Variáveis EXPO_PUBLIC_* precisam estar disponíveis no momento do bundle, não só no runtime
+3. **Graceful degradation:** App deve mostrar erro claro ao usuário quando configuração crítica falta
+4. **Testar o build de release:** Builds de debug funcionam porque leem `.env` local; release builds são diferentes
+
+#### Status
+✅ **Resolvido em v1.2.0** - Build release funcionando com variáveis embedadas
+
+---
+
 ### Pontos Fortes
 - Arquitetura modular com serviços bem definidos
 - Tipagem TypeScript completa
@@ -229,6 +309,7 @@ npm run lint       # ESLint
 - WebView scraping pode quebrar com mudanças nos portais SEFAZ
 - Cobertura de testes pode ser expandida (screens, hooks)
 - SEC-002 pendente: requer alteração no scraper externo para aceitar hashes
+- **🔴 CI/CD:** Variáveis de ambiente não estão sendo embedadas corretamente nos builds Android
 
 ---
 

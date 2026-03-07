@@ -1,17 +1,20 @@
-jest.mock('../../lib/supabaseClient', () => ({
-  supabase: {
-    from: jest.fn(),
-  },
-}));
+jest.mock('../../lib/supabaseClient', () => {
+  const mockClient = { from: jest.fn() };
+  return {
+    supabase: mockClient,
+    getSupabaseClient: jest.fn().mockReturnValue(mockClient),
+    isSupabaseConfigured: jest.fn().mockReturnValue(true),
+  };
+});
 
 jest.mock('../authService', () => ({
-  getCurrentUserId: jest.fn().mockResolvedValue('user-1'),
+  getCurrentUserId: jest.fn().mockResolvedValue('11111111-1111-4111-8111-111111111111'),
 }));
 
 import { supermarketService } from '../supermarketService';
 import { supabase } from '../../lib/supabaseClient';
 
-const mockFrom = supabase.from as jest.Mock;
+const mockFrom = supabase!.from as jest.Mock;
 
 const makeChain = (singleResult: unknown, listResult?: unknown) => ({
   select: jest.fn().mockReturnThis(),

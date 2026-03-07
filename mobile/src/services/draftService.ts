@@ -1,8 +1,17 @@
-import { supabase } from '../lib/supabaseClient';
+import { getSupabaseClient } from '../lib/supabaseClient';
 import { Draft, DraftFilter, CreateDraftRequest, UpdateDraftRequest } from '../types';
 import { getCurrentUserId } from './authService';
 import { purchaseService } from './purchaseService';
 import { DraftItem, parseContent, serializeContent } from './draftContent';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const getClient = (): SupabaseClient => {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase não configurado');
+  }
+  return client;
+};
 
 type PaginationInfo = {
   pageNumber: number;
@@ -22,6 +31,7 @@ type DraftUpdateData = {
 export const draftService = {
   async getDrafts(filter?: DraftFilter): Promise<{ data: Draft[]; page: PaginationInfo }> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     let query = supabase
       .from('drafts')
@@ -72,6 +82,7 @@ export const draftService = {
 
   async getDraftById(id: number): Promise<Draft> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { data: draft, error } = await supabase
       .from('drafts')
@@ -102,6 +113,7 @@ export const draftService = {
 
   async createDraft(data: CreateDraftRequest): Promise<Draft> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const items: DraftItem[] = data.items || [];
     const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -127,6 +139,7 @@ export const draftService = {
 
   async updateDraft(id: number, data: UpdateDraftRequest): Promise<Draft> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const updateData: DraftUpdateData = {
       updated_at: new Date().toISOString(),
@@ -157,6 +170,7 @@ export const draftService = {
 
   async deleteDraft(id: number): Promise<void> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
 
     const { error } = await supabase
       .from('drafts')

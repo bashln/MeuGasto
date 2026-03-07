@@ -41,8 +41,13 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
       return;
     }
 
-    if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres');
+    if (password.length < 8) {
+      setError('A senha deve ter pelo menos 8 caracteres');
+      return;
+    }
+
+    if (!/[0-9]|[^A-Za-z0-9]/.test(password)) {
+      setError('A senha deve conter pelo menos 1 número ou caractere especial');
       return;
     }
 
@@ -53,7 +58,9 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
       await register(email.trim(), password, name.trim());
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao criar conta';
-      console.warn('Register error:', err);
+      if (__DEV__) {
+        console.warn('Register error:', err);
+      }
       setError(message);
     } finally {
       setIsLoading(false);
