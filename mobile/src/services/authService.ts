@@ -34,11 +34,13 @@ const normalizeAuthError = (error: unknown, action: 'login' | 'register'): Error
   const message = error instanceof Error ? error.message : String(error);
 
   if (message.includes(NON_JSON_RESPONSE_ERROR)) {
-    console.error(`Supabase ${action} returned non-JSON response`, {
-      supabaseUrl,
-      authEndpoint: `${supabaseUrl}/auth/v1/token?grant_type=password`,
-      hint: 'Check EXPO_PUBLIC_SUPABASE_URL and whether the Android build is using the latest env values.',
-    });
+    if (__DEV__) {
+      console.error(`Supabase ${action} returned non-JSON response`, {
+        supabaseUrl,
+        authEndpoint: `${supabaseUrl}/auth/v1/token?grant_type=password`,
+        hint: 'Check EXPO_PUBLIC_SUPABASE_URL and whether the Android build is using the latest env values.',
+      });
+    }
 
     return new Error(
       'Falha de configuracao do servidor de autenticacao. Verifique a URL do Supabase no app Android.'

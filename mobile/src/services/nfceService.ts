@@ -365,7 +365,6 @@ export const nfceService = {
     }));
 
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
-      p_user_id: userId,
       p_supermarket_id: actualSupermarketId || null,
       p_access_key: accessKey,
       p_date: nfceData.date || new Date().toISOString().split('T')[0],
@@ -434,7 +433,6 @@ export const nfceService = {
     }));
 
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
-      p_user_id: userId,
       p_supermarket_id: actualSupermarketId || null,
       p_access_key: sanitizedAccessKey,
       p_date: purchaseDate,

@@ -105,11 +105,9 @@ export const reportService = {
     startDate?: string,
     endDate?: string
   ): Promise<Array<{ supermarket: string; total: number }>> {
-    const userId = await getCurrentUserId();
     const supabase = getClient();
 
     const { data, error } = await supabase.rpc('report_expenses_by_supermarket', {
-      p_user_id: userId,
       p_start_date: startDate ?? null,
       p_end_date: endDate ?? null,
     });
@@ -129,11 +127,9 @@ export const reportService = {
     startDate?: string,
     endDate?: string
   ): Promise<Array<{ name: string; quantity: number; total: number }>> {
-    const userId = await getCurrentUserId();
     const supabase = getClient();
 
     const { data, error } = await supabase.rpc('report_top_items', {
-      p_user_id: userId,
       p_limit: limit,
       p_start_date: startDate ?? null,
       p_end_date: endDate ?? null,
