@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.9] - 2026-03-07
+
+### Fixed
+- Release workflow now regenerates Android native files with `expo prebuild --clean` to avoid stale native metadata
+- iOS builds now set an explicit `buildNumber`
+
+### Changed
+- Bumped mobile app version to `1.1.9`
+- Set Android `versionCode` to `9`
+- Set iOS `buildNumber` to `9`
+
 ## [1.1.8] - 2026-03-07
 
 ### Fixed
