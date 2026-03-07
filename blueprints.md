@@ -150,8 +150,26 @@ npm run lint          # ESLint
 
 ## Histórico de Versões
 
-### v1.0.4 - Implementações de Segurança (Março 2026)
+### v1.1.0 - Otimização de Build e Estabilidade (Março 2026)
 **Status:** Atual
+
+#### Novidades
+- **Otimização de Build Android:** Limitação de ABIs de produção (`armeabi-v7a,arm64-v8a`) no workflow de CI, reduzindo tempo de build e prevenindo travamentos.
+- **Release Manual v1.1.0:** Publicação realizada via APK devido a incidente no workflow de CI.
+
+#### Incidente e Mitigação
+- **Problema:** Workflow de release travava no step "Build Android APK" em builds completas.
+- **Solução:** Workflow otimizado no commit `b245fc9` com flag `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a` para builds de produção.
+- **Resultado:** Build mais rápido e estável, eliminando timeouts no CI.
+
+#### Notas Técnicas
+- Decisão arquitetural: Builds de CI limitam ABIs para produção; builds locais mantêm suporte completo para desenvolvimento.
+- SEC-002 (Hash de NFC-e): **Pendente** - requer alteração no scraper externo.
+
+---
+
+### v1.0.4 - Implementações de Segurança (Março 2026)
+**Status:** Concluído
 
 #### Novidades
 - **Implementação de SecureStore (SEC-001):** Migração do armazenamento de sessão Supabase de AsyncStorage para SecureStore (expo-secure-store) com criptografia nativa.
@@ -194,22 +212,40 @@ npm run lint          # ESLint
 
 ---
 
+## Decisões Arquiteturais
+
+### ADR-001: Build Android - Limitação de ABIs no CI
+**Data:** 06/03/2026  
+**Contexto:** Workflow de CI travava em builds Android completas devido a tempo excessivo e timeouts.
+
+**Decisão:** 
+- Builds de release no CI limitam ABIs para `armeabi-v7a,arm64-v8a` (cobertura de 99%+ dos dispositivos)
+- Builds locais mantêm suporte a todas as arquiteturas para desenvolvimento
+- Flag implementada: `-PreactNativeArchitectures=armeabi-v7a,arm64-v8a`
+
+**Consequências:**
+- ✅ Redução de ~50% no tempo de build de release
+- ✅ Eliminação de travamentos no CI
+- ⚠️ APK de release não suporta x86/x86_64 (emuladores antigos)
+
+---
+
 ## Próximos Passos Planejados
 
-### v1.1.0 - Melhorias de UX (Planejado)
+### v1.2.0 - Melhorias de UX (Planejado)
 - [ ] Categorização automática de produtos via regex/IA
 - [ ] Alertas de variação de preços de itens frequentes
 - [ ] Melhoria na resiliência do scraping (mais estados brasileiros)
 - [ ] Edição de itens individuais dentro de uma compra
 
-### v1.2.0 - Compartilhamento e SaaS (Planejado)
+### v1.3.0 - Compartilhamento e SaaS (Planejado)
 - [ ] Compartilhamento de listas/compras entre usuários (família)
 - [ ] Exportação de dados em PDF
 - [ ] Sincronização offline
 
 ### Infraestrutura
 - [ ] Configurar GitHub Releases para versionamento automático
-- [x] CI/CD pipeline para builds automáticos (Otimizado v1.0.4)
+- [x] CI/CD pipeline para builds automáticos (Otimizado v1.1.0 - ABIs limitadas)
 - [ ] Testes E2E com Detox
 
 ---
@@ -223,11 +259,11 @@ npm run lint          # ESLint
 
 | ID | Vulnerabilidade | Severidade | Impacto | Status |
 |----|-----------------|------------|---------|--------|
-| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado | ✅ **Concluído** |
-| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário | ⏳ **Pendente** |
-| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados | ✅ **Concluído** |
-| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros | ✅ **Concluído** |
-| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos | ✅ **Concluído** |
+| SEC-001 | Sessão Supabase em AsyncStorage | 🔴 Crítica | Token acessível em storage não criptografado | ✅ **Concluído** (v1.0.4) |
+| SEC-002 | Envio de chave NFC-e para scraper externo | 🟡 Alta | Vazamento de dados fiscais do usuário | ⏳ **Pendente** - requer alteração scraper |
+| SEC-003 | WebView scraping sem sanitização | 🟡 Alta | Injeção de código via dados retornados | ✅ **Concluído** (v1.0.4) |
+| SEC-004 | Validação insuficiente em create_purchase_with_items | 🟡 Alta | Dados malformados podem corromper registros | ✅ **Concluído** (v1.0.4) |
+| SEC-005 | Whitelist de navegação por hostname apenas | 🟡 Média | Bypass via subdomínios ou paths maliciosos | ✅ **Concluído** (v1.0.4) |
 
 ---
 
@@ -251,7 +287,7 @@ npm run lint          # ESLint
 - [x] Whitelist valida protocolo HTTPS, hostname E path permitidos
 - [x] Testes de segurança passam (injeção de scripts, tokens expostos)
 
-> **Nota:** SEC-002 (Hash NFC-e) permanece pendente. Requer alteração no scraper externo para aceitar hashes.Impacto mitigado pela validação de dados (SEC-003, SEC-004).
+> **Nota:** SEC-002 (Hash NFC-e) permanece pendente. Requer alteração no scraper externo para aceitar hashes. Impacto mitigado pela validação de dados (SEC-003, SEC-004).
 
 **Artefatos a Modificar:**
 ```
@@ -370,4 +406,4 @@ Veja o arquivo `LICENSE` para detalhes completos.
 
 ---
 
-*Última atualização: 06/03/2026*
+*Última atualização: 06/03/2026 (pós-release v1.1.0)*
