@@ -39,6 +39,10 @@ build/
 captures/
 output-metadata.json
 
+# Android Keystores (NEVER commit these!)
+*.jks
+*.keystore
+
 # IDE
 .idea/
 *.iml
