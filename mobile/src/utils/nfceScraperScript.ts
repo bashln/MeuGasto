@@ -108,14 +108,11 @@ export const NFCE_SCRAPE_SCRIPT = `
             name = nonNumberCells.sort(function(a,b) { return b.length - a.length; })[0];
           }
 
-          // Precos: ultimo valor monetario e o total, o penultimo e o unitario
+          // Usar sempre total / quantidade para calcular preco unitario
           var moneyMatches = text.match(/\\b\\d{1,3}(?:\\.\\d{3})*,\\d{2}\\b/g) || [];
-          if (moneyMatches.length >= 2) {
+          if (moneyMatches.length >= 1) {
             total = normalizeMoneyBR(moneyMatches[moneyMatches.length - 1]);
-            unitPrice = normalizeMoneyBR(moneyMatches[moneyMatches.length - 2]);
-          } else if (moneyMatches.length === 1) {
-            total = normalizeMoneyBR(moneyMatches[0]);
-            unitPrice = total / qty;
+            unitPrice = total / (qty || 1);
           }
         } else if (cells.length >= 2) {
           // Fallback: nome = celula mais longa
