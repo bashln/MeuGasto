@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 2026-03-07
+
+### Fixed
+- Login now translates unexpected HTML responses from Supabase Auth into a clear configuration error
+- Added diagnostic logging for the configured Supabase URL/auth endpoint when Android receives non-JSON auth responses
+
+### Changed
+- Bumped mobile app version to `1.1.7`
+
 ## [1.1.1] - 2026-03-07
 
 ### Fixed

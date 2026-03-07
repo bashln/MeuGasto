@@ -25,6 +25,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const mockGetSession = supabase.auth.getSession as jest.Mock;
 const mockSignOut = supabase.auth.signOut as jest.Mock;
+const mockSignInWithPassword = supabase.auth.signInWithPassword as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
 
 describe('authService', () => {
@@ -56,5 +57,16 @@ describe('authService', () => {
     await authService.logout();
 
     expect(mockDeleteItemAsync).toHaveBeenCalledWith('supabase.auth.token');
+  });
+
+  it('traduz erro de resposta HTML inesperada no login', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockSignInWithPassword.mockRejectedValue(new Error('JSON Parse error: Unexpected character: <'));
+
+    await expect(
+      authService.login({ email: 'user@example.com', password: 'secret' })
+    ).rejects.toThrow('Falha de configuracao do servidor de autenticacao');
+
+    consoleErrorSpy.mockRestore();
   });
 });
