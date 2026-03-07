@@ -107,6 +107,10 @@ CREATE TABLE IF NOT EXISTS drafts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE drafts DROP CONSTRAINT IF EXISTS drafts_content_length_check;
+ALTER TABLE drafts ADD CONSTRAINT drafts_content_length_check
+  CHECK (content IS NULL OR char_length(content) <= 50000);
+
 -- =============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================

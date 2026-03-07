@@ -80,13 +80,26 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          ANDROID_KEYSTORE_FILE: meugasto-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: npx expo prebuild --clean --platform android
+
+      - name: Decode keystore
+        working-directory: ./mobile/android
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/meugasto-release.jks
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
       - name: Build Android APK
         working-directory: ./mobile/android
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --parallel --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
 
       - name: Validate APK size
@@ -103,9 +116,9 @@ jobs:
         run: cp mobile/android/app/build/outputs/apk/release/app-release.apk "mobile/android/app/build/outputs/apk/release/MeuGasto-${{ github.ref_name }}.apk"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: mobile/android/app/build/outputs/apk/release/MeuGasto-${{ github.ref_name }}.apk
-          generate_release_notes: true
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --generate-notes \
+            "mobile/android/app/build/outputs/apk/release/MeuGasto-${{ github.ref_name }}.apk"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

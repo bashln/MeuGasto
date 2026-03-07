@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { purchaseService } from '../services';
-import { Purchase, PurchaseFilter, PageResponse, NfceRequest } from '../types';
+import { Purchase, PurchaseFilter, PageResponse } from '../types';
 
 interface PurchaseContextType {
   purchases: Purchase[];
@@ -12,7 +12,6 @@ interface PurchaseContextType {
   fetchPurchases: (filter?: PurchaseFilter) => Promise<void>;
   loadMorePurchases: (filter?: PurchaseFilter) => Promise<void>;
   getPurchase: (id: number) => Promise<Purchase>;
-  createPurchase: (data: NfceRequest) => Promise<Purchase>;
   updatePurchase: (id: number, data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>) => Promise<Purchase>;
   deletePurchase: (id: number) => Promise<void>;
 }
@@ -80,12 +79,6 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
     return purchaseService.getPurchaseById(id);
   }, []);
 
-  const createPurchase = useCallback(async (data: NfceRequest): Promise<Purchase> => {
-    const purchase = await purchaseService.createPurchaseFromQRCode(data);
-    await fetchPurchases();
-    return purchase;
-  }, [fetchPurchases]);
-
   const updatePurchase = useCallback(async (
     id: number,
     data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>
@@ -112,7 +105,6 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
         fetchPurchases,
         loadMorePurchases,
         getPurchase,
-        createPurchase,
         updatePurchase,
         deletePurchase,
       }}

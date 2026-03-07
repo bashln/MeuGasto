@@ -6,10 +6,12 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = (): boolean => {
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('[SupabaseClient] Configuration missing:', {
-      url: supabaseUrl ? 'defined' : 'undefined',
-      key: supabaseAnonKey ? 'defined' : 'undefined',
-    });
+    if (__DEV__) {
+      console.error('[SupabaseClient] Configuration missing:', {
+        url: supabaseUrl ? 'defined' : 'undefined',
+        key: supabaseAnonKey ? 'defined' : 'undefined',
+      });
+    }
     return false;
   }
   return true;
@@ -38,7 +40,9 @@ export const getSupabaseClient: () => SupabaseClient | null = () => {
       },
     });
   } catch (error) {
-    console.error('[SupabaseClient] Failed to create client:', error);
+    if (__DEV__) {
+      console.error('[SupabaseClient] Failed to create client:', error);
+    }
     _client = null;
   }
 
