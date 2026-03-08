@@ -5,6 +5,11 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "android:reverse": "adb reverse tcp:8081 tcp:8081",
+    "android:start:device:debug": "bash ./scripts/android-start-debug-device.sh",
+    "android:build:device:debug": "bash ./scripts/android-build-debug-device.sh",
+    "android:install:device:debug": "adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "android:build:release:local": "bash ./scripts/android-build-release-local.sh",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
