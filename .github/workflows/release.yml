@@ -73,6 +73,20 @@ jobs:
             echo "❌ EXPO_PUBLIC_SUPABASE_ANON_KEY is not set"
             exit 1
           fi
+          case "$EXPO_PUBLIC_SUPABASE_URL" in
+            https://*)
+              ;;
+            *)
+              echo "❌ EXPO_PUBLIC_SUPABASE_URL must start with https://"
+              exit 1
+              ;;
+          esac
+          URL_HOST="${EXPO_PUBLIC_SUPABASE_URL#https://}"
+          URL_HOST="${URL_HOST%%/*}"
+          if [ -z "$URL_HOST" ] || [[ "$URL_HOST" != *.* ]]; then
+            echo "❌ EXPO_PUBLIC_SUPABASE_URL must include a valid host"
+            exit 1
+          fi
           echo "✅ Environment variables are configured"
 
       - name: Generate native project
