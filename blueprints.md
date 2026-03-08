@@ -319,7 +319,7 @@ Se o app Android mostrar o erro "Falha de configuracao do servidor de autenticac
 - [ ] Sincronização offline
 
 ### Infraestrutura
-- [ ] Configurar GitHub Releases para versionamento automático
+- [x] Configurar GitHub Releases para versionamento automático (v1.2.0+)
 - [x] CI/CD pipeline para builds automáticos (Otimizado v1.1.0 - ABIs limitadas + ADR-002)
 - [ ] Testes E2E com Detox
 

@@ -5,11 +5,17 @@ Aplicação mobile para gerenciamento inteligente de compras em mercados.
 Foco em controle de gastos, organização de compras e integração com NFC-e.
 Arquitetura preparada para evolução para modelo SaaS.
 
+## Download
+
+Baixe a versão mais recente diretamente na seção de [Releases](https://github.com/bashln/MeuGasto/releases).
+
+Os APKs são gerados automaticamente via GitHub Actions a cada nova tag de versão (`v*`).
+
 ## Stack
 
 - Mobile: Expo + React Native + TypeScript
 - Backend: Supabase (Auth, Postgres, RLS)
-- Build Android: EAS Build
+- Build Android: GitHub Actions (APK Standalone) / EAS Build
 
 ## Estrutura
 
@@ -107,7 +113,7 @@ Os dados extraídos são usados para criar rascunhos e compras no app.
 
 ## Status
 
-Fase atual: Pre-Alpha (validação funcional em dispositivos reais).
+Fase atual: Alpha (builds automáticos e funcionais disponíveis em Releases).
 
 ## Licença
 
