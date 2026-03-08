@@ -1,7 +1,7 @@
 # Estado Atual do Projeto - MeuGasto
 
 **Data da atualização:** 07/03/2026  
-**Versão atual:** v1.1.9 (Hotfix - Correção de Build Android)
+**Versão atual:** v1.2.2 (Release Android corrigida e alinhada com GitHub)
 
 ---
 
@@ -182,12 +182,12 @@ npm run lint       # ESLint
 
 ## Próximas Tarefas
 
-### 🔴 Prioridade Crítica (Hotfix v1.2.0)
+### 🔴 Prioridade Crítica (Hotfix v1.2.2)
 1. [x] **Corrigir build Android:** Variáveis de ambiente não embedadas no APK
    - [x] Atualizar workflow `release.yml` com env explícitos
    - [x] Adicionar validação de configuração no app
    - [x] Testar build em ambiente de staging
-   - [ ] Publicar v1.2.0 (AGUARDANDO APROVAÇÃO)
+   - [x] Publicar v1.2.2 (APK release assinado gerado localmente)
 
 ### Tarefas Pendentes (v1.2.x)
 2. [ ] Corrigir testes unitários (TypeScript errors com supabase null)

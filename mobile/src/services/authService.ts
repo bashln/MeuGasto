@@ -1,4 +1,9 @@
-import { getSupabaseClient, isSupabaseConfigured, supabaseUrl } from '../lib/supabaseClient';
+import {
+  getResolvedSupabaseConfig,
+  getSupabaseClient,
+  isSupabaseConfigured,
+  supabaseUrl,
+} from '../lib/supabaseClient';
 import { clearSupabaseSessionStorage } from '../lib/secureSessionStorage';
 import { AuthUser } from '../types';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -20,12 +25,25 @@ interface RegisterRequest {
 
 const NON_JSON_RESPONSE_ERROR = 'JSON Parse error: Unexpected character: <';
 
+const getSupabaseConfigurationErrorMessage = (): string => {
+  const config = getResolvedSupabaseConfig();
+
+  switch (config.error) {
+    case 'missing_url':
+      return 'Configuração do Supabase ausente. EXPO_PUBLIC_SUPABASE_URL não foi definida no app.';
+    case 'missing_key':
+      return 'Configuração do Supabase ausente. EXPO_PUBLIC_SUPABASE_ANON_KEY não foi definida no app.';
+    case 'invalid_url':
+      return 'Configuração inválida do Supabase. Verifique se a URL usa https:// e aponta para o projeto correto.';
+    default:
+      return 'Configuração do Supabase ausente. Verifique as variáveis de ambiente EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.';
+  }
+};
+
 const getClient = (): SupabaseClient => {
   const client = getSupabaseClient();
   if (!client) {
-    throw new Error(
-      'Configuração do Supabase ausente. Verifique as variáveis de ambiente EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.'
-    );
+    throw new Error(getSupabaseConfigurationErrorMessage());
   }
   return client;
 };
@@ -36,6 +54,7 @@ const normalizeAuthError = (error: unknown, action: 'login' | 'register'): Error
   if (message.includes(NON_JSON_RESPONSE_ERROR)) {
     if (__DEV__) {
       console.error(`Supabase ${action} returned non-JSON response`, {
+        config: getResolvedSupabaseConfig(),
         supabaseUrl,
         authEndpoint: `${supabaseUrl}/auth/v1/token?grant_type=password`,
         hint: 'Check EXPO_PUBLIC_SUPABASE_URL and whether the Android build is using the latest env values.',
@@ -61,9 +80,7 @@ export const getCurrentUserId = async (): Promise<string> => {
 export const authService = {
   async register(userData: RegisterRequest): Promise<AuthResult> {
     if (!isSupabaseConfigured()) {
-      throw new Error(
-        'Configuração do Supabase ausente. Verifique as variáveis de ambiente no aplicativo.'
-      );
+      throw new Error(getSupabaseConfigurationErrorMessage());
     }
 
     const supabase = getClient();
@@ -106,9 +123,7 @@ export const authService = {
 
   async login(credentials: LoginRequest): Promise<AuthResult> {
     if (!isSupabaseConfigured()) {
-      throw new Error(
-        'Configuração do Supabase ausente. Verifique as variáveis de ambiente no aplicativo.'
-      );
+      throw new Error(getSupabaseConfigurationErrorMessage());
     }
 
     const supabase = getClient();

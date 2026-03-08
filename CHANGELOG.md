@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-03-07
+
+### Fixed
+- Aligned Android release packaging and naming with the `v1.2.2` release line
+- Generated signed standalone release APK with embedded JavaScript bundle
+- Standardized release asset naming to `meugastov1.2.2.apk`
+
+### Changed
+- Updated app version to `1.2.2`
+- Updated Android `versionCode` to `12`
+- Updated iOS `buildNumber` to `12`
+
 ## [1.2.0] - 2026-03-07
 
 ### Fixed
