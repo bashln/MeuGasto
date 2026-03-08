@@ -31,7 +31,7 @@ A estrutura segue uma organização modular por responsabilidades:
 -   Validação de schema obrigatória para dados provenientes de fontes externas (WebView/API).
 
 ## Recommended Next Steps
-1.  **Refatoração do `nfceService.ts`**: Extrair a lógica de supermercados para o `supermarketService.ts` para reduzir o acoplamento.
-2.  **Segurança (SEC-002)**: Priorizar a implementação do hash de chaves NFC-e.
-3.  **Testes de Integração**: Implementar testes que validem o fluxo completo desde o QR Code até a persistência no Supabase.
-4.  **Categorização IA**: Iniciar a fase 3 (Inteligência) com categorização automática para melhorar os relatórios.
+1.  **Categorização IA**: Iniciar a fase 3 (Inteligência) com categorização automática para melhorar os relatórios, agora que o pipeline de release está estável.
+2.  **Refatoração do `nfceService.ts`**: Extrair a lógica de supermercados para o `supermarketService.ts` para reduzir o acoplamento.
+3.  **Segurança (SEC-002)**: Priorizar a implementação do hash de chaves NFC-e.
+4.  **Testes de Integração**: Implementar testes E2E (Detox) para validar o fluxo completo desde o QR Code até a persistência no Supabase.
