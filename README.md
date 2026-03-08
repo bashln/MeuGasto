@@ -69,6 +69,36 @@ cd mobile
 eas build -p android --profile preview
 ```
 
+## Android em Dispositivo
+
+`debug` em aparelho fisico depende do Metro. O APK `debug` nao e standalone.
+
+```bash
+cd mobile
+npm run android:build:device:debug
+npm run android:install:device:debug
+npm run android:start:device:debug
+```
+
+Se o app ja estiver instalado em `debug`, tambem funciona:
+
+```bash
+cd mobile
+npm run android:reverse
+npx expo start --dev-client
+```
+
+`release` local gera APK standalone, mas exige keystore configurado:
+
+```bash
+cd mobile
+export MEUGASTO_STORE_FILE=/caminho/para/seu-release.jks
+export MEUGASTO_STORE_PASSWORD=...
+export MEUGASTO_KEY_ALIAS=...
+export MEUGASTO_KEY_PASSWORD=...
+npm run android:build:release:local
+```
+
 ## NFC-e
 
 O fluxo de leitura da NFC-e usa WebView para carregar a URL do QR Code e
