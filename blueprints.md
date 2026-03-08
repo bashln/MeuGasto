@@ -301,7 +301,7 @@ Se o app Android mostrar o erro "Falha de configuracao do servidor de autenticac
 
 ## Próximos Passos Planejados
 
-### v1.2.2 - Correções de Build e Resiliência (LANÇADO)
+### v1.2.3 - Correções de Build e Resiliência (LANÇADO)
 - [x] Corrigir variáveis de ambiente em builds CI/CD (ADR-002)
 - [x] Adicionar fallback para SecureStore indisponível
 - [x] Adicionar validação de configuração no app
