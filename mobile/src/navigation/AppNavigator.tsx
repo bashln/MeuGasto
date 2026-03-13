@@ -5,11 +5,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '../context';
-import { Loading } from '../components';
 import {
   LoginScreen,
   RegisterScreen,
   ForgotPasswordScreen,
+  OnboardingScreen,
   DashboardScreen,
   PurchasesScreen,
   PurchaseDetailScreen,
@@ -100,10 +100,10 @@ const MainTabs: React.FC = () => {
 };
 
 export const AppNavigator: React.FC = () => {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, showOnboarding } = useAuth();
 
   if (isLoading) {
-    return <Loading fullScreen />;
+    return null;
   }
 
   return (
@@ -116,7 +116,13 @@ export const AppNavigator: React.FC = () => {
           headerTintColor: colors.primaryText,
         }}
       >
-        {!isAuthenticated ? (
+        {showOnboarding ? (
+          <Stack.Screen
+            name="Onboarding"
+            component={OnboardingScreen}
+            options={{ headerShown: false }}
+          />
+        ) : !isAuthenticated ? (
           <>
             <Stack.Screen
               name="Login"

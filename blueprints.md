@@ -38,22 +38,33 @@ O **MeuGasto** é um ecossistema mobile-first para gestão inteligente de compra
 mobile/src/
 ├── components/       # Componentes reutilizáveis (UI)
 ├── screens/          # Telas da aplicação
-├── navigation/       # Configuração de navegação + tipos
+├── navigation/      # Configuração de navegação + tipos
 │   └── types.ts      # RootStackParamList, MainTabParamList
-├── services/         # Lógica de dados e APIs
+├── services/        # Lógica de dados e APIs
+│   ├── authService.ts        # Autenticação
+│   ├── onboardingService.ts  # Gerenciamento do tutorial de onboarding
 │   ├── nfceService.ts        # NFC-e scraping e consulta
 │   ├── purchaseService.ts    # CRUD de compras + mapPurchaseItems()
 │   ├── supermarketService.ts # Gestão de supermercados
 │   ├── draftService.ts       # Gestão de rascunhos
-│   ├── reportService.ts      # Relatórios + buildDateRange()
-│   └── authService.ts        # Autenticação
-├── hooks/            # Custom hooks (useDashboard, useReports)
-├── context/          # Contextos React (Auth, Purchase, Draft)
-├── types/            # Tipos TypeScript globais
-├── utils/            # Helpers e formatação
-├── theme/            # Cores, spacing, typography
-└── lib/              # Clientes externos (Supabase)
+│   ├── draftContent.ts       # Conteúdo de rascunhos
+│   └── reportService.ts      # Relatórios + buildDateRange()
+├── hooks/           # Custom hooks (useDashboard, useReports)
+├── context/         # Contextos React (AuthContext, PurchaseContext, DraftContext)
+├── types/           # Tipos TypeScript globais
+├── utils/           # Helpers (formatMoney, formatDate, nfceScraperScript)
+├── theme/           # Cores, spacing, typography
+└── lib/             # Clientes externos (Supabase, SecureStore, validação)
 ```
+
+### Invariantes Arquiteturais
+**Invariantes não definidos explicitamente.**
+
+O projeto segue convenções implícitas:
+- Toda lógica de dados em `services/`
+- Contextos React isolados por domínio (Auth, Purchase, Draft)
+- Tipos globais centralizados em `types/index.ts`
+- Componentes de UI reutilizáveis em `components/`
 
 ### Dashboard e Métricas
 O DashboardScreen exibe:
@@ -75,6 +86,7 @@ O DashboardScreen exibe:
 
 ## Fluxos de Navegação/Telas
 
+-   `OnboardingScreen`
 -   `ForgotPasswordScreen`
 -   `LoginScreen`
 -   `RegisterScreen`
@@ -129,8 +141,10 @@ npm run lint          # ESLint
 ```
 
 **Cobertura atual:**
-- `services/__tests__/` - Testes de serviços (auth, purchase, draft, nfce, report, supermarket)
-- `utils/__tests__/` - Testes de utilitários (formatação, parsing)
+- `services/__tests__/` - Testes de serviços (auth, purchase, draft, nfce, report, supermarket, draftContent, onboarding)
+- `utils/__tests__/` - Testes de utilitários (formatMoney, formatDate, nfceScraperScript, index)
+- `lib/__tests__/` - Testes de lib (supabaseClient, secureSessionStorage, csvSecurity, nfcePayloadValidation)
+- `context/__tests__/` - Testes de contextos (AuthContext)
 
 ---
 
@@ -321,6 +335,7 @@ Se o app Android mostrar o erro "Falha de configuracao do servidor de autenticac
 ### Infraestrutura
 - [x] Configurar GitHub Releases para versionamento automático (v1.2.0+)
 - [x] CI/CD pipeline para builds automáticos (Otimizado v1.1.0 - ABIs limitadas + ADR-002)
+- [ ] Auto-update in-app via GitHub Releases API
 - [ ] Testes E2E com Detox
 
 ---
@@ -471,6 +486,160 @@ FASE 3 (30d)
 
 ---
 
+## Pendências - Melhorias e Funcionalidades Pendentes
+
+### Bugs a Corrigir
+
+| ID | Descrição | Impacto | Prioridade |
+|----|-----------|---------|------------|
+| BUG-001 | **Quantidade de itens incorreta** - Ao verificar detalhes da compra, itens comprados em quantidade > 1 são mostrados como 1x com valor total. Ex: 2 pães de R$2,00 = 1x pão por R$4,00. | Usuário não види a quantidade real por item | Alta |
+
+### Funcionalidades Planejadas
+
+| ID | Descrição | Impacto | Prioridade | Status |
+|----|-----------|---------|------------|--------|
+| FEAT-001 | **Novo ícone do app** - Ícone com fundo colorido, não transparente | Primeira impressão do usuário | Média | ⏳ Pendente |
+| FEAT-002 | **Recuperação de senha** - Implementar funcionalidade de reset de senha via email | UX / Autenticação | Alta | ✅ **Concluído** |
+| FEAT-003 | **Email de confirmação de cadastro** - Enviar email ao criar nova conta | Confirmação de email | Alta | ⏳ Pendente (requer config Supabase) |
+| FEAT-004 | **Timeout na leitura do QR Code** - Tratar erro quando o QR Code demora muito para ser lido | Experiência de scanning | Média | ✅ **Concluído** |
+| FEAT-005 | **Tutorial onboarding** - Adicionar tutorial na primeira vez que o app é instalado ensinando: como ler QR Code e como verificar relatórios | Onboarding de novos usuários | Alta | ✅ **Concluído** |
+| FEAT-006 | **Auto-Update** - Verificação in-app de novas versões via GitHub Releases API com dialog não-bloqueante e suporte a updates obrigatórios | Distribuição sem Play Store | Alta | ✅ **Concluído** |
+
+---
+
+## Auto-Update via GitHub Releases
+
+### ADR-003: Verificação de Updates via GitHub Releases API
+**Data:** 12/03/2026
+**Contexto:** O app é distribuído como APK sideloaded (sem Play Store), então não há canal nativo de atualização. Usuários precisam verificar manualmente se há versões novas.
+
+**Decisão:** Implementar verificação de update in-app via GitHub Releases API pública, com cache de 24h e dialog não-bloqueante.
+
+**Consequências:**
+- ✅ Usuários notificados de novas versões sem depender da Play Store
+- ✅ Zero dependências novas (usa `fetch` nativo + `expo-secure-store` já instalado)
+- ✅ Rate limit de 60 req/h não é um problema com cache de 24h por dispositivo
+- ⚠️ Requer que o usuário tenha "Instalar apps desconhecidos" habilitado no Android
+
+---
+
+### Componentes a Criar
+
+| Arquivo | Tipo | Responsabilidade |
+|---------|------|-----------------|
+| `mobile/src/services/updateService.ts` | Service | Verificar GitHub API, cache SecureStore, comparar versões |
+| `mobile/src/hooks/useUpdateCheck.ts` | Hook | Estado React do fluxo de update |
+| `mobile/src/components/UpdateDialog.tsx` | Component | Modal de notificação de update |
+| `mobile/App.tsx` | Modificar | Adicionar `<UpdateChecker />` dentro de `<PaperProvider>` |
+| `mobile/src/services/__tests__/updateService.test.ts` | Teste | Cobertura do serviço |
+
+---
+
+### Spec do `updateService.ts`
+
+- **Padrão:** Segue exatamente `onboardingService.ts` (SecureStore + fallback in-memory)
+- **Cache key:** `update.last_checked` — timestamp string, TTL = 24h
+- **API:** `GET https://api.github.com/repos/bashln/MeuGasto/releases/latest`
+- **Timeout:** `AbortController` com 8s; qualquer erro retorna `null` (falha silenciosa)
+- **Comparação:** Função `compareVersions(a, b)` pura — sem dependência externa, split em `.` + parseInt
+- **Mandatory update:** Se o `body` do release contiver linha com `/^minVersion:\s*(\d+\.\d+\.\d+)/m`, o update é marcado como obrigatório quando a versão instalada for menor
+- **APK URL:** Primeiro asset do release cujo `name` termina em `.apk`; fallback: `html_url` da release page
+
+```typescript
+export interface UpdateInfo {
+  latestVersion: string;
+  currentVersion: string;
+  isUpdateAvailable: boolean;
+  isMandatory: boolean;
+  releasePageUrl: string;
+  apkDownloadUrl: string | null;
+  releaseNotes: string;
+}
+
+export const updateService = {
+  async checkForUpdate(currentVersion: string): Promise<UpdateInfo | null>,
+  async clearCache(): Promise<void>,
+};
+```
+
+---
+
+### Spec do `useUpdateCheck.ts`
+
+- Lê versão via `import appConfig from '../../../app.json'` → `appConfig.expo.version` (padrão já usado em `ProfileScreen.tsx`)
+- `useEffect([])` dispara uma vez ao montar → chama `updateService.checkForUpdate()`
+- Retorna `updateInfo` apenas quando `isUpdateAvailable && !isDismissed`
+
+```typescript
+interface UseUpdateCheckResult {
+  updateInfo: UpdateInfo | null;
+  dismiss: () => void;
+}
+```
+
+---
+
+### Spec do `UpdateDialog.tsx`
+
+- Usa React Native `Modal` (mesmo padrão do `MonthYearPicker.tsx`, não Paper Dialog)
+- **Update opcional:** botões "Agora não" (dismiss) + "Atualizar" (abre URL)
+- **Update obrigatório:** apenas "Atualizar"; `onRequestClose` é no-op; sem botão de dispensar
+- **URL:** `Linking.openURL(apkDownloadUrl ?? releasePageUrl)` — `.apk` direto aciona o download manager do Android
+- Estilo: overlay `rgba(0,0,0,0.5)`, card branco `borderRadius: 16`, largura 85%, cores de `colors.ts`
+
+---
+
+### Integração em `App.tsx`
+
+```tsx
+const UpdateChecker: React.FC = () => {
+  const { updateInfo, dismiss } = useUpdateCheck();
+  if (!updateInfo) return null;
+  return <UpdateDialog updateInfo={updateInfo} onDismiss={dismiss} />;
+};
+
+// Antes de <AuthProvider>:
+<PaperProvider theme={theme}>
+  <UpdateChecker />
+  <AuthProvider>...</AuthProvider>
+</PaperProvider>
+```
+
+---
+
+### Fases de Implementação
+
+| Fase | Itens | Status |
+|------|-------|--------|
+| 1 — Core service | `updateService.ts` + testes | ✅ Concluído |
+| 2 — Hook + Dialog | `useUpdateCheck.ts` + `UpdateDialog.tsx` | ✅ Concluído |
+| 3 — Integração | Modificar `App.tsx` + exports | ✅ Concluído |
+
+---
+
+### Critérios de Aceite
+
+- [x] `npm test` passa com cobertura do updateService (15/15 testes passando)
+- [x] App inicia normalmente sem rede (falha silenciosa - retorna null em caso de erro)
+- [x] Dialog NÃO aparece quando o app já está na versão mais recente (comparação de versões)
+- [x] Dialog aparece com botão "Atualizar" funcional quando há versão nova
+- [x] Update obrigatório remove botão "Agora não" e bloqueia back button
+- [x] Cache de 24h evita chamadas repetidas à API (SecureStore com timestamp)
+
+---
+
+### Convenção para `minVersion` no Release Body
+
+Para marcar um update como obrigatório, adicionar ao corpo da release no GitHub:
+
+```
+minVersion: 1.3.0
+```
+
+Releases sem essa linha são sempre tratadas como opcionais.
+
+---
+
 ## Licença
 
 Este projeto é distribuído sob a licença **GNU AGPLv3**.
@@ -481,4 +650,4 @@ Veja o arquivo `LICENSE` para detalhes completos.
 
 ---
 
-*Última atualização: 06/03/2026 (pós-release v1.1.0)*
+*Última atualização: 12/03/2026 (sincronização blueprint + implementação onboarding)*

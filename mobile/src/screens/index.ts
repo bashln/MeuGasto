@@ -1,6 +1,7 @@
 export { LoginScreen } from './LoginScreen';
 export { RegisterScreen } from './RegisterScreen';
 export { ForgotPasswordScreen } from './ForgotPasswordScreen';
+export { OnboardingScreen } from './OnboardingScreen';
 export { DashboardScreen } from './DashboardScreen';
 export { PurchasesScreen } from './PurchasesScreen';
 export { PurchaseDetailScreen } from './PurchaseDetailScreen';
