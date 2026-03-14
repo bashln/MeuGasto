@@ -26,18 +26,22 @@ describe('secureSessionStorage', () => {
     await expect(secureSessionStorage.getItem('k1')).resolves.toBe('token');
   });
 
-  it('propaga erro explicito ao falhar leitura', async () => {
-    mockGetItemAsync.mockRejectedValue(new Error('boom'));
-
-    await expect(secureSessionStorage.getItem('k2')).rejects.toThrow('Failed to read secure storage key "k2"');
-  });
-
   it('limpa chave de sessao do supabase', async () => {
     mockDeleteItemAsync.mockResolvedValue(undefined);
 
     await clearSupabaseSessionStorage();
 
     expect(mockDeleteItemAsync).toHaveBeenCalledWith(SUPABASE_SESSION_STORAGE_KEY);
+    expect(mockSetItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('ativa fallback em memoria ao falhar leitura', async () => {
+    mockGetItemAsync.mockRejectedValue(new Error('boom'));
+
+    await expect(secureSessionStorage.getItem('k2')).resolves.toBeNull();
+
+    await secureSessionStorage.setItem('k2', 'from-memory');
+    await expect(secureSessionStorage.getItem('k2')).resolves.toBe('from-memory');
     expect(mockSetItemAsync).not.toHaveBeenCalled();
   });
 });

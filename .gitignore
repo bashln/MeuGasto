@@ -64,6 +64,10 @@ Thumbs.db
 *.njsproj
 *.sln
 
+# Markdown docs (keep only public README)
+*.md
+!README.md
+
 # Mobile (Expo)
 .expo/
 expo-env.d.ts

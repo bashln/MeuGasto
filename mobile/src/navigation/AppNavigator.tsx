@@ -3,13 +3,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../context';
-import { Loading } from '../components';
 import {
   LoginScreen,
   RegisterScreen,
   ForgotPasswordScreen,
+  OnboardingScreen,
   DashboardScreen,
   PurchasesScreen,
   PurchaseDetailScreen,
@@ -20,6 +21,7 @@ import {
   ProfileScreen,
   ScanQRCodeScreen,
   EditProfileScreen,
+  PriceComparatorScreen,
 } from '../screens';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors } from '../theme/colors';
@@ -28,6 +30,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainTabs: React.FC = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -37,8 +41,8 @@ const MainTabs: React.FC = () => {
           backgroundColor: colors.primary,
           borderTopLeftRadius: 28,
           borderTopRightRadius: 28,
-          height: 70,
-          paddingBottom: 8,
+          height: 62 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
           borderTopWidth: 0,
         },
@@ -100,10 +104,10 @@ const MainTabs: React.FC = () => {
 };
 
 export const AppNavigator: React.FC = () => {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, showOnboarding } = useAuth();
 
   if (isLoading) {
-    return <Loading fullScreen />;
+    return null;
   }
 
   return (
@@ -116,7 +120,13 @@ export const AppNavigator: React.FC = () => {
           headerTintColor: colors.primaryText,
         }}
       >
-        {!isAuthenticated ? (
+        {showOnboarding ? (
+          <Stack.Screen
+            name="Onboarding"
+            component={OnboardingScreen}
+            options={{ headerShown: false }}
+          />
+        ) : !isAuthenticated ? (
           <>
             <Stack.Screen
               name="Login"
@@ -167,6 +177,11 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PriceComparator"
+              component={PriceComparatorScreen}
               options={{ headerShown: false }}
             />
           </>
