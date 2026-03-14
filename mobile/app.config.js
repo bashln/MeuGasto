@@ -1,10 +1,19 @@
-const { expo } = require('./app.json');
+const appJson = require('./app.json');
 
-module.exports = () => ({
-  ...expo,
-  extra: {
-    ...expo.extra,
-    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? null,
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? null,
-  },
-});
+const getEnvValue = (name) => {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+};
+
+module.exports = () => {
+  const config = appJson.expo;
+
+  return {
+    ...config,
+    extra: {
+      ...config.extra,
+      supabaseUrl: getEnvValue('EXPO_PUBLIC_SUPABASE_URL'),
+      supabaseAnonKey: getEnvValue('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
+    },
+  };
+};

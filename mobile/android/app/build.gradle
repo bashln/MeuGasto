@@ -92,17 +92,17 @@ android {
         applicationId 'com.prati.meugasto'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 15
-        versionName "1.3.0"
+        versionCode 16
+        versionName "1.3.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
     signingConfigs {
         release {
-            storeFile file(MEUGASTO_STORE_FILE ?: 'debug.keystore')
-            storePassword MEUGASTO_STORE_PASSWORD ?: 'android'
-            keyAlias MEUGASTO_KEY_ALIAS ?: 'androiddebugkey'
-            keyPassword MEUGASTO_KEY_PASSWORD ?: 'android'
+            storeFile file(MEUGASTO_STORE_FILE)
+            storePassword MEUGASTO_STORE_PASSWORD
+            keyAlias MEUGASTO_KEY_ALIAS
+            keyPassword MEUGASTO_KEY_PASSWORD
         }
         debug {
             storeFile file('debug.keystore')
