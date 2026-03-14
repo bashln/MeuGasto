@@ -13,6 +13,7 @@ export type RootStackParamList = {
   Reports: undefined;
   Profile: undefined;
   ScanQRCode: undefined;
+  PriceComparator: undefined;
   EditProfile: undefined;
 };
 

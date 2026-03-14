@@ -1,8 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Linking } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Linking,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher';
+import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { UpdateInfo } from '../services/updateService';
+import { UpdateInfo, downloadApk } from '../services/updateService';
 
 interface UpdateDialogProps {
   updateInfo: UpdateInfo;
@@ -13,14 +24,72 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   updateInfo,
   onDismiss,
 }) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+
   const handleUpdate = async () => {
-    const url = updateInfo.apkDownloadUrl || updateInfo.releasePageUrl;
-    if (url) {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      }
+    if (isDownloading) {
+      return;
     }
+
+    try {
+      const isAndroid = Platform.OS === 'android';
+      const canInstallApk = isAndroid && Boolean(updateInfo.apkDownloadUrl);
+
+      if (canInstallApk && updateInfo.apkDownloadUrl) {
+        setIsDownloading(true);
+        setDownloadProgress(0);
+
+        const localApkPath = await downloadApk(updateInfo.apkDownloadUrl, setDownloadProgress);
+
+        if (localApkPath) {
+          const contentUri = await FileSystem.getContentUriAsync(localApkPath);
+
+          try {
+            await IntentLauncher.startActivityAsync(
+              'android.intent.action.INSTALL_PACKAGE',
+              {
+                data: contentUri,
+                flags: 0x10000000 | 0x00000001,
+              }
+            );
+          } catch {
+            try {
+              await IntentLauncher.startActivityAsync(
+                'android.intent.action.VIEW',
+                {
+                  data: contentUri,
+                  type: 'application/vnd.android.package-archive',
+                  flags: 0x10000000 | 0x00000001,
+                }
+              );
+            } catch {
+              if (updateInfo.apkDownloadUrl) {
+                await Linking.openURL(updateInfo.apkDownloadUrl);
+              }
+            }
+          }
+
+          if (!updateInfo.isMandatory) {
+            onDismiss();
+          }
+
+          return;
+        }
+      }
+
+      const fallbackUrl = updateInfo.apkDownloadUrl || updateInfo.releasePageUrl;
+      if (fallbackUrl) {
+        const canOpen = await Linking.canOpenURL(fallbackUrl);
+        if (canOpen) {
+          await Linking.openURL(fallbackUrl);
+        }
+      }
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress(null);
+    }
+
     // Don't dismiss on mandatory updates
     if (!updateInfo.isMandatory) {
       onDismiss();
@@ -72,20 +141,37 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
               <TouchableOpacity
                 style={[styles.button, styles.secondaryButton]}
                 onPress={handleDismiss}
+                disabled={isDownloading}
               >
                 <Text style={styles.secondaryButtonText}>Agora não</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
+              style={[styles.button, styles.primaryButton, isDownloading && styles.buttonDisabled]}
               onPress={handleUpdate}
+              disabled={isDownloading}
             >
               <Text style={styles.primaryButtonText}>
-                {updateInfo.isMandatory ? 'Atualizar Agora' : 'Atualizar'}
+                {isDownloading
+                  ? 'Baixando...'
+                  : updateInfo.isMandatory
+                    ? 'Atualizar Agora'
+                    : 'Atualizar'}
               </Text>
             </TouchableOpacity>
           </View>
+
+          {isDownloading && (
+            <View style={styles.progressContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.progressText}>
+                {downloadProgress !== null
+                  ? `Progresso: ${Math.round(downloadProgress * 100)}%`
+                  : 'Preparando download...'}
+              </Text>
+            </View>
+          )}
 
           {updateInfo.isMandatory && (
             <Text style={styles.mandatoryText}>
@@ -175,6 +261,18 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 16,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  progressContainer: {
+    marginTop: 14,
+    alignItems: 'center',
+    gap: 8,
+  },
+  progressText: {
+    fontSize: 13,
+    color: colors.mutedText,
   },
   mandatoryText: {
     fontSize: 12,
