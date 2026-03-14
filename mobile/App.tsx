@@ -5,6 +5,8 @@ import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { AuthProvider, PurchaseProvider, DraftProvider } from './src/context';
 import { AppNavigator } from './src/navigation';
 import { colors } from './src/theme/colors';
+import { useUpdateCheck } from './src/hooks';
+import { UpdateDialog } from './src/components';
 
 const theme = {
   ...MD3LightTheme,
@@ -37,10 +39,17 @@ const theme = {
   },
 };
 
+const UpdateChecker: React.FC = () => {
+  const { updateInfo, dismiss } = useUpdateCheck();
+  if (!updateInfo) return null;
+  return <UpdateDialog updateInfo={updateInfo} onDismiss={dismiss} />;
+};
+
 export default function App() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
+        <UpdateChecker />
         <AuthProvider>
           <PurchaseProvider>
             <DraftProvider>

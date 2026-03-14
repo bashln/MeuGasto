@@ -10,6 +10,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 interface AuthResult {
   user: AuthUser;
+  requiresEmailConfirmation?: boolean;
 }
 
 interface LoginRequest {
@@ -93,6 +94,7 @@ export const authService = {
           data: {
             name: userData.name,
           },
+          emailRedirectTo: 'com.prati.meugasto://auth/callback',
         },
       });
 
@@ -115,6 +117,7 @@ export const authService = {
           name: userData.name,
           role: 'user',
         },
+        requiresEmailConfirmation: !data.session,
       };
     } catch (error) {
       throw normalizeAuthError(error, 'register');
@@ -234,7 +237,9 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<void> {
     const supabase = getClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'com.prati.meugasto://auth/callback',
+    });
     if (error) {
       throw error;
     }

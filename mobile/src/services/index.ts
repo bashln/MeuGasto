@@ -5,3 +5,6 @@ export * from './supermarketService';
 export * from './draftService';
 export * from './reportService';
 export * from './nfceService';
+export * from './updateService';
+export * from './onboardingService';
+export * from './draftContent';

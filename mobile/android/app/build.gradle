@@ -3,30 +3,6 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
-def getSigningValue = { String name ->
-    def propertyValue = findProperty(name)
-    if (propertyValue != null && propertyValue.toString().trim()) {
-        return propertyValue.toString().trim()
-    }
-
-    def envValue = System.getenv(name)
-    if (envValue != null && envValue.trim()) {
-        return envValue.trim()
-    }
-
-    return null
-}
-def releaseStoreFilePath = getSigningValue("MEUGASTO_STORE_FILE")
-def releaseStorePassword = getSigningValue("MEUGASTO_STORE_PASSWORD")
-def releaseKeyAlias = getSigningValue("MEUGASTO_KEY_ALIAS")
-def releaseKeyPassword = getSigningValue("MEUGASTO_KEY_PASSWORD")
-def hasReleaseSigning = [
-    releaseStoreFilePath,
-    releaseStorePassword,
-    releaseKeyAlias,
-    releaseKeyPassword,
-].every { it != null }
-def isReleaseTaskRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -116,19 +92,17 @@ android {
         applicationId 'com.prati.meugasto'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 13
-        versionName "1.2.3"
+        versionCode 16
+        versionName "1.3.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
     signingConfigs {
         release {
-            if (hasReleaseSigning) {
-                storeFile file(releaseStoreFilePath)
-                storePassword releaseStorePassword
-                keyAlias releaseKeyAlias
-                keyPassword releaseKeyPassword
-            }
+            storeFile file(MEUGASTO_STORE_FILE)
+            storePassword MEUGASTO_STORE_PASSWORD
+            keyAlias MEUGASTO_KEY_ALIAS
+            keyPassword MEUGASTO_KEY_PASSWORD
         }
         debug {
             storeFile file('debug.keystore')
@@ -142,9 +116,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            if (hasReleaseSigning) {
-                signingConfig signingConfigs.release
-            }
+            signingConfig signingConfigs.release
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
 
@@ -165,13 +137,6 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
-}
-
-if (isReleaseTaskRequested && !hasReleaseSigning) {
-    throw new GradleException(
-        "Release signing config missing. Set MEUGASTO_STORE_FILE, MEUGASTO_STORE_PASSWORD, " +
-        "MEUGASTO_KEY_ALIAS and MEUGASTO_KEY_PASSWORD to build a standalone release APK."
-    )
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`
