@@ -41,14 +41,34 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         setDownloadProgress(0);
 
         const localApkPath = await downloadApk(updateInfo.apkDownloadUrl, setDownloadProgress);
+
         if (localApkPath) {
           const contentUri = await FileSystem.getContentUriAsync(localApkPath);
 
-          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-            data: contentUri,
-            type: 'application/vnd.android.package-archive',
-            flags: 1,
-          });
+          try {
+            await IntentLauncher.startActivityAsync(
+              'android.intent.action.INSTALL_PACKAGE',
+              {
+                data: contentUri,
+                flags: 0x10000000 | 0x00000001,
+              }
+            );
+          } catch {
+            try {
+              await IntentLauncher.startActivityAsync(
+                'android.intent.action.VIEW',
+                {
+                  data: contentUri,
+                  type: 'application/vnd.android.package-archive',
+                  flags: 0x10000000 | 0x00000001,
+                }
+              );
+            } catch {
+              if (updateInfo.apkDownloadUrl) {
+                await Linking.openURL(updateInfo.apkDownloadUrl);
+              }
+            }
+          }
 
           if (!updateInfo.isMandatory) {
             onDismiss();
