@@ -8,3 +8,4 @@ export { MonthYearPicker } from './MonthYearPicker';
 export { Header } from './Header';
 export { UpdateDialog } from './UpdateDialog';
 export { PriceComparisonCard } from './PriceComparisonCard';
+export { ItemInputRow } from './ItemInputRow';
