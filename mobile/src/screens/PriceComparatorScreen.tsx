@@ -12,6 +12,8 @@ type PriceComparatorScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'PriceComparator'>;
 };
 
+type ComparableUnitGroup = 'weight' | 'volume' | 'count';
+
 const createDefaultItem = (id: number): Item => ({
   id,
   name: '',
@@ -19,6 +21,24 @@ const createDefaultItem = (id: number): Item => ({
   quantity: 1,
   unit: 'un',
 });
+
+const getComparableUnitGroup = (unit: string): ComparableUnitGroup | null => {
+  const normalizedUnit = unit.trim().toLowerCase();
+
+  if (normalizedUnit === 'kg' || normalizedUnit === 'g') {
+    return 'weight';
+  }
+
+  if (normalizedUnit === 'l') {
+    return 'volume';
+  }
+
+  if (normalizedUnit === 'un') {
+    return 'count';
+  }
+
+  return null;
+};
 
 export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ navigation }) => {
   const [items, setItems] = useState<Item[]>([createDefaultItem(1)]);
@@ -44,19 +64,39 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
     setItems([]);
   };
 
-  const cheapestItemId = useMemo(() => {
-    const sortableItems = items
-      .map((item) => {
-        try {
-          return { id: item.id, unitPrice: calculateUnitPrice(item) };
-        } catch {
-          return null;
-        }
-      })
-      .filter((entry): entry is { id: number; unitPrice: number } => entry !== null)
-      .sort((a, b) => a.unitPrice - b.unitPrice);
+  const cheapestItemIds = useMemo(() => {
+    // Achado auditor (mobile/src/screens/PriceComparatorScreen.tsx): limitar "Mais barato" ao mesmo grupo de unidade comparável.
+    const groupedEntries = new Map<ComparableUnitGroup, { id: number; unitPrice: number }[]>();
 
-    return sortableItems[0]?.id;
+    items.forEach((item) => {
+      const group = getComparableUnitGroup(item.unit);
+      if (!group) {
+        return;
+      }
+
+      try {
+        const unitPrice = calculateUnitPrice(item);
+        const currentGroup = groupedEntries.get(group) ?? [];
+        currentGroup.push({ id: item.id, unitPrice });
+        groupedEntries.set(group, currentGroup);
+      } catch {
+        // Ignora itens inválidos para cálculo de preço por unidade.
+      }
+    });
+
+    const ids = new Set<number>();
+    groupedEntries.forEach((groupItems) => {
+      if (groupItems.length < 2) {
+        return;
+      }
+
+      const cheapestInGroup = groupItems.reduce((cheapest, current) =>
+        current.unitPrice < cheapest.unitPrice ? current : cheapest,
+      );
+      ids.add(cheapestInGroup.id);
+    });
+
+    return ids;
   }, [items]);
 
   return (
@@ -102,7 +142,7 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
               item={item}
               onUpdate={(updates) => updateItem(item.id, updates)}
               onRemove={() => removeItem(item.id)}
-              isCheapest={item.id === cheapestItemId}
+              isCheapest={cheapestItemIds.has(item.id)}
             />
           ))
         )}

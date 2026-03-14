@@ -220,6 +220,8 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                   key={`compare-first-${item.id}-${index}`}
                   title={item.name}
                   onPress={() => {
+                    // Achado auditor (mobile/src/screens/PurchaseDetailScreen.tsx): limpar comparação ao trocar Item 1.
+                    setComparisonResult(null);
                     setFirstItemIndex(index);
                     setFirstItemMenuVisible(false);
                   }}
@@ -246,6 +248,8 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                   key={`compare-second-${item.id}-${index}`}
                   title={item.name}
                   onPress={() => {
+                    // Achado auditor (mobile/src/screens/PurchaseDetailScreen.tsx): limpar comparação ao trocar Item 2.
+                    setComparisonResult(null);
                     setSecondItemIndex(index);
                     setSecondItemMenuVisible(false);
                   }}

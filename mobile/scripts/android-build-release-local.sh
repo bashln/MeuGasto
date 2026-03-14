@@ -77,7 +77,33 @@ else
 fi
 
 if [[ ! -f android/local.properties ]]; then
-	echo "sdk.dir=/home/bashln/Android/Sdk" >android/local.properties
+	# Achado auditor (mobile/scripts/android-build-release-local.sh): resolver sdk.dir dinamicamente sem hardcode.
+	CANDIDATE_SDK_DIRS=(
+		"${ANDROID_HOME:-}"
+		"${ANDROID_SDK_ROOT:-}"
+		"${HOME}/Android/Sdk"
+		"${HOME}/Library/Android/sdk"
+		"${HOME}/AppData/Local/Android/Sdk"
+	)
+
+	ANDROID_SDK_DIR=""
+	for candidate in "${CANDIDATE_SDK_DIRS[@]}"; do
+		if [[ -n "$candidate" && -d "$candidate" ]]; then
+			ANDROID_SDK_DIR="$candidate"
+			break
+		fi
+	done
+
+	if [[ -z "$ANDROID_SDK_DIR" ]]; then
+		echo "ERROR: Android SDK path not found."
+		echo "Set ANDROID_HOME or ANDROID_SDK_ROOT, or install SDK under one of:"
+		echo "  - $HOME/Android/Sdk"
+		echo "  - $HOME/Library/Android/sdk"
+		echo "  - $HOME/AppData/Local/Android/Sdk"
+		exit 1
+	fi
+
+	printf 'sdk.dir=%s\n' "$ANDROID_SDK_DIR" >android/local.properties
 fi
 
 # ── Gradle build ──────────────────────────────────────────────────────────────
