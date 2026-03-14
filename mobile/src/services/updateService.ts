@@ -1,10 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const LAST_CHECKED_KEY = 'update.last_checked';
 const LATEST_VERSION_KEY = 'update.latest_version';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const GITHUB_API_URL = 'https://api.github.com/repos/bashln/MeuGasto/releases/latest';
 const REQUEST_TIMEOUT_MS = 8000;
+const APK_DOWNLOAD_DIR = 'updates';
+const APK_FILENAME = 'meugasto-latest.apk';
 
 export interface UpdateInfo {
   latestVersion: string;
@@ -97,6 +100,52 @@ const updateLastChecked = async (): Promise<void> => {
     await SecureStore.setItemAsync(LAST_CHECKED_KEY, Date.now().toString());
   } catch (error) {
     logUpdateError('[Update] Failed to update last checked timestamp', error);
+  }
+};
+
+export type DownloadApkProgressCallback = (progress: number) => void;
+
+export const downloadApk = async (
+  url: string,
+  onProgress?: DownloadApkProgressCallback
+): Promise<string | null> => {
+  try {
+    if (!FileSystem.cacheDirectory) {
+      logUpdateError('[Update] Cache directory unavailable for APK download', null);
+      return null;
+    }
+
+    const updateDir = `${FileSystem.cacheDirectory}${APK_DOWNLOAD_DIR}`;
+    const apkUri = `${updateDir}/${APK_FILENAME}`;
+
+    await FileSystem.makeDirectoryAsync(updateDir, { intermediates: true });
+
+    const existingFile = await FileSystem.getInfoAsync(apkUri);
+    if (existingFile.exists) {
+      await FileSystem.deleteAsync(apkUri, { idempotent: true });
+    }
+
+    const downloadTask = FileSystem.createDownloadResumable(
+      url,
+      apkUri,
+      {},
+      (downloadData) => {
+        if (!onProgress || downloadData.totalBytesExpectedToWrite <= 0) {
+          return;
+        }
+
+        const progress = downloadData.totalBytesWritten / downloadData.totalBytesExpectedToWrite;
+        onProgress(Math.max(0, Math.min(1, progress)));
+      }
+    );
+
+    const result = await downloadTask.downloadAsync();
+    onProgress?.(1);
+
+    return result?.uri || null;
+  } catch (error) {
+    logUpdateError('[Update] Failed to download APK', error);
+    return null;
   }
 };
 
