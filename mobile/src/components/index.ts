@@ -7,3 +7,4 @@ export { NFCeWebView } from './NFCeWebView';
 export { MonthYearPicker } from './MonthYearPicker';
 export { Header } from './Header';
 export { UpdateDialog } from './UpdateDialog';
+export { PriceComparisonCard } from './PriceComparisonCard';
