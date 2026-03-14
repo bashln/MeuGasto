@@ -21,6 +21,7 @@ import {
   ProfileScreen,
   ScanQRCodeScreen,
   EditProfileScreen,
+  PriceComparatorScreen,
 } from '../screens';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors } from '../theme/colors';
@@ -176,6 +177,11 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PriceComparator"
+              component={PriceComparatorScreen}
               options={{ headerShown: false }}
             />
           </>
