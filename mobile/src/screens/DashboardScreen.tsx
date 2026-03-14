@@ -174,7 +174,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             </View>
           </TouchableOpacity>
 
-          {/* Action 2 - Regra de 3 */}
+          {/* Action 2 - Comparador de preços */}
+          <TouchableOpacity
+            style={styles.actionCardSecondary}
+            onPress={() => navigation.navigate('PriceComparator')}
+          >
+            <View style={[styles.actionIconContainer, styles.actionIconGreen]}>
+              <MaterialCommunityIcons name="scale-balance" size={22} color={colors.primaryText} />
+            </View>
+            <View style={styles.actionContent}>
+              <RNText style={styles.actionTitleSecondary}>Comparador de Preços</RNText>
+              <RNText style={styles.actionDescSecondary}>Compare itens em tempo real</RNText>
+            </View>
+          </TouchableOpacity>
+
+          {/* Action 3 - Regra de 3 */}
           <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('PurchasesTab')}
@@ -188,7 +202,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             </View>
           </TouchableOpacity>
 
-          {/* Action 3 - Relatórios */}
+          {/* Action 4 - Relatórios */}
           <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('ReportsTab')}
@@ -368,6 +382,9 @@ const styles = StyleSheet.create({
   },
   actionIconBlue: {
     backgroundColor: colors.info,
+  },
+  actionIconGreen: {
+    backgroundColor: colors.success,
   },
   actionIconPurple: {
     backgroundColor: colors.secondary,

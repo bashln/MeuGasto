@@ -12,3 +12,4 @@ export { ReportsScreen } from './ReportsScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { ScanQRCodeScreen } from './ScanQRCodeScreen';
 export { EditProfileScreen } from './EditProfileScreen';
+export { PriceComparatorScreen } from './PriceComparatorScreen';
