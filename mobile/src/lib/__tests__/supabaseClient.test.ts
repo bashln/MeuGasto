@@ -6,7 +6,7 @@ describe('supabaseClient configuration', () => {
     let mod: typeof import('../supabaseClient');
 
     jest.isolateModules(() => {
-      mod = require('../supabaseClient') as typeof import('../supabaseClient');
+      mod = jest.requireActual('../supabaseClient') as typeof import('../supabaseClient');
     });
 
     return mod!;
