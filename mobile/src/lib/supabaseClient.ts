@@ -45,7 +45,10 @@ const isValidSupabaseUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
     return Boolean(url.hostname) && Boolean(url.protocol === 'https:');
-  } catch {
+  } catch (error) {
+    if (__DEV__) {
+      console.error('Error validating URL:', error);
+    }
     return false;
   }
 };

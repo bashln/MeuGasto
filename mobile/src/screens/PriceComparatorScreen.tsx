@@ -79,8 +79,10 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
         const currentGroup = groupedEntries.get(group) ?? [];
         currentGroup.push({ id: item.id, unitPrice });
         groupedEntries.set(group, currentGroup);
-      } catch {
-        // Ignora itens inválidos para cálculo de preço por unidade.
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error calculating unit price:', error);
+        }
       }
     });
 
@@ -133,7 +135,7 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cart-off" size={32} color={colors.mutedText} />
             <RNText style={styles.emptyText}>Nenhum item para comparar.</RNText>
-            <RNText style={styles.emptyHint}>Toque em "Adicionar Item" para começar.</RNText>
+            <RNText style={styles.emptyHint}>Toque em Adicionar Item para começar.</RNText>
           </View>
         ) : (
           items.map((item) => (

@@ -87,7 +87,10 @@ const shouldSkipCheck = async (): Promise<boolean> => {
     const now = Date.now();
     
     return now - lastCheckTime < CHECK_INTERVAL_MS;
-  } catch {
+  } catch (error) {
+    if (__DEV__) {
+      console.error('Error checking update needed:', error);
+    }
     return false;
   }
 };
