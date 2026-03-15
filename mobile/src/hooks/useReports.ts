@@ -1,15 +1,33 @@
 import { useState, useEffect, useCallback } from 'react';
 import { reportService } from '../services';
+import { getPeriodRange } from '../features/reports/utils/periodUtils';
+
+type ReportType = 'geral' | 'itens' | 'mercados';
+type PeriodOption = '3months' | '6months' | '12months' | 'year';
+
+interface MarketDataPoint {
+  supermarket: string;
+  total: number;
+  purchaseCount: number;
+  averagePrice: number;
+}
+
+interface PriceHistoryPoint {
+  month: number;
+  year: number;
+  averagePrice: number;
+}
 
 interface UseReportsResult {
   isLoading: boolean;
   error: string | null;
-  reportType: 'geral' | 'itens' | 'mercados';
+  reportType: ReportType;
   selectedYear: number;
+  selectedPeriod: PeriodOption;
   selectedItem: string;
   monthlyData: Array<{ month: number; total: number }>;
-  supermarketData: Array<{ supermarket: string; total: number }>;
-  topItems: Array<{ name: string; quantity: number; total: number }>;
+  supermarketData: MarketDataPoint[];
+  topItems: Array<{ name: string; quantity: number; total: number; percentage: number }>;
   itemReport: {
     totalQuantity: number;
     totalSpent: number;
@@ -22,64 +40,124 @@ interface UseReportsResult {
       averagePrice: number;
     }>;
   } | null;
-  setReportType: (type: 'geral' | 'itens' | 'mercados') => void;
+  itemPriceHistory: PriceHistoryPoint[];
+  setReportType: (type: ReportType) => void;
   setSelectedYear: (year: number) => void;
+  setSelectedPeriod: (period: PeriodOption) => void;
   setSelectedItem: (item: string) => void;
   loadReport: () => Promise<void>;
   loadItemReport: (itemName: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
+const getPeriodReferenceDate = (selectedYear: number): Date => {
+  const currentYear = new Date().getFullYear();
+  if (selectedYear === currentYear) {
+    return new Date();
+  }
+
+  return new Date(selectedYear, 11, 31);
+};
+
 export const useReports = (): UseReportsResult => {
-  const [reportType, setReportType] = useState<'geral' | 'itens' | 'mercados'>('itens');
+  const [reportType, setReportType] = useState<ReportType>('itens');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>('6months');
   const [selectedItem, setSelectedItem] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monthlyData, setMonthlyData] = useState<Array<{ month: number; total: number }>>([]);
-  const [supermarketData, setSupermarketData] = useState<Array<{ supermarket: string; total: number }>>([]);
-  const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
+  const [supermarketData, setSupermarketData] = useState<MarketDataPoint[]>([]);
+  const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number; percentage: number }>>([]);
+  const [itemPriceHistory, setItemPriceHistory] = useState<PriceHistoryPoint[]>([]);
   const [itemReport, setItemReport] = useState<UseReportsResult['itemReport']>(null);
+
+  const loadItemReport = useCallback(
+    async (itemName: string) => {
+      if (!itemName) {
+        setItemReport(null);
+        setItemPriceHistory([]);
+        return;
+      }
+
+      const periodRange = getPeriodRange(selectedPeriod, getPeriodReferenceDate(selectedYear));
+      try {
+        const [data, historyData] = await Promise.all([
+          reportService.getItemReport(itemName, periodRange.startDate, periodRange.endDate),
+          reportService.getItemPriceHistory(itemName, periodRange.startDate, periodRange.endDate),
+        ]);
+
+        setItemReport(data);
+        setItemPriceHistory(historyData);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error loading item report:', error);
+        }
+        setItemReport(null);
+        setItemPriceHistory([]);
+      }
+    },
+    [selectedPeriod, selectedYear]
+  );
 
   const loadReport = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    const startDate = `${selectedYear}-01-01`;
-    const endDate = `${selectedYear}-12-31`;
+    const periodRange = getPeriodRange(selectedPeriod, getPeriodReferenceDate(selectedYear));
+    const startDate = periodRange.startDate;
+    const endDate = periodRange.endDate;
 
     try {
       if (reportType === 'geral') {
-        const data = await reportService.getMonthlyExpenses(selectedYear);
-        setMonthlyData(data);
+        const monthly = await reportService.getMonthlyExpenses(startDate, endDate);
+        setMonthlyData(monthly);
+
+        const topItemsData = await reportService.getTopItems(10, startDate, endDate);
+        const total = topItemsData.reduce((sum, item) => sum + item.total, 0);
+        const topItemsWithPercentage = topItemsData.map((item) => ({
+          ...item,
+          percentage: total > 0 ? (item.total / total) * 100 : 0,
+        }));
+
+        setTopItems(topItemsWithPercentage);
+        setItemReport(null);
+        setItemPriceHistory([]);
+        setSupermarketData([]);
+      } else if (reportType === 'itens') {
+        const topItemsData = await reportService.getTopItems(50, startDate, endDate);
+        const total = topItemsData.reduce((sum, item) => sum + item.total, 0);
+        const topItemsWithPercentage = topItemsData.map((item) => ({
+          ...item,
+          percentage: total > 0 ? (item.total / total) * 100 : 0,
+        }));
+
+        setTopItems(topItemsWithPercentage);
+        setMonthlyData([]);
+        setSupermarketData([]);
+
+        if (selectedItem) {
+          await loadItemReport(selectedItem);
+        } else {
+          setItemReport(null);
+          setItemPriceHistory([]);
+        }
+      } else {
+        const marketData = await reportService.getMarketRanking(startDate, endDate);
+
+        setSupermarketData(marketData);
+        setMonthlyData([]);
         setTopItems([]);
         setItemReport(null);
-      } else if (reportType === 'itens') {
-        const data = await reportService.getTopItems(10, startDate, endDate);
-        setTopItems(data);
+        setItemPriceHistory([]);
       }
-
-      const superData = await reportService.getExpensesBySupermarket(startDate, endDate);
-      setSupermarketData(superData);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar relatório';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [reportType, selectedYear]);
-
-  const loadItemReport = useCallback(async (itemName: string) => {
-    const startDate = `${selectedYear}-01-01`;
-    const endDate = `${selectedYear}-12-31`;
-
-    try {
-      const data = await reportService.getItemReport(itemName, startDate, endDate);
-      setItemReport(data);
-    } catch {
-      setItemReport(null);
-    }
-  }, [selectedYear]);
+  }, [reportType, selectedYear, selectedPeriod, selectedItem, loadItemReport]);
 
   const refresh = useCallback(async () => {
     await loadReport();
@@ -93,24 +171,32 @@ export const useReports = (): UseReportsResult => {
   }, [loadReport]);
 
   useEffect(() => {
-    if (reportType !== 'itens') return;
-    if (!selectedItem) {
-      setItemReport(null);
+    if (reportType !== 'itens') {
       return;
     }
+
+    if (!selectedItem) {
+      setItemReport(null);
+      setItemPriceHistory([]);
+      return;
+    }
+
     loadItemReport(selectedItem);
   }, [reportType, selectedItem, loadItemReport]);
 
   useEffect(() => {
-    if (reportType !== 'itens') return;
-    setSelectedItem((prevSelectedItem) => {
+    if (reportType !== 'itens') {
+      return;
+    }
+
+    setSelectedItem((previousSelectedItem) => {
       if (topItems.length === 0) {
-        return prevSelectedItem ? '' : prevSelectedItem;
+        return previousSelectedItem ? '' : previousSelectedItem;
       }
 
-      const hasSelectedItem = topItems.some(item => item.name === prevSelectedItem);
+      const hasSelectedItem = topItems.some((item) => item.name === previousSelectedItem);
       if (hasSelectedItem) {
-        return prevSelectedItem;
+        return previousSelectedItem;
       }
 
       return topItems[0]?.name ?? '';
@@ -122,13 +208,16 @@ export const useReports = (): UseReportsResult => {
     error,
     reportType,
     selectedYear,
+    selectedPeriod,
     selectedItem,
     monthlyData,
     supermarketData,
     topItems,
     itemReport,
+    itemPriceHistory,
     setReportType,
     setSelectedYear,
+    setSelectedPeriod,
     setSelectedItem,
     loadReport,
     loadItemReport,
