@@ -21,7 +21,7 @@
       "versionCode": 20,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#EE9A37"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.prati.meugasto",
       "permissions": [
