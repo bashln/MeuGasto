@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
@@ -48,17 +49,26 @@ const UpdateChecker: React.FC = () => {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        <UpdateChecker />
-        <AuthProvider>
-          <PurchaseProvider>
-            <DraftProvider>
-              <StatusBar style="auto" />
-              <AppNavigator />
-            </DraftProvider>
-          </PurchaseProvider>
-        </AuthProvider>
-      </PaperProvider>
+      <View style={styles.root}>
+        <PaperProvider theme={theme}>
+          <UpdateChecker />
+          <AuthProvider>
+            <PurchaseProvider>
+              <DraftProvider>
+                <StatusBar style="auto" />
+                <AppNavigator />
+              </DraftProvider>
+            </PurchaseProvider>
+          </AuthProvider>
+        </PaperProvider>
+      </View>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.backgroundApp,
+  },
+});

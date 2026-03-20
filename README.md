@@ -105,6 +105,31 @@ export MEUGASTO_KEY_PASSWORD=...
 npm run android:build:release:local
 ```
 
+## Troubleshooting Android
+
+### Splash presa no APK debug
+
+Se o app abrir e ficar parado na splash por muito tempo, siga este checklist antes de mexer na arquitetura:
+
+1. Confirme se o app debug esta com Metro ativo e `adb reverse tcp:8081 tcp:8081`.
+2. Rode `adb shell dumpsys activity activities | rg "com\\.prati\\.meugasto|startingWindow"` para ver se a `startingWindow` ainda esta presa.
+3. Rode `adb logcat -d -v time --pid=$(adb shell pidof com.prati.meugasto)` e procure erros JS antes do primeiro frame.
+4. Se aparecer `Gradient package was not found`, confirme que [`expo-linear-gradient`](./mobile/package.json) continua instalado. `react-native-gifted-charts` depende dele no boot do bundle.
+5. Se a `startingWindow` continuar presa mesmo sem erro JS, revalide o watchdog nativo em [`MainActivity.kt`](./mobile/android/app/src/main/java/com/prati/meugasto/MainActivity.kt).
+
+Correcoes que ja ficaram aplicadas no projeto:
+
+- o app nao retorna mais `null` durante o bootstrap de auth; usa `Loading fullScreen`
+- o bootstrap de splash deixou de depender do `AuthContext`
+- existe um watchdog nativo em `MainActivity.kt` para liberar a splash se o auto-hide do Expo falhar
+- `expo-linear-gradient` foi adicionado porque a falta dessa dependencia fazia o JS morrer antes do primeiro frame
+
+Sinal atual esperado no debug:
+
+- a splash pode durar alguns segundos com Metro, mas nao deve ficar indefinidamente
+- o `dumpsys` deve perder a `startingWindow` apos o app terminar o boot
+- o processo JS deve chegar em `Running "main"` sem erro fatal
+
 ## NFC-e
 
 O fluxo de leitura da NFC-e usa WebView para carregar a URL do QR Code e

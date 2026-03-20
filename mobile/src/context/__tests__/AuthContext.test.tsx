@@ -1,8 +1,3 @@
-jest.mock('expo-splash-screen', () => ({
-  hideAsync: jest.fn().mockResolvedValue(undefined),
-  preventAutoHideAsync: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('../../services/authService', () => ({
   authService: {
     getSession: jest.fn(),
@@ -31,7 +26,6 @@ jest.mock('../../lib/supabaseClient', () => ({
 
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../AuthContext';
 import { authService } from '../../services/authService';
 import { onboardingService } from '../../services/onboardingService';
@@ -49,7 +43,6 @@ const mockHasCompletedOnboarding = onboardingService.hasCompletedOnboarding as j
 const mockCompleteOnboarding = onboardingService.completeOnboarding as jest.Mock;
 const mockIsSupabaseConfigured = isSupabaseConfigured as jest.Mock;
 const mockOnAuthStateChange = supabase!.auth.onAuthStateChange as jest.Mock;
-const mockHideAsync = SplashScreen.hideAsync as jest.Mock;
 
 const Consumer = ({ onRender }: { onRender: (value: Snapshot & { completeOnboarding: () => Promise<void> }) => void }) => {
   const auth = useAuth();
@@ -110,7 +103,6 @@ describe('AuthContext', () => {
       isAuthenticated: false,
       showOnboarding: false,
     });
-    expect(mockHideAsync).toHaveBeenCalled();
   });
 
   it('resolves bootstrap with onboarding visible when pending', async () => {
@@ -149,7 +141,6 @@ describe('AuthContext', () => {
       isLoading: false,
       showOnboarding: true,
     });
-    expect(mockHideAsync).toHaveBeenCalled();
   });
 
   it('updates in-memory onboarding state when completed', async () => {
@@ -197,7 +188,7 @@ describe('AuthContext', () => {
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(8000);
+      jest.advanceTimersByTime(4000);
     });
 
     expect(snapshots[snapshots.length - 1]).toMatchObject({
@@ -205,6 +196,34 @@ describe('AuthContext', () => {
       isAuthenticated: false,
       showOnboarding: true,
     });
-    expect(mockHideAsync).toHaveBeenCalled();
+  });
+
+  it('shows onboarding on timeout when onboarding state never resolves', async () => {
+    const snapshots: Snapshot[] = [];
+    jest.useFakeTimers();
+    mockHasCompletedOnboarding.mockImplementation(() => new Promise(() => {}));
+    mockGetSessionFast.mockResolvedValue({ user: null });
+
+    await act(async () => {
+      renderer = TestRenderer.create(
+        <AuthProvider>
+          <Consumer onRender={(value) => snapshots.push(value)} />
+        </AuthProvider>
+      );
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(4000);
+    });
+
+    expect(snapshots[snapshots.length - 1]).toMatchObject({
+      isLoading: false,
+      isAuthenticated: false,
+      showOnboarding: true,
+    });
   });
 });
