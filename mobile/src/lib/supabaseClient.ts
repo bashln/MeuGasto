@@ -17,6 +17,9 @@ export interface ResolvedSupabaseConfig {
   error: SupabaseConfigError;
 }
 
+let cachedSupabaseClient: SupabaseClient | null = null;
+let cachedSupabaseConfigKey: string | null = null;
+
 const getNormalizedValue = (value: string | undefined): string | null => {
   const normalized = value?.trim();
   if (!normalized) {
@@ -107,11 +110,18 @@ export const isSupabaseConfigured = (): boolean => {
 export const getSupabaseClient = (): SupabaseClient | null => {
   const config = getResolvedSupabaseConfig();
   if (config.error || !config.url || !config.anonKey) {
+    cachedSupabaseClient = null;
+    cachedSupabaseConfigKey = null;
     return null;
   }
 
+  const configKey = `${config.url}::${config.anonKey}`;
+  if (cachedSupabaseClient && cachedSupabaseConfigKey === configKey) {
+    return cachedSupabaseClient;
+  }
+
   try {
-    return createClient(config.url, config.anonKey, {
+    const client = createClient(config.url, config.anonKey, {
       auth: {
         storage: secureSessionStorage,
         storageKey: SUPABASE_SESSION_STORAGE_KEY,
@@ -120,6 +130,9 @@ export const getSupabaseClient = (): SupabaseClient | null => {
         detectSessionInUrl: false,
       },
     });
+    cachedSupabaseClient = client;
+    cachedSupabaseConfigKey = configKey;
+    return client;
   } catch (error) {
     if (__DEV__) {
       console.error('[SupabaseClient] Failed to create client:', {
@@ -127,6 +140,8 @@ export const getSupabaseClient = (): SupabaseClient | null => {
         source: config.source,
       });
     }
+    cachedSupabaseClient = null;
+    cachedSupabaseConfigKey = null;
     return null;
   }
 };

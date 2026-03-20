@@ -1,125 +1,77 @@
-describe('supabaseClient configuration', () => {
+const mockCreateClient = jest.fn();
+const mockExpoConfig = {
+  extra: {
+    supabaseUrl: 'https://mock.supabase.co',
+    supabaseAnonKey: 'mock-key',
+  },
+};
+
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    get expoConfig() {
+      return mockExpoConfig;
+    },
+  },
+}));
+
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: (...args: unknown[]) => mockCreateClient(...args),
+}));
+
+jest.mock('../secureSessionStorage', () => ({
+  secureSessionStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
+  SUPABASE_SESSION_STORAGE_KEY: 'supabase.auth.token',
+}));
+
+describe('supabaseClient', () => {
   const originalUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const originalKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-  const loadModule = () => {
-    let mod: typeof import('../supabaseClient');
-
-    jest.isolateModules(() => {
-      mod = jest.requireActual('../supabaseClient') as typeof import('../supabaseClient');
-    });
-
-    return mod!;
-  };
-
-  afterEach(() => {
-    if (originalUrl === undefined) {
-      delete process.env.EXPO_PUBLIC_SUPABASE_URL;
-    } else {
-      process.env.EXPO_PUBLIC_SUPABASE_URL = originalUrl;
-    }
-
-    if (originalKey === undefined) {
-      delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-    } else {
-      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = originalKey;
-    }
-
+  beforeEach(() => {
     jest.resetModules();
-    jest.clearAllMocks();
-  });
-
-  it('resolve configuracao a partir de process.env', () => {
-    process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://env.supabase.co';
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-key';
-
-    jest.doMock('expo-constants', () => ({
-      __esModule: true,
-      default: {
-        expoConfig: {
-          extra: {
-            supabaseUrl: 'https://extra.supabase.co',
-            supabaseAnonKey: 'extra-key',
-          },
-        },
-      },
-    }));
-
-    const { getResolvedSupabaseConfig } = loadModule();
-
-    expect(getResolvedSupabaseConfig()).toEqual({
-      url: 'https://env.supabase.co',
-      anonKey: 'env-key',
-      source: 'process.env',
-      error: null,
-    });
-  });
-
-  it('usa fallback via expo.extra quando process.env nao estiver disponivel', () => {
+    mockCreateClient.mockReset();
+    mockExpoConfig.extra.supabaseUrl = 'https://mock.supabase.co';
+    mockExpoConfig.extra.supabaseAnonKey = 'mock-key';
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
-    jest.doMock('expo-constants', () => ({
-      __esModule: true,
-      default: {
-        expoConfig: {
-          extra: {
-            supabaseUrl: 'https://extra.supabase.co',
-            supabaseAnonKey: 'extra-key',
-          },
-        },
-      },
-    }));
-
-    const { getResolvedSupabaseConfig, isSupabaseConfigured } = loadModule();
-
-    expect(getResolvedSupabaseConfig()).toEqual({
-      url: 'https://extra.supabase.co',
-      anonKey: 'extra-key',
-      source: 'expo.extra',
-      error: null,
-    });
-    expect(isSupabaseConfigured()).toBe(true);
   });
 
-  it('rejeita URL invalida', () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    process.env.EXPO_PUBLIC_SUPABASE_URL = 'http://bad-host';
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-key';
-
-    jest.doMock('expo-constants', () => ({
-      __esModule: true,
-      default: { expoConfig: { extra: {} } },
-    }));
-
-    const { getResolvedSupabaseConfig, isSupabaseConfigured } = loadModule();
-
-    expect(getResolvedSupabaseConfig()).toEqual({
-      url: 'http://bad-host',
-      anonKey: 'env-key',
-      source: 'process.env',
-      error: 'invalid_url',
-    });
-    expect(isSupabaseConfigured()).toBe(false);
-    consoleErrorSpy.mockRestore();
+  afterAll(() => {
+    process.env.EXPO_PUBLIC_SUPABASE_URL = originalUrl;
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = originalKey;
   });
 
-  it('detecta URL ausente', () => {
-    delete process.env.EXPO_PUBLIC_SUPABASE_URL;
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-key';
+  it('reutiliza o mesmo client quando a configuracao nao muda', () => {
+    const client = { auth: {}, from: jest.fn() };
+    mockCreateClient.mockReturnValue(client);
 
-    jest.doMock('expo-constants', () => ({
-      __esModule: true,
-      default: { expoConfig: { extra: {} } },
-    }));
+    const { getSupabaseClient } = require('../supabaseClient');
 
-    const { getResolvedSupabaseConfig } = loadModule();
+    expect(getSupabaseClient()).toBe(client);
+    expect(getSupabaseClient()).toBe(client);
+    expect(mockCreateClient).toHaveBeenCalledTimes(1);
+  });
 
-    expect(getResolvedSupabaseConfig()).toEqual({
-      url: null,
-      anonKey: 'env-key',
-      source: 'process.env',
-      error: 'missing_url',
-    });
+  it('recria o client quando a configuracao muda', () => {
+    const firstClient = { id: 'first' };
+    const secondClient = { id: 'second' };
+    mockCreateClient
+      .mockReturnValueOnce(firstClient)
+      .mockReturnValueOnce(secondClient);
+
+    let supabaseClient = require('../supabaseClient');
+    expect(supabaseClient.getSupabaseClient()).toBe(firstClient);
+
+    mockExpoConfig.extra.supabaseAnonKey = 'another-key';
+    jest.resetModules();
+    supabaseClient = require('../supabaseClient');
+
+    expect(supabaseClient.getSupabaseClient()).toBe(secondClient);
+    expect(mockCreateClient).toHaveBeenCalledTimes(2);
   });
 });

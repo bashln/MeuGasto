@@ -41,9 +41,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       await login(email.trim(), password);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao fazer login';
-      if (__DEV__) {
-        console.warn('Login error:', err);
-      }
       setError(message);
     } finally {
       setIsLoading(false);
