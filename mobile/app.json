@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1976d2"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "buildNumber": "20",
@@ -21,7 +21,7 @@
       "versionCode": 20,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#1976d2"
+        "backgroundColor": "#1F2937"
       },
       "package": "com.prati.meugasto",
       "permissions": [
