@@ -174,15 +174,18 @@ export const updateService = {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-      const response = await fetch(GITHUB_API_URL, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'MeuGasto-App',
-        },
-      });
-
-      clearTimeout(timeoutId);
+      let response: Response;
+      try {
+        response = await fetch(GITHUB_API_URL, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'MeuGasto-App',
+          },
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         logUpdateError('[Update] GitHub API error', { status: response.status });
@@ -194,8 +197,12 @@ export const updateService = {
       // Extract version from tag (remove 'v' prefix if present)
       const latestVersion = release.tag_name.replace(/^v/, '');
       
-      // Cache the latest version
-      await SecureStore.setItemAsync(LATEST_VERSION_KEY, latestVersion);
+      // Cache the latest version — errors are non-fatal
+      try {
+        await SecureStore.setItemAsync(LATEST_VERSION_KEY, latestVersion);
+      } catch (cacheError) {
+        logUpdateError('[Update] Failed to cache latest version', cacheError);
+      }
       await updateLastChecked();
 
       // Compare versions

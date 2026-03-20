@@ -47,6 +47,10 @@ const parseDateParts = (rawDate: string): { year: number; month: number; day: nu
     return null;
   }
 
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+
   return { year, month, day };
 };
 
@@ -133,7 +137,7 @@ export const reportService = {
         const endMonthIndex = endParts.year * 12 + (endParts.month - 1);
 
         for (let monthIndex = startMonthIndex; monthIndex <= endMonthIndex; monthIndex++) {
-          monthlyTotals[(monthIndex % 12) + 1] = 0;
+          monthlyTotals[monthIndex] = 0; // use full monthIndex as key to avoid year collisions
         }
       }
     }
@@ -144,15 +148,17 @@ export const reportService = {
         return;
       }
 
-      const month = dateParts.month;
-      if (!(month in monthlyTotals)) {
-        monthlyTotals[month] = 0;
+      const key = isYearQuery
+        ? dateParts.month
+        : dateParts.year * 12 + (dateParts.month - 1);
+      if (!(key in monthlyTotals)) {
+        monthlyTotals[key] = 0;
       }
-      monthlyTotals[month] += parseFloat(p.total_price) || 0;
+      monthlyTotals[key] += parseFloat(p.total_price) || 0;
     });
 
-    return Object.entries(monthlyTotals).map(([month, total]) => ({
-      month: parseInt(month),
+    return Object.entries(monthlyTotals).map(([key, total]) => ({
+      month: isYearQuery ? parseInt(key) : (parseInt(key) % 12) + 1,
       total,
     }));
   },
@@ -172,7 +178,7 @@ export const reportService = {
       throw new Error(error.message);
     }
 
-    return ((data as Array<{ supermarket: string; total: number | string }> | null) ?? []).map(row => ({
+    return (Array.isArray(data) ? (data as Array<{ supermarket: string; total: number | string }>) : []).map(row => ({
       supermarket: row.supermarket,
       total: Number(row.total) || 0,
     }));
@@ -247,7 +253,7 @@ export const reportService = {
       throw new Error(error.message);
     }
 
-    return ((data as Array<{ name: string; quantity: number | string; total: number | string }> | null) ?? []).map(row => ({
+    return (Array.isArray(data) ? (data as Array<{ name: string; quantity: number | string; total: number | string }>) : []).map(row => ({
       name: row.name,
       quantity: Number(row.quantity) || 0,
       total: Number(row.total) || 0,
@@ -427,6 +433,9 @@ export const reportService = {
     const monthlyMap = new Map<string, { totalSpent: number; totalQuantity: number; month: number; year: number }>();
 
     (items ?? []).forEach((item) => {
+      if (item.purchase_id == null) {
+        return;
+      }
       const purchaseId = Number(item.purchase_id);
       const purchaseDate = purchaseDateById.get(purchaseId);
       if (!purchaseDate) {

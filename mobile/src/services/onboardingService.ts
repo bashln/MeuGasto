@@ -47,14 +47,14 @@ export const onboardingService = {
       return completed;
     } catch (error) {
       logOnboardingError('[Onboarding] Failed to read onboarding state, using safe fallback.', error);
-      return lastKnownCompleted ?? true;
+      return lastKnownCompleted ?? false;
     }
   },
 
   async completeOnboarding(): Promise<boolean> {
-    lastKnownCompleted = true;
     try {
       await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
+      lastKnownCompleted = true;
       return true;
     } catch (error) {
       logOnboardingError('[Onboarding] Failed to persist onboarding completion.', error);
@@ -62,12 +62,14 @@ export const onboardingService = {
     }
   },
 
-  async resetOnboarding(): Promise<void> {
-    lastKnownCompleted = false;
+  async resetOnboarding(): Promise<boolean> {
     try {
       await SecureStore.deleteItemAsync(ONBOARDING_COMPLETED_KEY);
+      lastKnownCompleted = false;
+      return true;
     } catch (error) {
       logOnboardingError('[Onboarding] Failed to reset onboarding state.', error);
+      return false;
     }
   },
 };

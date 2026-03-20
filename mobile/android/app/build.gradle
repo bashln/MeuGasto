@@ -2,7 +2,11 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+import groovy.json.JsonSlurper
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def appConfig = new JsonSlurper().parse(file("../../app.json"))
+def expoConfig = appConfig.expo
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -92,17 +96,20 @@ android {
         applicationId 'com.prati.meugasto'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
-        versionName "1.3.1"
+        versionCode (findProperty('versionCode') ? findProperty('versionCode').toInteger() : expoConfig.android.versionCode)
+        versionName (findProperty('versionName') ?: expoConfig.version)
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
     signingConfigs {
         release {
-            storeFile file(MEUGASTO_STORE_FILE)
-            storePassword MEUGASTO_STORE_PASSWORD
-            keyAlias MEUGASTO_KEY_ALIAS
-            keyPassword MEUGASTO_KEY_PASSWORD
+            def storeFilePath = findProperty('MEUGASTO_STORE_FILE') ?: ''
+            if (storeFilePath && file(storeFilePath).exists()) {
+                storeFile file(storeFilePath)
+                storePassword findProperty('MEUGASTO_STORE_PASSWORD') ?: ''
+                keyAlias findProperty('MEUGASTO_KEY_ALIAS') ?: ''
+                keyPassword findProperty('MEUGASTO_KEY_PASSWORD') ?: ''
+            }
         }
         debug {
             storeFile file('debug.keystore')

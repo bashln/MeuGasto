@@ -135,13 +135,7 @@ export const useReports = (): UseReportsResult => {
         setTopItems(topItemsWithPercentage);
         setMonthlyData([]);
         setSupermarketData([]);
-
-        if (selectedItem) {
-          await loadItemReport(selectedItem);
-        } else {
-          setItemReport(null);
-          setItemPriceHistory([]);
-        }
+        // item report is loaded by the dedicated useEffect that watches selectedItem
       } else {
         const marketData = await reportService.getMarketRanking(startDate, endDate);
 
@@ -157,7 +151,7 @@ export const useReports = (): UseReportsResult => {
     } finally {
       setIsLoading(false);
     }
-  }, [reportType, selectedYear, selectedPeriod, selectedItem, loadItemReport]);
+  }, [reportType, selectedYear, selectedPeriod]);
 
   const refresh = useCallback(async () => {
     await loadReport();
@@ -191,7 +185,7 @@ export const useReports = (): UseReportsResult => {
 
     setSelectedItem((previousSelectedItem) => {
       if (topItems.length === 0) {
-        return previousSelectedItem ? '' : previousSelectedItem;
+        return '';
       }
 
       const hasSelectedItem = topItems.some((item) => item.name === previousSelectedItem);
