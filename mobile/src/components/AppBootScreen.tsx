@@ -1,16 +1,14 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text as RNText, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 export const AppBootScreen: React.FC = () => {
   return (
     <View style={styles.container}>
-      <View style={styles.logoIcon}>
-        <MaterialCommunityIcons name="receipt" size={36} color={colors.primaryText} />
+      <View style={styles.titleBlock}>
+        <RNText style={styles.title}>Meu Gasto</RNText>
+        <RNText style={styles.subtitle}>Carregando...</RNText>
       </View>
-      <RNText style={styles.title}>MeuGasto</RNText>
-      <RNText style={styles.subtitle}>Preparando seu acesso...</RNText>
       <ActivityIndicator size="large" color={colors.primary} style={styles.spinner} />
     </View>
   );
@@ -22,33 +20,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    backgroundColor: colors.backgroundApp,
+    backgroundColor: colors.backgroundAuth,
   },
-  logoIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
+  titleBlock: {
     alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 8,
   },
   title: {
-    marginTop: 18,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.text,
+    letterSpacing: 0.2,
   },
   subtitle: {
-    marginTop: 8,
-    fontSize: 14,
+    marginTop: 10,
+    fontSize: 15,
     color: colors.mutedText,
   },
   spinner: {
-    marginTop: 24,
+    marginTop: 28,
   },
 });
