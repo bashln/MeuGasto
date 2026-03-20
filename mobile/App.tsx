@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
@@ -8,6 +9,12 @@ import { AppNavigator } from './src/navigation';
 import { colors } from './src/theme/colors';
 import { useUpdateCheck } from './src/hooks';
 import { UpdateDialog } from './src/components';
+
+const SPLASH_HIDE_FALLBACK_MS = 12000;
+
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  // ignore repeated preventAutoHide calls during fast refresh
+});
 
 const theme = {
   ...MD3LightTheme,
@@ -47,6 +54,27 @@ const UpdateChecker: React.FC = () => {
 };
 
 export default function App() {
+  const hasHiddenSplashRef = useRef(false);
+
+  const hideSplash = () => {
+    if (hasHiddenSplashRef.current) {
+      return;
+    }
+
+    hasHiddenSplashRef.current = true;
+    void SplashScreen.hideAsync().catch(() => {
+      // ignore if the native splash was already hidden by the fallback path
+    });
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(hideSplash, SPLASH_HIDE_FALLBACK_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <View style={styles.root}>
@@ -56,7 +84,7 @@ export default function App() {
             <PurchaseProvider>
               <DraftProvider>
                 <StatusBar style="auto" />
-                <AppNavigator />
+                <AppNavigator onReady={hideSplash} />
               </DraftProvider>
             </PurchaseProvider>
           </AuthProvider>

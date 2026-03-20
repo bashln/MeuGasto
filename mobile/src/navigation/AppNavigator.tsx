@@ -104,15 +104,19 @@ const MainTabs: React.FC = () => {
   );
 };
 
-export const AppNavigator: React.FC = () => {
+interface AppNavigatorProps {
+  onReady?: () => void;
+}
+
+export const AppNavigator: React.FC<AppNavigatorProps> = ({ onReady }) => {
   const { isLoading, isAuthenticated, showOnboarding } = useAuth();
 
   if (isLoading) {
-    return <AppBootScreen />;
+    return <AppBootScreen onReady={onReady} />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer onReady={onReady}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {

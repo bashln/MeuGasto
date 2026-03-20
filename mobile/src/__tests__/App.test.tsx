@@ -4,9 +4,16 @@ jest.mock('../context', () => ({
   DraftProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.mock('../navigation', () => ({
-  AppNavigator: () => null,
-}));
+jest.mock('../navigation', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    AppNavigator: ({ onReady }: { onReady?: () => void }) => (
+      <View testID="app-navigator" onLayout={onReady} />
+    ),
+  };
+});
 
 jest.mock('../hooks', () => ({
   useUpdateCheck: () => ({
@@ -17,6 +24,11 @@ jest.mock('../hooks', () => ({
 
 jest.mock('../components', () => ({
   UpdateDialog: () => null,
+}));
+
+jest.mock('expo-splash-screen', () => ({
+  hideAsync: jest.fn().mockResolvedValue(true),
+  preventAutoHideAsync: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock('react-native-paper', () => ({
@@ -35,11 +47,20 @@ jest.mock('expo-status-bar', () => ({
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import App from '../../App';
 
 describe('App bootstrap shell', () => {
+  const mockHideAsync = SplashScreen.hideAsync as jest.Mock;
+  const mockPreventAutoHideAsync = SplashScreen.preventAutoHideAsync as jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders the root app container', async () => {
@@ -54,6 +75,44 @@ describe('App bootstrap shell', () => {
 
     await act(async () => {
       renderer?.unmount();
+    });
+  });
+
+  it('hides the splash after the first app layout', async () => {
+    let renderer: any;
+
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const navigatorView = renderer!.root.findByProps({ testID: 'app-navigator' });
+
+    await act(async () => {
+      navigatorView.props.onLayout?.();
+    });
+
+    expect(mockHideAsync).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      renderer!.unmount();
+    });
+  });
+
+  it('falls back to hiding the splash when layout does not fire', async () => {
+    let renderer: any;
+
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(12000);
+    });
+
+    expect(mockHideAsync).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      renderer!.unmount();
     });
   });
 });
