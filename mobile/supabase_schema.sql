@@ -111,6 +111,152 @@ ALTER TABLE drafts DROP CONSTRAINT IF EXISTS drafts_content_length_check;
 ALTER TABLE drafts ADD CONSTRAINT drafts_content_length_check
   CHECK (content IS NULL OR char_length(content) <= 50000);
 
+CREATE OR REPLACE FUNCTION public.is_valid_draft_items(p_items JSONB)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_item JSONB;
+  v_quantity NUMERIC;
+  v_price NUMERIC;
+BEGIN
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN
+    RETURN FALSE;
+  END IF;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+  LOOP
+    IF jsonb_typeof(v_item) <> 'object' THEN
+      RETURN FALSE;
+    END IF;
+
+    IF jsonb_typeof(v_item->'name') <> 'string' OR char_length(btrim(COALESCE(v_item->>'name', ''))) = 0 THEN
+      RETURN FALSE;
+    END IF;
+
+    IF v_item ? 'unit' AND jsonb_typeof(v_item->'unit') <> 'string' THEN
+      RETURN FALSE;
+    END IF;
+
+    BEGIN
+      v_quantity := COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1);
+      v_price := COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0);
+    EXCEPTION
+      WHEN invalid_text_representation THEN
+        RETURN FALSE;
+    END;
+
+    IF v_quantity <= 0 OR v_price < 0 THEN
+      RETURN FALSE;
+    END IF;
+  END LOOP;
+
+  RETURN TRUE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_valid_draft_content(p_content TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_content JSONB;
+BEGIN
+  IF p_content IS NULL THEN
+    RETURN TRUE;
+  END IF;
+
+  BEGIN
+    v_content := p_content::JSONB;
+  EXCEPTION
+    WHEN others THEN
+      RETURN FALSE;
+  END;
+
+  IF jsonb_typeof(v_content) <> 'object' THEN
+    RETURN FALSE;
+  END IF;
+
+  IF COALESCE(v_content->>'version', '') <> '1' THEN
+    RETURN FALSE;
+  END IF;
+
+  IF jsonb_typeof(COALESCE(v_content->'notes', '""'::JSONB)) <> 'string' THEN
+    RETURN FALSE;
+  END IF;
+
+  RETURN public.is_valid_draft_items(COALESCE(v_content->'items', '[]'::JSONB));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.normalize_draft_content(p_content TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_content JSONB;
+  v_notes TEXT;
+  v_items JSONB;
+BEGIN
+  IF p_content IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  BEGIN
+    v_content := p_content::JSONB;
+  EXCEPTION
+    WHEN others THEN
+      RETURN jsonb_build_object(
+        'version', 1,
+        'notes', p_content,
+        'items', '[]'::JSONB
+      )::TEXT;
+  END;
+
+  IF jsonb_typeof(v_content) <> 'object' THEN
+    RETURN jsonb_build_object(
+      'version', 1,
+      'notes', p_content,
+      'items', '[]'::JSONB
+    )::TEXT;
+  END IF;
+
+  IF COALESCE(v_content->>'version', '') = '1' AND public.is_valid_draft_content(p_content) THEN
+    RETURN jsonb_build_object(
+      'version', 1,
+      'notes', COALESCE(v_content->>'notes', ''),
+      'items', COALESCE(v_content->'items', '[]'::JSONB)
+    )::TEXT;
+  END IF;
+
+  IF jsonb_typeof(COALESCE(v_content->'notes', '""'::JSONB)) = 'string'
+     AND jsonb_typeof(COALESCE(v_content->'items', '[]'::JSONB)) = 'array' THEN
+    v_notes := COALESCE(v_content->>'notes', '');
+    v_items := COALESCE(v_content->'items', '[]'::JSONB);
+
+    RETURN jsonb_build_object(
+      'version', 1,
+      'notes', v_notes,
+      'items', v_items
+    )::TEXT;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'version', 1,
+    'notes', p_content,
+    'items', '[]'::JSONB
+  )::TEXT;
+END;
+$$;
+
+UPDATE drafts
+   SET content = public.normalize_draft_content(content)
+ WHERE content IS NOT NULL;
+
+ALTER TABLE drafts DROP CONSTRAINT IF EXISTS drafts_content_canonical_check;
+ALTER TABLE drafts ADD CONSTRAINT drafts_content_canonical_check
+  CHECK (public.is_valid_draft_content(content));
+
 -- =============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================
@@ -231,6 +377,22 @@ CREATE POLICY "Users can insert own drafts" ON drafts
 
 CREATE POLICY "Users can update own drafts" ON drafts
   FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE OR REPLACE FUNCTION public.prevent_imported_purchase_updates()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.manual = false THEN
+    RAISE EXCEPTION 'Compras importadas via NFC-e não podem ser alteradas';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS protect_imported_purchases ON purchases;
+CREATE TRIGGER protect_imported_purchases
+  BEFORE UPDATE ON purchases
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_imported_purchase_updates();
 
 CREATE POLICY "Users can delete own drafts" ON drafts
   FOR DELETE USING (auth.uid() = user_id);

@@ -1,4 +1,10 @@
-import { parseContent, serializeContent, DraftItem } from '../draftContent';
+import {
+  DRAFT_CONTENT_VERSION,
+  DraftItem,
+  isCanonicalDraftContent,
+  parseContent,
+  serializeContent,
+} from '../draftContent';
 
 const ITEMS: DraftItem[] = [
   { name: 'Leite', quantity: 2, unit: 'l', price: 3.5 },
@@ -7,7 +13,7 @@ const ITEMS: DraftItem[] = [
 
 describe('parseContent', () => {
   it('retorna notes e items de um JSON válido', () => {
-    const content = JSON.stringify({ notes: 'Compra semanal', items: ITEMS });
+    const content = JSON.stringify({ version: DRAFT_CONTENT_VERSION, notes: 'Compra semanal', items: ITEMS });
     const result = parseContent(content);
     expect(result.notes).toBe('Compra semanal');
     expect(result.items).toEqual(ITEMS);
@@ -31,6 +37,12 @@ describe('parseContent', () => {
     expect(result.items).toEqual([]);
   });
 
+  it('lê JSON legado sem versionamento', () => {
+    const result = parseContent('{"notes":"legado","items":[{"name":"Cafe","quantity":2,"unit":"un","price":5}]}');
+    expect(result.notes).toBe('legado');
+    expect(result.items).toEqual([{ name: 'Cafe', quantity: 2, unit: 'un', price: 5 }]);
+  });
+
   it('faz fallback para JSON sem campo notes', () => {
     const result = parseContent('{"outro": "campo"}');
     expect(result.notes).toBe('{"outro": "campo"}');
@@ -44,14 +56,14 @@ describe('parseContent', () => {
   });
 
   it('retorna items vazio quando JSON não tem items', () => {
-    const content = JSON.stringify({ notes: 'só descrição' });
+    const content = JSON.stringify({ version: DRAFT_CONTENT_VERSION, notes: 'só descrição' });
     const result = parseContent(content);
     expect(result.notes).toBe('só descrição');
     expect(result.items).toEqual([]);
   });
 
   it('preserva todos os campos dos items', () => {
-    const content = JSON.stringify({ notes: '', items: ITEMS });
+    const content = JSON.stringify({ version: DRAFT_CONTENT_VERSION, notes: '', items: ITEMS });
     const { items } = parseContent(content);
     expect(items[0]).toEqual({ name: 'Leite', quantity: 2, unit: 'l', price: 3.5 });
     expect(items[1]).toEqual({ name: 'Pão', quantity: 1, unit: 'un', price: 5.0 });
@@ -62,6 +74,7 @@ describe('serializeContent', () => {
   it('serializa notas e items em JSON', () => {
     const result = serializeContent('Compra semanal', ITEMS);
     const parsed = JSON.parse(result);
+    expect(parsed.version).toBe(DRAFT_CONTENT_VERSION);
     expect(parsed.notes).toBe('Compra semanal');
     expect(parsed.items).toEqual(ITEMS);
   });
@@ -69,6 +82,7 @@ describe('serializeContent', () => {
   it('serializa com items vazio', () => {
     const result = serializeContent('só notas', []);
     const parsed = JSON.parse(result);
+    expect(parsed.version).toBe(DRAFT_CONTENT_VERSION);
     expect(parsed.notes).toBe('só notas');
     expect(parsed.items).toEqual([]);
   });
@@ -76,8 +90,18 @@ describe('serializeContent', () => {
   it('serializa com notas vazias', () => {
     const result = serializeContent('', ITEMS);
     const parsed = JSON.parse(result);
+    expect(parsed.version).toBe(DRAFT_CONTENT_VERSION);
     expect(parsed.notes).toBe('');
     expect(parsed.items).toEqual(ITEMS);
+  });
+});
+
+describe('isCanonicalDraftContent', () => {
+  it('retorna true apenas para o payload versionado oficial', () => {
+    expect(isCanonicalDraftContent(serializeContent('Compra semanal', ITEMS))).toBe(true);
+    expect(isCanonicalDraftContent(JSON.stringify({ notes: 'legado', items: ITEMS }))).toBe(false);
+    expect(isCanonicalDraftContent('texto livre')).toBe(false);
+    expect(isCanonicalDraftContent(null)).toBe(false);
   });
 });
 

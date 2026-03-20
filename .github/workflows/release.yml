@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
@@ -204,65 +203,5 @@ jobs:
               --generate-notes \
               "mobile/android/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Prepare next development version
-        if: success()
-        run: |
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # Fetch dev branch
-          git fetch origin dev
-          
-          # Checkout dev branch
-          git checkout dev
-          
-          # Get current version from the resolved version output
-          CURRENT_VERSION="${{ steps.resolve_version.outputs.VERSION_NAME }}"
-
-          if [ -z "$CURRENT_VERSION" ]; then
-            echo "❌ CURRENT_VERSION is empty, cannot bump version"
-            exit 1
-          fi
-
-          # Bump patch version (e.g., 1.3.3 -> 1.3.4)
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          NEXT_PATCH=$((PATCH + 1))
-          NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
-          
-          # Update version in app.json (escape dots for sed regex)
-          cd mobile
-          ESCAPED_CURRENT="${CURRENT_VERSION//./\\.}"
-          ESCAPED_NEXT="${NEXT_VERSION//./\\.}"
-          sed -i "s/\"version\": \"${ESCAPED_CURRENT}\"/\"version\": \"${ESCAPED_NEXT}\"/" app.json
-
-          # Also update buildNumber for iOS (increment by 1)
-          BUILD_NUMBER=$(jq -r '.expo.ios.buildNumber' app.json)
-          NEXT_BUILD_NUMBER=$((BUILD_NUMBER + 1))
-          sed -i "s/\"buildNumber\": \"${BUILD_NUMBER}\"/\"buildNumber\": \"${NEXT_BUILD_NUMBER}\"/" app.json
-
-          # Update versionCode for Android (increment by 1)
-          VERSION_CODE=$(jq -r '.expo.android.versionCode' app.json)
-          NEXT_VERSION_CODE=$((VERSION_CODE + 1))
-          sed -i "s/\"versionCode\": ${VERSION_CODE}/\"versionCode\": ${NEXT_VERSION_CODE}/" app.json
-          
-          # Commit changes
-          git add app.json
-          git commit -m "chore: bump version to ${NEXT_VERSION} for next development cycle [skip ci]"
-          
-          # Push dev branch
-          git push origin dev || { echo "❌ Failed to push version bump to dev"; exit 1; }
-          
-          # Create PR from dev to main
-          gh pr create \
-            --title "chore: bump version to ${NEXT_VERSION} for next development cycle" \
-            --body "This PR bumps the version to ${NEXT_VERSION} after the release of v${CURRENT_VERSION}.\n\n[Skip CI]" \
-            --base main \
-            --head dev \
-            --label "version-bump" \
-            || { echo "⚠️ PR creation skipped (may already exist for dev→main)"; true; }
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -8,10 +8,6 @@ jest.mock('../../components', () => ({
   ErrorMessage: () => null,
 }));
 
-jest.mock('../../features/reports/hooks/useReportInsights', () => ({
-  useReportInsights: () => ({ insights: [], loading: false }),
-}));
-
 jest.mock('../../features/reports/components/InsightsBlock', () => ({
   InsightsBlock: () => null,
 }));
@@ -32,15 +28,21 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { TouchableOpacity } from 'react-native';
 import { ReportsScreen } from '../ReportsScreen';
-import { useReports } from '../../hooks/useReports';
+import { useReportsScreenModel } from '../../features/reports';
 
-jest.mock('../../hooks/useReports', () => ({
-  useReports: jest.fn(),
-}));
+jest.mock('../../features/reports', () => {
+  const actual = jest.requireActual('../../features/reports');
+  return {
+    ...actual,
+    useReportsScreenModel: jest.fn(),
+  };
+});
 
-const mockedUseReports = useReports as jest.MockedFunction<typeof useReports>;
+const mockedUseReportsScreenModel = useReportsScreenModel as jest.MockedFunction<typeof useReportsScreenModel>;
 
-const buildUseReportsMock = (overrides: Partial<ReturnType<typeof useReports>> = {}): ReturnType<typeof useReports> => ({
+const buildUseReportsMock = (
+  overrides: Partial<ReturnType<typeof useReportsScreenModel>> = {},
+): ReturnType<typeof useReportsScreenModel> => ({
   isLoading: false,
   error: null,
   reportType: 'geral',
@@ -59,6 +61,16 @@ const buildUseReportsMock = (overrides: Partial<ReturnType<typeof useReports>> =
   loadReport: jest.fn(async () => {}),
   loadItemReport: jest.fn(async () => {}),
   refresh: jest.fn(async () => {}),
+  itemReportData: {
+    totalQuantity: 0,
+    totalSpent: 0,
+    averagePrice: 0,
+    purchaseCount: 0,
+    bySupermarket: [],
+  },
+  insights: [],
+  insightsLoading: false,
+  handleExportCSV: jest.fn(async () => {}),
   ...overrides,
 });
 
@@ -68,7 +80,7 @@ describe('ReportsScreen', () => {
   });
 
   it('mostra estado vazio util no relatorio geral', () => {
-    mockedUseReports.mockReturnValue(buildUseReportsMock({ reportType: 'geral' }));
+    mockedUseReportsScreenModel.mockReturnValue(buildUseReportsMock({ reportType: 'geral' }));
 
     let renderer: ReturnType<typeof TestRenderer.create>;
     act(() => {
@@ -85,7 +97,7 @@ describe('ReportsScreen', () => {
 
   it('integra PeriodFilter com setSelectedPeriod', () => {
     const setSelectedPeriod = jest.fn();
-    mockedUseReports.mockReturnValue(
+    mockedUseReportsScreenModel.mockReturnValue(
       buildUseReportsMock({
         reportType: 'itens',
         setSelectedPeriod,

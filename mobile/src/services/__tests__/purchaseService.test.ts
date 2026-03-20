@@ -73,4 +73,51 @@ describe('purchaseService', () => {
       })
     ).rejects.toThrow(/N[aã]o foi poss[ií]vel criar a compra manual/i);
   });
+
+  it('bloqueia update de compra importada', async () => {
+    const selectChain = makeChain({
+      data: { manual: false },
+      error: null,
+    });
+    mockFrom.mockReturnValue(selectChain);
+
+    await expect(
+      purchaseService.updatePurchase(10, { totalPrice: 22.5 }),
+    ).rejects.toThrow(/Compras importadas via NFC-e n[aã]o podem ser alteradas/i);
+  });
+
+  it('atualiza compra manual depois de validar a imutabilidade', async () => {
+    const selectChain = makeChain({
+      data: { manual: true },
+      error: null,
+    });
+    const updateChain = makeChain({ data: null, error: null });
+
+    mockFrom
+      .mockReturnValueOnce(selectChain)
+      .mockReturnValueOnce(updateChain)
+      .mockReturnValueOnce(
+        makeChain({
+          data: {
+            id: 10,
+            supermarket: { id: 1, name: 'Mercado' },
+            access_key: null,
+            date: '2026-02-03',
+            total_price: '22.50',
+            manual: true,
+            items: [],
+            created_at: '2026-02-01T00:00:00.000Z',
+            updated_at: '2026-02-03T00:00:00.000Z',
+          },
+          error: null,
+        }),
+      );
+
+    const result = await purchaseService.updatePurchase(10, { totalPrice: 22.5 });
+
+    expect(updateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({ total_price: 22.5 }),
+    );
+    expect(result.totalPrice).toBe(22.5);
+  });
 });

@@ -1,5 +1,5 @@
 import { draftService } from '../draftService';
-import { serializeContent } from '../draftContent';
+import { DRAFT_CONTENT_VERSION, serializeContent } from '../draftContent';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +124,7 @@ describe('draftService.createDraft', () => {
     // Verifica que o insert recebeu o JSON correto
     const insertCall = chain.insert.mock.calls[0][0];
     const parsedContent = JSON.parse(insertCall.content);
+    expect(parsedContent.version).toBe(DRAFT_CONTENT_VERSION);
     expect(parsedContent.notes).toBe('Lista');
     expect(parsedContent.items).toEqual(items);
 

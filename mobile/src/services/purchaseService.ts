@@ -199,13 +199,27 @@ export const purchaseService = {
     }>
   ): Promise<Purchase> {
     const userId = await getCurrentUserId();
+    const supabase = getClient();
+
+    const { data: existingPurchase, error: existingPurchaseError } = await supabase
+      .from('purchases')
+      .select('manual')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (existingPurchaseError) {
+      throw new Error(existingPurchaseError.message);
+    }
+
+    if (!existingPurchase?.manual) {
+      throw new Error('Compras importadas via NFC-e não podem ser alteradas.');
+    }
 
     const updateData: PurchaseUpdateData = { updated_at: new Date().toISOString() };
     if (updates.date) updateData.date = updates.date;
     if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
     if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
-
-    const supabase = getClient();
 
     const { error } = await supabase
       .from('purchases')
