@@ -31,6 +31,10 @@ jest.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: jest.fn().mockResolvedValue(true),
 }));
 
+jest.mock('expo-font', () => ({
+  useFonts: jest.fn(() => [true, null]),
+}));
+
 jest.mock('react-native-paper', () => ({
   Provider: ({ children }: { children: React.ReactNode }) => children,
   MD3LightTheme: { colors: {} },
@@ -47,16 +51,19 @@ jest.mock('expo-status-bar', () => ({
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { View } from 'react-native';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import App from '../../App';
 
 describe('App bootstrap shell', () => {
+  const mockUseFonts = useFonts as jest.Mock;
   const mockHideAsync = SplashScreen.hideAsync as jest.Mock;
   const mockPreventAutoHideAsync = SplashScreen.preventAutoHideAsync as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    mockUseFonts.mockReturnValue([true, null]);
   });
 
   afterEach(() => {
@@ -72,6 +79,22 @@ describe('App bootstrap shell', () => {
 
     const rootView = renderer!.root.findAllByType(View)[0];
     expect(rootView).toBeDefined();
+
+    await act(async () => {
+      renderer?.unmount();
+    });
+  });
+
+  it('keeps the splash shell mounted while brand fonts are loading', async () => {
+    let renderer: any = null;
+    mockUseFonts.mockReturnValue([false, null]);
+
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    expect(() => renderer!.root.findByProps({ testID: 'app-navigator' })).toThrow();
+    expect(mockHideAsync).not.toHaveBeenCalled();
 
     await act(async () => {
       renderer?.unmount();
