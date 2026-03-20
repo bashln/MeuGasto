@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -55,6 +56,11 @@ const UpdateChecker: React.FC = () => {
 
 export default function App() {
   const hasHiddenSplashRef = useRef(false);
+  const [fontsLoaded, fontError] = useFonts({
+    'IBMPlexSerif-Regular': require('./assets/fonts/IBMPlexSerif-Regular.ttf'),
+    'IBMPlexSerif-SemiBold': require('./assets/fonts/IBMPlexSerif-SemiBold.ttf'),
+  });
+  const isBrandFontReady = fontsLoaded || Boolean(fontError);
 
   const hideSplash = () => {
     if (hasHiddenSplashRef.current) {
@@ -74,6 +80,14 @@ export default function App() {
       clearTimeout(timeoutId);
     };
   }, []);
+
+  if (!isBrandFontReady) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.root} />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>

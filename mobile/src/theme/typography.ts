@@ -10,3 +10,8 @@ export const typography = {
   display: 24,
   hero: 32,
 };
+
+export const fontFamilies = {
+  brandRegular: 'IBMPlexSerif-Regular',
+  brandSemiBold: 'IBMPlexSerif-SemiBold',
+};
