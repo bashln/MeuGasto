@@ -1,3 +1,5 @@
+import { addDays, subMonths } from 'date-fns';
+
 interface PeriodRange {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
@@ -10,39 +12,32 @@ const toDateOnly = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-const addDays = (date: Date, days: number): Date => {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
-};
 
 export const getPeriodRange = (
   period: '3months' | '6months' | '12months' | 'year',
   referenceDate: Date = new Date()
 ): PeriodRange => {
+  if (!(referenceDate instanceof Date) || isNaN(referenceDate.getTime())) {
+    throw new Error('getPeriodRange: referenceDate must be a valid Date');
+  }
+
   let startDate = new Date(referenceDate);
   const endDate = new Date(referenceDate);
 
   switch (period) {
     case '3months':
-      startDate.setMonth(startDate.getMonth() - 3);
+      startDate = subMonths(referenceDate, 3);
       break;
     case '6months':
-      startDate.setMonth(startDate.getMonth() - 6);
+      startDate = subMonths(referenceDate, 6);
       break;
     case '12months':
-      startDate.setMonth(startDate.getMonth() - 12);
+      startDate = subMonths(referenceDate, 12);
       break;
     case 'year':
       startDate = new Date(referenceDate.getFullYear(), 0, 1); // Janeiro 1 do ano atual
       break;
   }
-  
-  // Normalizar para início do dia
-  startDate.setHours(0, 0, 0, 0);
-
-  // End date é a data de referência (fim do dia)
-  endDate.setHours(23, 59, 59, 999);
 
   return {
     startDate: toDateOnly(startDate),
