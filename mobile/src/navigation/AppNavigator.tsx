@@ -23,7 +23,7 @@ import {
   EditProfileScreen,
   PriceComparatorScreen,
 } from '../screens';
-import { Loading } from '../components';
+import { AppBootScreen } from '../components';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors } from '../theme/colors';
 
@@ -108,7 +108,7 @@ export const AppNavigator: React.FC = () => {
   const { isLoading, isAuthenticated, showOnboarding } = useAuth();
 
   if (isLoading) {
-    return <Loading fullScreen />;
+    return <AppBootScreen />;
   }
 
   return (
