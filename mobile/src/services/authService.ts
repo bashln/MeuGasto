@@ -219,18 +219,12 @@ export const authService = {
       return { user: null };
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('name, role')
-      .eq('id', session.user.id)
-      .single();
-
     return {
       user: {
         id: session.user.id,
         email: session.user.email || '',
-        name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
-        role: profile?.role || 'user',
+        name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+        role: 'user',
       },
     };
   },

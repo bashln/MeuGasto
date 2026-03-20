@@ -72,19 +72,25 @@ describe('onboardingService', () => {
       await expect(module.onboardingService.hasCompletedOnboarding()).resolves.toBe(true);
     });
 
-    it('should use safe fallback when initial read fails', async () => {
+    it('should use safe fallback (false) when initial read fails', async () => {
       const { module, mockGetItemAsync } = loadModule();
       mockGetItemAsync.mockRejectedValueOnce(new Error('read failed'));
 
-      await expect(module.onboardingService.hasCompletedOnboarding()).resolves.toBe(true);
+      // Fallback must be false: when state is unknown, show onboarding rather than skip it
+      await expect(module.onboardingService.hasCompletedOnboarding()).resolves.toBe(false);
     });
 
     it('should reuse last known value after a transient read failure', async () => {
       const { module, mockGetItemAsync } = loadModule();
-      mockGetItemAsync.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('temporary'));
+      // First call succeeds with null (not completed); primes lastKnownCompleted = false
+      mockGetItemAsync.mockResolvedValueOnce(null);
+      // Second call fails; must return cached false instead of throwing
+      mockGetItemAsync.mockRejectedValueOnce(new Error('temporary'));
 
-      await expect(module.onboardingService.hasCompletedOnboarding()).resolves.toBe(false);
-      await expect(module.onboardingService.hasCompletedOnboarding()).resolves.toBe(false);
+      await module.onboardingService.hasCompletedOnboarding(); // primes cache
+      const result = await module.onboardingService.hasCompletedOnboarding();
+      expect(result).toBe(false);
+      expect(mockGetItemAsync).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -111,9 +117,17 @@ describe('onboardingService', () => {
       const { module, mockDeleteItemAsync } = loadModule();
       mockDeleteItemAsync.mockResolvedValue(undefined);
 
-      await module.onboardingService.resetOnboarding();
+      const result = await module.onboardingService.resetOnboarding();
 
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('onboarding.completed');
+      expect(result).toBe(true);
+    });
+
+    it('should return false when deletion fails', async () => {
+      const { module, mockDeleteItemAsync } = loadModule();
+      mockDeleteItemAsync.mockRejectedValue(new Error('delete failed'));
+
+      await expect(module.onboardingService.resetOnboarding()).resolves.toBe(false);
     });
   });
 });

@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
@@ -7,6 +10,12 @@ import { AppNavigator } from './src/navigation';
 import { colors } from './src/theme/colors';
 import { useUpdateCheck } from './src/hooks';
 import { UpdateDialog } from './src/components';
+
+const SPLASH_HIDE_FALLBACK_MS = 12000;
+
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  // ignore repeated preventAutoHide calls during fast refresh
+});
 
 const theme = {
   ...MD3LightTheme,
@@ -46,19 +55,62 @@ const UpdateChecker: React.FC = () => {
 };
 
 export default function App() {
+  const hasHiddenSplashRef = useRef(false);
+  const [fontsLoaded, fontError] = useFonts({
+    'IBMPlexSerif-Regular': require('./assets/fonts/IBMPlexSerif-Regular.ttf'),
+    'IBMPlexSerif-SemiBold': require('./assets/fonts/IBMPlexSerif-SemiBold.ttf'),
+  });
+  const isBrandFontReady = fontsLoaded || Boolean(fontError);
+
+  const hideSplash = () => {
+    if (hasHiddenSplashRef.current) {
+      return;
+    }
+
+    hasHiddenSplashRef.current = true;
+    void SplashScreen.hideAsync().catch(() => {
+      // ignore if the native splash was already hidden by the fallback path
+    });
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(hideSplash, SPLASH_HIDE_FALLBACK_MS);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  if (!isBrandFontReady) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.root} />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        <UpdateChecker />
-        <AuthProvider>
-          <PurchaseProvider>
-            <DraftProvider>
-              <StatusBar style="auto" />
-              <AppNavigator />
-            </DraftProvider>
-          </PurchaseProvider>
-        </AuthProvider>
-      </PaperProvider>
+      <View style={styles.root}>
+        <PaperProvider theme={theme}>
+          <UpdateChecker />
+          <AuthProvider>
+            <PurchaseProvider>
+              <DraftProvider>
+                <StatusBar style="auto" />
+                <AppNavigator onReady={hideSplash} />
+              </DraftProvider>
+            </PurchaseProvider>
+          </AuthProvider>
+        </PaperProvider>
+      </View>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.backgroundAuth,
+  },
+});

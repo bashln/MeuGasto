@@ -79,8 +79,10 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
         const currentGroup = groupedEntries.get(group) ?? [];
         currentGroup.push({ id: item.id, unitPrice });
         groupedEntries.set(group, currentGroup);
-      } catch {
-        // Ignora itens inválidos para cálculo de preço por unidade.
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error calculating unit price:', error);
+        }
       }
     });
 
@@ -101,7 +103,7 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
 
   return (
     <View style={styles.container}>
-      <Header title="Comparador de Preços" iconName="scale-balance" onBack={() => navigation.goBack()} />
+      <Header title="Comparação de preços" iconName="scale-balance" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <RNText style={styles.title}>Compare preços sem salvar no histórico</RNText>
@@ -133,7 +135,7 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cart-off" size={32} color={colors.mutedText} />
             <RNText style={styles.emptyText}>Nenhum item para comparar.</RNText>
-            <RNText style={styles.emptyHint}>Toque em "Adicionar Item" para começar.</RNText>
+            <RNText style={styles.emptyHint}>Toque em Adicionar Item para começar.</RNText>
           </View>
         ) : (
           items.map((item) => (

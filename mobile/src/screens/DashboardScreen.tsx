@@ -174,7 +174,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
             </View>
           </TouchableOpacity>
 
-          {/* Action 2 - Comparador de preços */}
+          {/* Action 2 - Comparacao de precos */}
           <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('PriceComparator')}
@@ -183,26 +183,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               <MaterialCommunityIcons name="scale-balance" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
-              <RNText style={styles.actionTitleSecondary}>Comparador de Preços</RNText>
-              <RNText style={styles.actionDescSecondary}>Compare itens em tempo real</RNText>
+              <RNText style={styles.actionTitleSecondary}>Comparação de preços</RNText>
+              <RNText style={styles.actionDescSecondary}>Compare produtos sem salvar</RNText>
             </View>
           </TouchableOpacity>
 
-          {/* Action 3 - Regra de 3 */}
-          <TouchableOpacity
-            style={styles.actionCardSecondary}
-            onPress={() => navigation.navigate('PurchasesTab')}
-          >
-            <View style={[styles.actionIconContainer, styles.actionIconBlue]}>
-              <MaterialCommunityIcons name="chart-bar" size={22} color={colors.primaryText} />
-            </View>
-            <View style={styles.actionContent}>
-              <RNText style={styles.actionTitleSecondary}>Regra de 3</RNText>
-              <RNText style={styles.actionDescSecondary}>Compare preços entre mercados</RNText>
-            </View>
-          </TouchableOpacity>
-
-          {/* Action 4 - Relatórios */}
+          {/* Action 3 - Relatorios */}
           <TouchableOpacity
             style={styles.actionCardSecondary}
             onPress={() => navigation.navigate('ReportsTab')}

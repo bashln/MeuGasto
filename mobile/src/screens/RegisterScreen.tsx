@@ -58,9 +58,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
       await register(email.trim(), password, name.trim());
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao criar conta';
-      if (__DEV__) {
-        console.warn('Register error:', err);
-      }
       setError(message);
     } finally {
       setIsLoading(false);

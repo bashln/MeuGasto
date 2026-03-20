@@ -31,7 +31,10 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, onUpdate, onRe
     const unitPrice = calculateUnitPrice(item);
     const normalizedUnit = item.unit.trim().toLowerCase() || 'un';
     unitPriceLabel = `Preço por unidade: ${formatMoney(unitPrice)}/${normalizedUnit}`;
-  } catch {
+  } catch (error) {
+    if (__DEV__) {
+      console.error('Error calculating unit price:', error);
+    }
     unitPriceLabel = 'Preço por unidade: inválido';
   }
 

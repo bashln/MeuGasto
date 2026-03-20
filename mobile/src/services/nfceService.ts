@@ -152,7 +152,10 @@ export const isAllowedNfceUrl = (
     }
 
     return expectedPrefixes.some(prefix => parsed.pathname.startsWith(prefix));
-  } catch {
+  } catch (error) {
+    if (__DEV__) {
+      console.error('Error validating NFCE URL:', error);
+    }
     return false;
   }
 };

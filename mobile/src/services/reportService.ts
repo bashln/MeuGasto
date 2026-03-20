@@ -28,6 +28,32 @@ const buildDateRange = (month?: number, year?: number): { startDate: string; end
   return { startDate, endDate };
 };
 
+const parseDateParts = (rawDate: string): { year: number; month: number; day: number } | null => {
+  if (!rawDate) {
+    return null;
+  }
+
+  const match = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) {
+    return null;
+  }
+
+  const [, yearPart, monthPart, dayPart] = match;
+  const year = Number(yearPart);
+  const month = Number(monthPart);
+  const day = Number(dayPart);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+
+  return { year, month, day };
+};
+
 export const reportService = {
   async getDashboardStats(month?: number, year?: number): Promise<DashboardStats> {
     const userId = await getCurrentUserId();
@@ -70,33 +96,69 @@ export const reportService = {
     };
   },
 
-  async getMonthlyExpenses(year: number): Promise<Array<{ month: number; total: number }>> {
+  async getMonthlyExpenses(
+    yearOrStartDate: number | string,
+    endDate?: string
+  ): Promise<Array<{ month: number; total: number }>> {
     const userId = await getCurrentUserId();
     const supabase = getClient();
+
+    const isYearQuery = typeof yearOrStartDate === 'number';
+    const startDate = isYearQuery ? `${yearOrStartDate}-01-01` : yearOrStartDate;
+    const resolvedEndDate = isYearQuery ? `${yearOrStartDate}-12-31` : endDate;
+
+    if (!resolvedEndDate) {
+      throw new Error('Data final obrigatoria para consulta por periodo');
+    }
 
     const { data: purchases, error } = await supabase
       .from('purchases')
       .select('date, total_price')
       .eq('user_id', userId)
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`);
+      .gte('date', startDate)
+      .lte('date', resolvedEndDate);
 
     if (error) {
       throw new Error(error.message);
     }
 
     const monthlyTotals: Record<number, number> = {};
-    for (let m = 1; m <= 12; m++) {
-      monthlyTotals[m] = 0;
+
+    if (isYearQuery) {
+      for (let m = 1; m <= 12; m++) {
+        monthlyTotals[m] = 0;
+      }
+    } else {
+      const startParts = parseDateParts(startDate);
+      const endParts = parseDateParts(resolvedEndDate);
+
+      if (startParts && endParts) {
+        const startMonthIndex = startParts.year * 12 + (startParts.month - 1);
+        const endMonthIndex = endParts.year * 12 + (endParts.month - 1);
+
+        for (let monthIndex = startMonthIndex; monthIndex <= endMonthIndex; monthIndex++) {
+          monthlyTotals[monthIndex] = 0; // use full monthIndex as key to avoid year collisions
+        }
+      }
     }
 
     (purchases || []).forEach(p => {
-      const month = new Date(p.date).getMonth() + 1;
-      monthlyTotals[month] += parseFloat(p.total_price) || 0;
+      const dateParts = parseDateParts(String(p.date));
+      if (!dateParts) {
+        return;
+      }
+
+      const key = isYearQuery
+        ? dateParts.month
+        : dateParts.year * 12 + (dateParts.month - 1);
+      if (!(key in monthlyTotals)) {
+        monthlyTotals[key] = 0;
+      }
+      monthlyTotals[key] += parseFloat(p.total_price) || 0;
     });
 
-    return Object.entries(monthlyTotals).map(([month, total]) => ({
-      month: parseInt(month),
+    return Object.entries(monthlyTotals).map(([key, total]) => ({
+      month: isYearQuery ? parseInt(key) : (parseInt(key) % 12) + 1,
       total,
     }));
   },
@@ -116,9 +178,61 @@ export const reportService = {
       throw new Error(error.message);
     }
 
-    return ((data as Array<{ supermarket: string; total: number | string }> | null) ?? []).map(row => ({
+    return (Array.isArray(data) ? (data as Array<{ supermarket: string; total: number | string }>) : []).map(row => ({
       supermarket: row.supermarket,
       total: Number(row.total) || 0,
+    }));
+  },
+
+  async getMarketRanking(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Array<{ supermarket: string; total: number; purchaseCount: number; averagePrice: number }>> {
+    const userId = await getCurrentUserId();
+    const supabase = getClient();
+
+    let query = supabase
+      .from('purchases')
+      .select('id, total_price, supermarket:supermarkets(name)')
+      .eq('user_id', userId);
+
+    if (startDate) {
+      query = query.gte('date', startDate);
+    }
+
+    if (endDate) {
+      query = query.lte('date', endDate);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const grouped = new Map<string, { total: number; purchaseCount: number }>();
+    const purchases = (data ?? []) as Array<{
+      total_price: number | string;
+      supermarket: { name?: string } | Array<{ name?: string }> | null;
+    }>;
+
+    purchases.forEach((purchase) => {
+      const market = purchase.supermarket;
+      const name = (Array.isArray(market) ? market[0]?.name : market?.name) || 'Sem supermercado';
+      const totalPrice = Number(purchase.total_price) || 0;
+      const current = grouped.get(name) ?? { total: 0, purchaseCount: 0 };
+
+      grouped.set(name, {
+        total: current.total + totalPrice,
+        purchaseCount: current.purchaseCount + 1,
+      });
+    });
+
+    return Array.from(grouped.entries()).map(([supermarket, totals]) => ({
+      supermarket,
+      total: totals.total,
+      purchaseCount: totals.purchaseCount,
+      averagePrice: totals.purchaseCount > 0 ? totals.total / totals.purchaseCount : 0,
     }));
   },
 
@@ -139,7 +253,7 @@ export const reportService = {
       throw new Error(error.message);
     }
 
-    return ((data as Array<{ name: string; quantity: number | string; total: number | string }> | null) ?? []).map(row => ({
+    return (Array.isArray(data) ? (data as Array<{ name: string; quantity: number | string; total: number | string }>) : []).map(row => ({
       name: row.name,
       quantity: Number(row.quantity) || 0,
       total: Number(row.total) || 0,
@@ -262,5 +376,103 @@ export const reportService = {
       purchaseCount: purchaseIdSet.size,
       bySupermarket,
     };
+  },
+
+  async getItemPriceHistory(
+    itemName: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Array<{ month: number; year: number; averagePrice: number }>> {
+    const userId = await getCurrentUserId();
+    const supabase = getClient();
+
+    if (!itemName) {
+      return [];
+    }
+
+    let purchasesQuery = supabase
+      .from('purchases')
+      .select('id, date')
+      .eq('user_id', userId);
+
+    if (startDate) {
+      purchasesQuery = purchasesQuery.gte('date', startDate);
+    }
+
+    if (endDate) {
+      purchasesQuery = purchasesQuery.lte('date', endDate);
+    }
+
+    const { data: purchases, error: purchasesError } = await purchasesQuery;
+
+    if (purchasesError) {
+      throw new Error(purchasesError.message);
+    }
+
+    const purchaseList = (purchases ?? []) as Array<{ id: number; date: string }>;
+    if (purchaseList.length === 0) {
+      return [];
+    }
+
+    const purchaseIds = purchaseList.map((purchase) => purchase.id);
+    const purchaseDateById = new Map<number, string>();
+    purchaseList.forEach((purchase) => {
+      purchaseDateById.set(purchase.id, purchase.date);
+    });
+
+    const { data: items, error: itemsError } = await supabase
+      .from('items')
+      .select('purchase_id, quantity, price')
+      .eq('name', itemName)
+      .in('purchase_id', purchaseIds);
+
+    if (itemsError) {
+      throw new Error(itemsError.message);
+    }
+
+    const monthlyMap = new Map<string, { totalSpent: number; totalQuantity: number; month: number; year: number }>();
+
+    (items ?? []).forEach((item) => {
+      if (item.purchase_id == null) {
+        return;
+      }
+      const purchaseId = Number(item.purchase_id);
+      const purchaseDate = purchaseDateById.get(purchaseId);
+      if (!purchaseDate) {
+        return;
+      }
+
+      const dateParts = parseDateParts(purchaseDate);
+      if (!dateParts) {
+        return;
+      }
+
+      const month = dateParts.month;
+      const year = dateParts.year;
+      const key = `${year}-${String(month).padStart(2, '0')}`;
+      const quantity = Number(item.quantity) || 0;
+      const price = Number(item.price) || 0;
+
+      const current = monthlyMap.get(key) ?? { totalSpent: 0, totalQuantity: 0, month, year };
+
+      monthlyMap.set(key, {
+        ...current,
+        totalSpent: current.totalSpent + quantity * price,
+        totalQuantity: current.totalQuantity + quantity,
+      });
+    });
+
+    return Array.from(monthlyMap.values())
+      .map((entry) => ({
+        month: entry.month,
+        year: entry.year,
+        averagePrice: entry.totalQuantity > 0 ? entry.totalSpent / entry.totalQuantity : 0,
+      }))
+      .sort((left, right) => {
+        if (left.year === right.year) {
+          return left.month - right.month;
+        }
+        return left.year - right.year;
+      });
   },
 };

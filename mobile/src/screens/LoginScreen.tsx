@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  Text as RNText,
+  Image,
+} from 'react-native';
 import {
   TextInput,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context';
 import { colors } from '../theme/colors';
+import { fontFamilies, typography } from '../theme/typography';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 
@@ -41,9 +51,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       await login(email.trim(), password);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao fazer login';
-      if (__DEV__) {
-        console.warn('Login error:', err);
-      }
       setError(message);
     } finally {
       setIsLoading(false);
@@ -60,13 +67,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
-          <View style={styles.logoIcon}>
-            <MaterialCommunityIcons name="receipt" size={36} color={colors.primaryText} />
-          </View>
+          <Image source={require('../../assets/brand-logo.png')} style={styles.logoImage} resizeMode="contain" />
         </View>
 
         <View style={styles.header}>
-          <RNText style={styles.title}>MeuGasto</RNText>
+          <RNText style={styles.title}>Meu Gasto</RNText>
           <RNText style={styles.subtitle}>
             Cadastre suas compras via nota fiscal
           </RNText>
@@ -182,28 +187,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  logoIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 8,
+  logoImage: {
+    width: 132,
+    height: 130,
   },
   header: {
     alignItems: 'center',
     marginBottom: 26,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.primary,
+    fontSize: typography.hero,
+    fontFamily: fontFamilies.brandSemiBold,
+    color: colors.text,
     marginBottom: 8,
+    letterSpacing: 0.12,
   },
   subtitle: {
     fontSize: 14,

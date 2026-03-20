@@ -6,8 +6,10 @@ export const parseContent = (content: string | null): { notes: string; items: Dr
     if (parsed && typeof parsed === 'object' && 'notes' in parsed) {
       return { notes: parsed.notes || '', items: parsed.items || [] };
     }
-  } catch {
-    // fallback para conteúdo legado em texto puro
+  } catch (error) {
+    if (__DEV__) {
+      console.error('Error parsing draft content:', error);
+    }
   }
   return { notes: content || '', items: [] };
 };

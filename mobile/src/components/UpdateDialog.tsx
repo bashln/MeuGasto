@@ -53,7 +53,10 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                 flags: 0x10000000 | 0x00000001,
               }
             );
-          } catch {
+          } catch (error) {
+            if (__DEV__) {
+              console.error('Error installing APK:', error);
+            }
             try {
               await IntentLauncher.startActivityAsync(
                 'android.intent.action.VIEW',
@@ -63,7 +66,10 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                   flags: 0x10000000 | 0x00000001,
                 }
               );
-            } catch {
+            } catch (error) {
+              if (__DEV__) {
+                console.error('Error with IntentLauncher:', error);
+              }
               if (updateInfo.apkDownloadUrl) {
                 await Linking.openURL(updateInfo.apkDownloadUrl);
               }

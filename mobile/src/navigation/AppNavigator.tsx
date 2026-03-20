@@ -23,6 +23,7 @@ import {
   EditProfileScreen,
   PriceComparatorScreen,
 } from '../screens';
+import { AppBootScreen } from '../components';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors } from '../theme/colors';
 
@@ -103,15 +104,19 @@ const MainTabs: React.FC = () => {
   );
 };
 
-export const AppNavigator: React.FC = () => {
+interface AppNavigatorProps {
+  onReady?: () => void;
+}
+
+export const AppNavigator: React.FC<AppNavigatorProps> = ({ onReady }) => {
   const { isLoading, isAuthenticated, showOnboarding } = useAuth();
 
   if (isLoading) {
-    return null;
+    return <AppBootScreen onReady={onReady} />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer onReady={onReady}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {
