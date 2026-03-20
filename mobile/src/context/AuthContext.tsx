@@ -1,11 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
 import { authService } from '../services/authService';
 import { onboardingService } from '../services/onboardingService';
 import { AuthUser } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-
-void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -25,7 +22,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const AUTH_TIMEOUT_MS = 8000;
+const AUTH_TIMEOUT_MS = 4000;
+const ONBOARDING_TIMEOUT_FALLBACK = true;
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -38,23 +36,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     let subscription: { unsubscribe: () => void } | null = null;
     let nextShowOnboardingResolved = false;
     let nextShowOnboardingValue = false;
+    const shouldInitializeAuth = Boolean(supabase) && isSupabaseConfigured();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const resolve = (authUser: AuthUser | null, nextShowOnboarding: boolean) => {
       if (resolved || !isMounted) return;
       resolved = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       setUser(authUser);
       setShowOnboarding(nextShowOnboarding);
       setIsLoading(false);
-      void SplashScreen.hideAsync().catch(() => {});
     };
 
-    const timeoutId = setTimeout(() => {
+    timeoutId = setTimeout(() => {
+      if (resolved) {
+        return;
+      }
+
       if (__DEV__) {
         console.warn('Auth timeout — falling through to login');
       }
-      if (!resolved) {
-        resolve(null, nextShowOnboardingResolved ? nextShowOnboardingValue : false);
-      }
+
+      resolve(
+        null,
+        nextShowOnboardingResolved ? nextShowOnboardingValue : ONBOARDING_TIMEOUT_FALLBACK
+      );
     }, AUTH_TIMEOUT_MS);
 
     const mapSessionUser = (sessionUser: {
@@ -69,22 +78,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
 
     const bootstrap = async () => {
-      let nextShowOnboarding = false;
+      const onboardingTask = onboardingService
+        .hasCompletedOnboarding()
+        .then((completed) => !completed)
+        .catch((error) => {
+          if (__DEV__) {
+            console.warn('Onboarding bootstrap failed, showing onboarding as fallback', error);
+          }
+          return true;
+        });
 
-      try {
-        const completed = await onboardingService.hasCompletedOnboarding();
-        nextShowOnboarding = !completed;
-      } catch (error) {
-        if (__DEV__) {
-          console.warn('Onboarding bootstrap failed, hiding onboarding as fallback', error);
-        }
-        nextShowOnboarding = true;
-      }
+      const authTask = shouldInitializeAuth
+        ? authService.getSessionFast()
+        : Promise.resolve({ user: null });
+
+      const [onboardingResult, authResult] = await Promise.allSettled([onboardingTask, authTask]);
+
+      const nextShowOnboarding = onboardingResult.status === 'fulfilled'
+        ? onboardingResult.value
+        : ONBOARDING_TIMEOUT_FALLBACK;
 
       nextShowOnboardingResolved = true;
       nextShowOnboardingValue = nextShowOnboarding;
 
-      if (!supabase || !isSupabaseConfigured()) {
+      if (!shouldInitializeAuth) {
         if (__DEV__) {
           console.warn('Supabase not configured, skipping auth initialization');
         }
@@ -92,27 +109,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      try {
-        const { user: initialUser } = await authService.getSessionFast();
-        resolve(initialUser, nextShowOnboarding);
-
-        if (initialUser) {
-          try {
-            const { user: fullUser } = await authService.getSession();
-            if (isMounted && fullUser) {
-              setUser(fullUser);
-            }
-          } catch (error) {
-            if (__DEV__) {
-              console.error('Background profile fetch failed:', error);
-            }
-          }
-        }
-      } catch (error) {
+      if (authResult.status !== 'fulfilled') {
         if (__DEV__) {
-          console.error('Initial auth bootstrap failed:', error);
+          console.error('Initial auth bootstrap failed:', authResult.reason);
         }
         resolve(null, nextShowOnboarding);
+        return;
+      }
+
+      const initialUser = authResult.value.user;
+      resolve(initialUser, nextShowOnboarding);
+
+      if (initialUser) {
+        try {
+          const { user: fullUser } = await authService.getSession();
+          if (isMounted && fullUser) {
+            setUser(fullUser);
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.error('Background profile fetch failed:', error);
+          }
+        }
       }
     };
 
@@ -137,7 +155,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       subscription?.unsubscribe();
     };
   }, []);

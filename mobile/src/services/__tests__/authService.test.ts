@@ -42,6 +42,7 @@ const mockSignInWithPassword = supabase!.auth.signInWithPassword as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
 const mockIsSupabaseConfigured = supabaseClient.isSupabaseConfigured as jest.Mock;
 const mockGetResolvedSupabaseConfig = supabaseClient.getResolvedSupabaseConfig as jest.Mock;
+const mockFrom = supabase!.from as jest.Mock;
 
 describe('authService', () => {
   beforeEach(() => {
@@ -118,5 +119,30 @@ describe('authService', () => {
     await expect(
       authService.login({ email: 'user@example.com', password: 'secret' })
     ).rejects.toThrow('Configuração inválida do Supabase');
+  });
+
+  it('getSessionFast usa apenas a sessao local e nao consulta profiles', async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          user: {
+            id: 'user-123',
+            email: 'user@example.com',
+            user_metadata: { name: 'Teste' },
+          },
+        },
+      },
+      error: null,
+    });
+
+    await expect(authService.getSessionFast()).resolves.toEqual({
+      user: {
+        id: 'user-123',
+        email: 'user@example.com',
+        name: 'Teste',
+        role: 'user',
+      },
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 });
