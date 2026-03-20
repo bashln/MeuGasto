@@ -2,9 +2,13 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, Text as RNText, View } from 'react-native';
 import { colors } from '../theme/colors';
 
-export const AppBootScreen: React.FC = () => {
+interface AppBootScreenProps {
+  onReady?: () => void;
+}
+
+export const AppBootScreen: React.FC<AppBootScreenProps> = ({ onReady }) => {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={onReady}>
       <View style={styles.titleBlock}>
         <RNText style={styles.title}>Meu Gasto</RNText>
         <RNText style={styles.subtitle}>Carregando...</RNText>
