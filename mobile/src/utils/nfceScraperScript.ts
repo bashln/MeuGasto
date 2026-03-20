@@ -34,6 +34,61 @@ export const NFCE_SCRAPE_SCRIPT = `
     return Number.isFinite(num) ? num : null;
   }
 
+  function normalizeCellText(v) {
+    return (v || '').replace(/\\s+/g, ' ').trim();
+  }
+
+  function parseMoneyCell(v) {
+    var normalized = normalizeCellText(v);
+    if (!normalized || !/^\\d{1,3}(?:\\.\\d{3})*,\\d{2}$/.test(normalized)) {
+      return null;
+    }
+    return normalizeMoneyBR(normalized);
+  }
+
+  function parseQuantityCell(v) {
+    var normalized = normalizeCellText(v);
+    if (!normalized || !/^\\d{1,5}(?:[,.]\\d{1,3})?$/.test(normalized)) {
+      return null;
+    }
+    var parsed = normalizeMoneyBR(normalized);
+    return parsed !== null && parsed > 0 && parsed < 100000 ? parsed : null;
+  }
+
+  function isUnitCell(v) {
+    var normalized = normalizeCellText(v).toUpperCase();
+    return /^(UN|UND|UNID|KG|G|GR|L|LT|ML|CX|PC|PCT|FD|DZ|SC|PT|FRD)$/.test(normalized) || /^[A-Z]{1,4}$/.test(normalized);
+  }
+
+  function findItemName(cells, stopIndex) {
+    var candidates = cells
+      .slice(0, stopIndex > 0 ? stopIndex : cells.length)
+      .map(normalizeCellText)
+      .filter(function(cell) {
+        return cell &&
+          !isUnitCell(cell) &&
+          parseQuantityCell(cell) === null &&
+          parseMoneyCell(cell) === null &&
+          !/^\\d+$/.test(cell);
+      });
+
+    if (!candidates.length) {
+      candidates = cells
+        .map(normalizeCellText)
+        .filter(function(cell) {
+          return cell &&
+            !isUnitCell(cell) &&
+            parseQuantityCell(cell) === null &&
+            parseMoneyCell(cell) === null &&
+            !/^\\d+$/.test(cell);
+        });
+    }
+
+    return candidates.length
+      ? candidates.sort(function(a, b) { return b.length - a.length; })[0]
+      : null;
+  }
+
   function findCNPJ(pageText) {
     // aceita "03.107.202/0017-92" em qualquer lugar
     var m = pageText.match(/\\b\\d{2}\\.\\d{3}\\.\\d{3}\\/\\d{4}-\\d{2}\\b/);
@@ -61,13 +116,15 @@ export const NFCE_SCRAPE_SCRIPT = `
 
       // muitas tabelas tem cabecalho; filtra por heuristica
       if (/^Item\\s*$/i.test(text)) continue;
-      if (/C[óo]digo|Descri[cç][aã]o|Qtde|Un|Vl/i.test(text) && text.length < 80) {
+      if (/^(Item|C[óo]digo|Descri[cç][aã]o|Qtde|Un|Vl)/i.test(text) && text.length < 80) {
         // provavel header
         continue;
       }
 
       // Pegar celulas da tabela
-      var cells = Array.from(row.querySelectorAll('td')).map(function(td) { return (td.innerText || '').trim(); }).filter(Boolean);
+      var cells = Array.from(row.querySelectorAll('td'))
+        .map(function(td) { return normalizeCellText(td.innerText || ''); })
+        .filter(Boolean);
 
       var name = null, qty = 1, unit = null, unitPrice = null, total = null;
 
@@ -76,51 +133,54 @@ export const NFCE_SCRAPE_SCRIPT = `
       // Exemplo: "1" "38281" "REFRIGERANTE LATA 350ML" "1,000" "UN" "7,50" "7,50"
 
       if (cells.length >= 4) {
-        // Tentar extrair quantidade: geralmente e um numero com 3-4 digitos decimais (ex: 1,000, 0,500)
-        // Procura por padrao numerico que parece quantidade: 1,000 / 0,500 / 2,000 / 10,000
-        var qtyMatch = text.match(/\\b(\\d{1,3})(?:[,.](\\d{1,3}))?\\b/);
+        // Procura o par [quantidade, unidade] seguido de valores monetarios.
+        // Isso evita confundir o numero ordinal do item ("1") com a quantidade real ("5,000").
+        var qtyIndex = -1;
 
-        // Se encontrou celulas, usar a posicao delas para identificar os campos
-        // cells[0] = item number, cells[1] = code, cells[2] = name, cells[3] = qty, cells[4] = unit, cells[5] = unit price, cells[6] = total
-
-        if (cells.length >= 7) {
-          // Tentativa: cells[3] e quantidade (ou cells[0] se for so item numero)
-          // Procura o primeiro numero que tem formato de quantidade (ex: "1,000")
-          for (var c = 0; c < cells.length; c++) {
-            var cellText = cells[c];
-            // Quantidade geralmente tem formato: 1,000 ou 0,500 ou 10,000
-            if (/^\\d{1,3}(?:,\\d{3})?$/.test(cellText) || /^\\d{1,3}\\.\\d{3}$/.test(cellText)) {
-              var q = normalizeMoneyBR(cellText);
-              if (q !== null && q > 0 && q < 1000) {
-                qty = q;
-                // Proxima celula pode ser a unidade
-                if (c + 1 < cells.length && /^(UN|KG|L|ML|G|PC|CX)$/i.test(cells[c + 1])) {
-                  unit = cells[c + 1].toUpperCase();
-                }
-                break;
-              }
-            }
+        for (var c = 0; c < cells.length - 1; c++) {
+          var parsedQty = parseQuantityCell(cells[c]);
+          if (parsedQty === null || !isUnitCell(cells[c + 1])) {
+            continue;
           }
 
-          // Nome e tipicament a celula mais longa que nao e numero
-          var nonNumberCells = cells.filter(function(c) { return !/^\\d{1,3}(?:[,.]\\d{1,3})?$/.test(c) && !/^\\d{1,3}(?:\\.\\d{3})*,\\d{2}$/.test(c); });
-          if (nonNumberCells.length > 0) {
-            name = nonNumberCells.sort(function(a,b) { return b.length - a.length; })[0];
+          var trailingMoneyValues = cells
+            .slice(c + 2)
+            .map(parseMoneyCell)
+            .filter(function(value) { return value !== null; });
+
+          if (!trailingMoneyValues.length) {
+            continue;
           }
 
-          // Usar sempre total / quantidade para calcular preco unitario
-          var moneyMatches = text.match(/\\b\\d{1,3}(?:\\.\\d{3})*,\\d{2}\\b/g) || [];
-          if (moneyMatches.length >= 1) {
-            total = normalizeMoneyBR(moneyMatches[moneyMatches.length - 1]);
-            unitPrice = total / (qty || 1);
-          }
-        } else if (cells.length >= 2) {
-          // Fallback: nome = celula mais longa
-          name = cells.sort(function(a,b) { return b.length - a.length; })[0];
+          qty = parsedQty;
+          qtyIndex = c;
+          unit = cells[c + 1].toUpperCase();
 
-          // Dinheiro
-          var moneyMatches2 = text.match(/\\b\\d{1,3}(?:\\.\\d{3})*,\\d{2}\\b/g) || [];
-          if (moneyMatches2.length) total = normalizeMoneyBR(moneyMatches2[moneyMatches2.length - 1]);
+          if (trailingMoneyValues.length >= 2) {
+            unitPrice = trailingMoneyValues[0];
+            total = trailingMoneyValues[trailingMoneyValues.length - 1];
+          } else {
+            total = trailingMoneyValues[0];
+            unitPrice = qty > 0 ? total / qty : trailingMoneyValues[0];
+          }
+
+          break;
+        }
+
+        name = findItemName(cells, qtyIndex);
+
+        if (unitPrice === null || total === null) {
+          var moneyValues = cells
+            .map(parseMoneyCell)
+            .filter(function(value) { return value !== null; });
+
+          if (moneyValues.length >= 2) {
+            if (unitPrice === null) unitPrice = moneyValues[moneyValues.length - 2];
+            if (total === null) total = moneyValues[moneyValues.length - 1];
+          } else if (moneyValues.length === 1) {
+            if (total === null) total = moneyValues[0];
+            if (unitPrice === null) unitPrice = qty > 0 ? moneyValues[0] / qty : moneyValues[0];
+          }
         }
       } else {
         // fallback: nome = primeira linha

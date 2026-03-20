@@ -289,7 +289,7 @@ export const ReportsScreen: React.FC = () => {
 
       <View style={styles.metricsContainer}>
         <View style={[styles.metricCard, styles.metricPurple]}>
-          <RNText style={styles.metricLabel}>Preco medio</RNText>
+          <RNText style={styles.metricLabel}>Preco medio/un</RNText>
           <RNText style={styles.metricValue}>
             {hasItemData ? formatMoney(itemReportData.averagePrice) : 'Sem dados no periodo'}
           </RNText>
@@ -301,7 +301,7 @@ export const ReportsScreen: React.FC = () => {
           </RNText>
         </View>
         <View style={[styles.metricCard, styles.metricBlue]}>
-          <RNText style={styles.metricLabel}>Compras</RNText>
+          <RNText style={styles.metricLabel}>Notas</RNText>
           <RNText style={styles.metricValue}>{hasItemData ? `${itemReportData.purchaseCount}x` : 'Sem dados'}</RNText>
         </View>
       </View>

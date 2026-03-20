@@ -56,6 +56,58 @@ describe('reportService', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  it('calcula preco medio do item com base na quantidade total comprada', async () => {
+    const purchasesResponse = Promise.resolve({
+      data: [{ id: 10, supermarket: { name: 'Mercado A' } }],
+      error: null,
+    }) as Promise<{ data: Array<{ id: number; supermarket: { name: string } }>; error: null }> & {
+      select: jest.Mock;
+      eq: jest.Mock;
+      gte: jest.Mock;
+      lte: jest.Mock;
+    };
+    purchasesResponse.select = jest.fn(() => purchasesResponse);
+    purchasesResponse.eq = jest.fn(() => purchasesResponse);
+    purchasesResponse.gte = jest.fn(() => purchasesResponse);
+    purchasesResponse.lte = jest.fn(() => purchasesResponse);
+
+    const itemsResponse = Promise.resolve({
+      data: [{ purchase_id: 10, name: 'Cerveja', quantity: 5, price: 3.19 }],
+      error: null,
+    }) as Promise<{ data: Array<{ purchase_id: number; name: string; quantity: number; price: number }>; error: null }> & {
+      select: jest.Mock;
+      in: jest.Mock;
+      eq: jest.Mock;
+    };
+    itemsResponse.select = jest.fn(() => itemsResponse);
+    itemsResponse.in = jest.fn(() => itemsResponse);
+    itemsResponse.eq = jest.fn(() => itemsResponse);
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'purchases') {
+        return purchasesResponse;
+      }
+      return itemsResponse;
+    });
+
+    const result = await reportService.getItemReport('Cerveja', '2026-03-01', '2026-03-31');
+
+    expect(result).toEqual({
+      totalQuantity: 5,
+      totalSpent: 15.95,
+      averagePrice: 3.19,
+      purchaseCount: 1,
+      bySupermarket: [
+        {
+          supermarket: 'Mercado A',
+          totalQuantity: 5,
+          totalSpent: 15.95,
+          averagePrice: 3.19,
+        },
+      ],
+    });
+  });
+
   describe('getMonthlyExpenses', () => {
     it('consulta por ano: retorna 12 meses com totais corretos', async () => {
       mockFrom.mockReturnValue(
