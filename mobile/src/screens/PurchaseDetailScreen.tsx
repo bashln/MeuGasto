@@ -196,9 +196,9 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
 
         {products.length >= 2 && (
           <Surface style={styles.comparisonSurface} elevation={1}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>Regra de 3</Text>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Comparação de preços</Text>
             <Text variant="bodyMedium" style={styles.helperText}>
-              Selecione dois itens para comparar o preço por unidade padrão.
+              Selecione dois itens para comparar o preço por unidade.
             </Text>
 
             <Menu
