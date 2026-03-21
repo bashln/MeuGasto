@@ -11,6 +11,7 @@ export const AppBootScreen: React.FC<AppBootScreenProps> = ({ onReady }) => {
   return (
     <View style={styles.container} onLayout={onReady}>
       <View style={styles.brandBlock}>
+        {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
         <Image source={require('../../assets/brand-logo.png')} style={styles.logo} resizeMode="contain" />
         <RNText style={styles.title}>Meu Gasto</RNText>
       </View>

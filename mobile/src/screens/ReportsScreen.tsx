@@ -33,7 +33,6 @@ export const ReportsScreen: React.FC = () => {
     monthlyData,
     supermarketData,
     topItems,
-    itemReport,
     itemPriceHistory,
     setReportType,
     setSelectedYear,

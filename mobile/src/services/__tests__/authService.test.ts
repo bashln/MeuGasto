@@ -39,14 +39,18 @@ import * as SecureStore from 'expo-secure-store';
 const mockGetSession = supabase!.auth.getSession as jest.Mock;
 const mockSignOut = supabase!.auth.signOut as jest.Mock;
 const mockSignInWithPassword = supabase!.auth.signInWithPassword as jest.Mock;
+const mockSignUp = supabase!.auth.signUp as jest.Mock;
+const mockResetPasswordForEmail = supabase!.auth.resetPasswordForEmail as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
 const mockIsSupabaseConfigured = supabaseClient.isSupabaseConfigured as jest.Mock;
 const mockGetResolvedSupabaseConfig = supabaseClient.getResolvedSupabaseConfig as jest.Mock;
 const mockFrom = supabase!.from as jest.Mock;
+const originalAuthRedirectUrl = process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
 
 describe('authService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
     mockIsSupabaseConfigured.mockReturnValue(true);
     mockGetResolvedSupabaseConfig.mockReturnValue({
       url: 'https://mock.supabase.co',
@@ -54,6 +58,15 @@ describe('authService', () => {
       source: 'process.env',
       error: null,
     });
+  });
+
+  afterAll(() => {
+    if (originalAuthRedirectUrl === undefined) {
+      delete process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
+      return;
+    }
+
+    process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL = originalAuthRedirectUrl;
   });
 
   it('retorna user id da sessao atual', async () => {
@@ -144,5 +157,34 @@ describe('authService', () => {
       },
     });
     expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('usa redirect HTTPS configurado no cadastro quando presente', async () => {
+    process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL = 'https://app.meugasto.example/auth/callback';
+    mockSignUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: null,
+    });
+
+    await authService.register({
+      email: 'user@example.com',
+      password: 'Password123!',
+      name: 'Teste',
+    });
+
+    expect(mockSignUp).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({
+        emailRedirectTo: 'https://app.meugasto.example/auth/callback',
+      }),
+    }));
+  });
+
+  it('ignora redirect inseguro no reset de senha', async () => {
+    process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL = 'com.prati.meugasto://auth/callback';
+    mockResetPasswordForEmail.mockResolvedValue({ error: null });
+
+    await authService.forgotPassword('user@example.com');
+
+    expect(mockResetPasswordForEmail).toHaveBeenCalledWith('user@example.com', undefined);
   });
 });

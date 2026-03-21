@@ -14,6 +14,7 @@ module.exports = () => {
       ...config.extra,
       supabaseUrl: getEnvValue('EXPO_PUBLIC_SUPABASE_URL'),
       supabaseAnonKey: getEnvValue('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
+      authRedirectUrl: getEnvValue('EXPO_PUBLIC_AUTH_REDIRECT_URL'),
     },
   };
 };

@@ -21,7 +21,10 @@ Crie o arquivo `mobile/.env` com base no `.env.example`:
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_AUTH_REDIRECT_URL=https://app.example.com/auth/callback
 ```
+
+`mobile/.env` deve conter apenas variaveis `EXPO_PUBLIC_*`. Nao armazene segredos de assinatura Android dentro do workspace do repositorio.
 
 ### Por que o .env é necessário?
 
@@ -169,6 +172,7 @@ MeuGastov1.3.1.apk
 O script de release valida automaticamente:
 - existencia do `.env`
 - existencia da keystore
+- presenca das credenciais de assinatura fora de `mobile/.env`
 - geracao de `android/local.properties` para o SDK Android
 
 ## Escolha Correta do Tipo de Build
@@ -189,7 +193,7 @@ Para nunca mais ocorrer confusao com splash travada em APK local:
 3. Use `release` para qualquer teste local que precise funcionar sem computador
 4. Se mudar `.env`, remova `android/` antes de gerar novamente
 5. Sempre gere builds pelos scripts do projeto, nao por comandos soltos
-6. Para release, prefira keystores em `~/.keystores/` com caminho absoluto no `.env`
+6. Para release, mantenha a keystore e as senhas fora do repo, por exemplo em `~/.config/meugasto/release-signing.env`
 
 ## Resolucao de Problemas
 
@@ -271,13 +275,19 @@ O build de debug usa uma keystore de debug automática. Não é necessária conf
 
 ### Release
 
-Para builds de release, você precisa de uma keystore válida. As keystores padrões ficam em `~/.keystores/`.
+Para builds de release, voce precisa de uma keystore valida. As keystores podem ficar em `~/.keystores/`, mas as senhas devem ser exportadas fora do repositorio.
 
-No arquivo `.env`, adicione:
+Exemplo de arquivo externo `~/.config/meugasto/release-signing.env`:
 
 ```bash
 MEUGASTO_STORE_FILE=~/.keystores/seu-arquivo.keystore
 MEUGASTO_STORE_PASSWORD=sua-senha
 MEUGASTO_KEY_ALIAS=seu-alias
 MEUGASTO_KEY_PASSWORD=sua-senha-key
+```
+
+Antes do build, exporte o caminho do arquivo externo:
+
+```bash
+export MEUGASTO_SIGNING_ENV_FILE=~/.config/meugasto/release-signing.env
 ```

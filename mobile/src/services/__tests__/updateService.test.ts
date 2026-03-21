@@ -137,20 +137,40 @@ describe('updateService', () => {
       expect(result?.isMandatory).toBe(false);
     });
 
-    it('extracts APK download URL correctly', async () => {
-      mockGetItemAsync.mockResolvedValue(null);
+     it('extracts APK download URL correctly', async () => {
+       mockGetItemAsync.mockResolvedValue(null);
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockRelease,
       });
 
-      const result = await updateService.checkForUpdate('1.2.3');
-      expect(result?.apkDownloadUrl).toBe('https://github.com/.../app-release.apk');
-    });
+       const result = await updateService.checkForUpdate('1.2.3');
+       expect(result?.apkDownloadUrl).toBe('https://github.com/.../app-release.apk');
+     });
 
-    it('uses release page URL as fallback when no APK', async () => {
-      mockGetItemAsync.mockResolvedValue(null);
+      it('ignores APK assets hosted outside the trusted allowlist', async () => {
+        mockGetItemAsync.mockResolvedValue(null);
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            ...mockRelease,
+            assets: [
+              {
+                name: 'app-release.apk',
+                browser_download_url: 'https://evil.example.com/app-release.apk',
+              },
+            ],
+          }),
+        });
+
+        const result = await updateService.checkForUpdate('1.2.3');
+        expect(result?.apkDownloadUrl).toBeNull();
+      });
+
+      it('uses release page URL as fallback when no APK', async () => {
+        mockGetItemAsync.mockResolvedValue(null);
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -161,9 +181,39 @@ describe('updateService', () => {
       });
 
       const result = await updateService.checkForUpdate('1.2.3');
-      expect(result?.apkDownloadUrl).toBeNull();
-      expect(result?.releasePageUrl).toBe('https://github.com/bashln/MeuGasto/releases/tag/v1.2.4');
-    });
+        expect(result?.apkDownloadUrl).toBeNull();
+        expect(result?.releasePageUrl).toBe('https://github.com/bashln/MeuGasto/releases/tag/v1.2.4');
+      });
+
+      it('returns null when release page URL is untrusted', async () => {
+        mockGetItemAsync.mockResolvedValue(null);
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            ...mockRelease,
+            html_url: 'https://evil.example.com/releases/v1.2.4',
+          }),
+        });
+
+        const result = await updateService.checkForUpdate('1.2.3');
+        expect(result).toBeNull();
+      });
+
+      it('returns null when release tag is not semantic versioning', async () => {
+        mockGetItemAsync.mockResolvedValue(null);
+
+        (global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            ...mockRelease,
+            tag_name: 'release-candidate',
+          }),
+        });
+
+        const result = await updateService.checkForUpdate('1.2.3');
+        expect(result).toBeNull();
+      });
 
     it('returns null on network error', async () => {
       mockGetItemAsync.mockResolvedValue(null);

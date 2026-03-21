@@ -125,4 +125,38 @@ describe('nfceService URL and allowlist', () => {
       itemCount: 1,
     });
   });
+
+  it('deriva preco unitario do total da linha quando unityPrice nao vem no payload', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ purchase_id: 654 }],
+      error: null,
+    });
+
+    await nfceService.createPurchaseFromScrapedData(
+      {
+        storeName: 'Mercearia Exemplo',
+        total: 15.95,
+        items: [
+          {
+            name: 'CERVEJA PROIBIDA 473ML PILSEN (Código: 1570 )',
+            quantity: 5,
+            unit: 'UN',
+            totalPrice: 15.95,
+          },
+        ],
+      },
+      '43180611111111111111111111111111111111111111',
+      99,
+    );
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_purchase_with_items',
+      expect.objectContaining({
+        p_total_price: 15.95,
+        p_items: [
+          expect.objectContaining({ price: 3.19 }),
+        ],
+      })
+    );
+  });
 });

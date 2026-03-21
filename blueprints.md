@@ -61,6 +61,12 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 - `supabase_schema.sql` mantém uma referência de schema do banco.
 - `android/` contém o projeto nativo Android gerado; `dist/` contém artefatos exportados observados.
 
+#### Manutenção de `mobile/supabase_schema.sql` (Invariante Operacional)
+- Novas alterações no schema **devem** ser adicionadas em uma **nova seção/bloco no final do arquivo**, antecedida por um comentário de cabeçalho (ex: `-- =============================================`, `-- NOME DA ALTERAÇÃO - DESCRIÇÃO`, `-- Data: YYYY-MM-DD`, `-- =============================================`).
+- **Não** se apaga ou se move o conteúdo existente; apenas se appenda o novo bloco.
+- O último bloco do arquivo é, por convenção, o trecho mais recente a ser aplicado no Supabase.
+- Isso preserva o histórico local e elimina ambiguidade sobre qual SQL aplicar.
+
 ### `mobile/src/components`
 - Exporta componentes reutilizáveis como `Header`, `Loading`, `ErrorMessage`, `PurchaseCard`, `DraftCard`, `MonthYearPicker`, `PriceComparisonCard` e `ItemInputRow`.
 - Também contém componentes que encapsulam integração com APIs/plataforma, como `QRCodeScanner`, `NFCeWebView` e `UpdateDialog`.

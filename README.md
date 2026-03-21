@@ -64,7 +64,10 @@ Criar `.env` dentro de `mobile/` (apenas `EXPO_PUBLIC_`):
 ```
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
+EXPO_PUBLIC_AUTH_REDIRECT_URL=https://app.example.com/auth/callback
 ```
+
+Nao armazene segredos de assinatura Android em `mobile/.env`.
 
 Schema do banco (referência): `mobile/supabase_schema.sql`
 
@@ -98,10 +101,7 @@ npx expo start --dev-client
 
 ```bash
 cd mobile
-export MEUGASTO_STORE_FILE=/caminho/para/seu-release.jks
-export MEUGASTO_STORE_PASSWORD=...
-export MEUGASTO_KEY_ALIAS=...
-export MEUGASTO_KEY_PASSWORD=...
+export MEUGASTO_SIGNING_ENV_FILE=~/.config/meugasto/release-signing.env
 npm run android:build:release:local
 ```
 

@@ -13,7 +13,7 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { UpdateInfo, downloadApk } from '../services/updateService';
+import { UpdateInfo, downloadApk, isTrustedUpdateUrl } from '../services/updateService';
 
 interface UpdateDialogProps {
   updateInfo: UpdateInfo;
@@ -34,7 +34,9 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
 
     try {
       const isAndroid = Platform.OS === 'android';
-      const canInstallApk = isAndroid && Boolean(updateInfo.apkDownloadUrl);
+      const canInstallApk = isAndroid
+        && Boolean(updateInfo.apkDownloadUrl)
+        && Boolean(updateInfo.apkDownloadUrl && isTrustedUpdateUrl(updateInfo.apkDownloadUrl, 'download'));
 
       if (canInstallApk && updateInfo.apkDownloadUrl) {
         setIsDownloading(true);
@@ -70,7 +72,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
               if (__DEV__) {
                 console.error('Error with IntentLauncher:', error);
               }
-              if (updateInfo.apkDownloadUrl) {
+              if (updateInfo.apkDownloadUrl && isTrustedUpdateUrl(updateInfo.apkDownloadUrl, 'download')) {
                 await Linking.openURL(updateInfo.apkDownloadUrl);
               }
             }
@@ -85,7 +87,8 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
       }
 
       const fallbackUrl = updateInfo.apkDownloadUrl || updateInfo.releasePageUrl;
-      if (fallbackUrl) {
+      const fallbackMode = fallbackUrl === updateInfo.releasePageUrl ? 'page' : 'download';
+      if (fallbackUrl && isTrustedUpdateUrl(fallbackUrl, fallbackMode)) {
         const canOpen = await Linking.canOpenURL(fallbackUrl);
         if (canOpen) {
           await Linking.openURL(fallbackUrl);

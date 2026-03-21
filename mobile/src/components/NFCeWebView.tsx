@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Modal, ActivityIndicator, Text, Button } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../theme/colors';
+import { isAllowedNfceUrl } from '../lib/nfceUrlPolicy';
 import { NFCeScrapedData, validateAndSanitizeNFCePayload } from '../lib/nfcePayloadValidation';
-import { isAllowedNfceUrl } from '../services/nfceService';
 import { NFCE_SCRAPE_SCRIPT } from '../utils/nfceScraperScript';
 
 const DEBUG = __DEV__ || false;

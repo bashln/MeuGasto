@@ -5,7 +5,9 @@ jest.mock('../context', () => ({
 }));
 
 jest.mock('../navigation', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native');
 
   return {
@@ -55,10 +57,11 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import App from '../../App';
 
+type AppRenderer = ReturnType<typeof TestRenderer.create>;
+
 describe('App bootstrap shell', () => {
   const mockUseFonts = useFonts as jest.Mock;
   const mockHideAsync = SplashScreen.hideAsync as jest.Mock;
-  const mockPreventAutoHideAsync = SplashScreen.preventAutoHideAsync as jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -71,7 +74,7 @@ describe('App bootstrap shell', () => {
   });
 
   it('renders the root app container', async () => {
-    let renderer: any = null;
+    let renderer: AppRenderer | null = null;
 
     await act(async () => {
       renderer = TestRenderer.create(<App />);
@@ -86,7 +89,7 @@ describe('App bootstrap shell', () => {
   });
 
   it('keeps the splash shell mounted while brand fonts are loading', async () => {
-    let renderer: any = null;
+    let renderer: AppRenderer | null = null;
     mockUseFonts.mockReturnValue([false, null]);
 
     await act(async () => {
@@ -102,7 +105,7 @@ describe('App bootstrap shell', () => {
   });
 
   it('hides the splash after the first app layout', async () => {
-    let renderer: any;
+    let renderer: AppRenderer;
 
     await act(async () => {
       renderer = TestRenderer.create(<App />);
@@ -122,7 +125,7 @@ describe('App bootstrap shell', () => {
   });
 
   it('falls back to hiding the splash when layout does not fire', async () => {
-    let renderer: any;
+    let renderer: AppRenderer;
 
     await act(async () => {
       renderer = TestRenderer.create(<App />);

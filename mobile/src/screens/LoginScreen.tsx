@@ -67,6 +67,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoContainer}>
+          {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
           <Image source={require('../../assets/brand-logo.png')} style={styles.logoImage} resizeMode="contain" />
         </View>
 

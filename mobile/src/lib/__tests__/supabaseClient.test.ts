@@ -50,6 +50,7 @@ describe('supabaseClient', () => {
     const client = { auth: {}, from: jest.fn() };
     mockCreateClient.mockReturnValue(client);
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getSupabaseClient } = require('../supabaseClient');
 
     expect(getSupabaseClient()).toBe(client);
@@ -64,11 +65,13 @@ describe('supabaseClient', () => {
       .mockReturnValueOnce(firstClient)
       .mockReturnValueOnce(secondClient);
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     let supabaseClient = require('../supabaseClient');
     expect(supabaseClient.getSupabaseClient()).toBe(firstClient);
 
     mockExpoConfig.extra.supabaseAnonKey = 'another-key';
     jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     supabaseClient = require('../supabaseClient');
 
     expect(supabaseClient.getSupabaseClient()).toBe(secondClient);

@@ -40,6 +40,10 @@ const mapPurchaseItems = (items: unknown): Purchase['products'] => {
   }));
 };
 
+const calculateItemsTotal = (
+  items: Array<{ quantity: number; price: number }>,
+): number => Number(items.reduce((sum, item) => sum + item.quantity * item.price, 0).toFixed(2));
+
 export const purchaseService = {
   async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
     const userId = await getCurrentUserId();
@@ -166,6 +170,9 @@ export const purchaseService = {
         unit: item.unit,
         price: item.price,
       }));
+    const resolvedTotalPrice = itemsPayload.length > 0
+      ? calculateItemsTotal(itemsPayload)
+      : purchase.totalPrice;
 
     const supabase = getClient();
 
@@ -173,7 +180,7 @@ export const purchaseService = {
       p_supermarket_id: purchase.supermarketId || null,
       p_access_key: null,
       p_date: purchase.date,
-      p_total_price: purchase.totalPrice,
+      p_total_price: resolvedTotalPrice,
       p_manual: true,
       p_items: itemsPayload,
     });

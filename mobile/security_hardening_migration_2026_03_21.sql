@@ -1,253 +1,9 @@
 -- =============================================
--- Supabase Schema for MeuGasto
--- Run this in Supabase SQL Editor
+-- MeuGasto - Security hardening migration
+-- Date: 2026-03-21
+-- Apply in Supabase SQL Editor when the local schema file
+-- has changed but the remote project has not yet been updated.
 -- =============================================
-
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- =============================================
--- PROFILES TABLE (extends auth.users)
--- =============================================
-CREATE TABLE IF NOT EXISTS profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT,
-  role TEXT DEFAULT 'user',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(id)
-);
-
-ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_name_length_check;
-ALTER TABLE profiles ADD CONSTRAINT profiles_name_length_check
-  CHECK (name IS NULL OR (char_length(btrim(name)) >= 1 AND char_length(name) <= 100));
-
--- =============================================
--- SUPERMARKETS TABLE
--- =============================================
-CREATE TABLE IF NOT EXISTS supermarkets (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  cnpj TEXT,
-  city TEXT,
-  state TEXT,
-  manual BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- =============================================
--- PURCHASES TABLE
--- =============================================
-CREATE TABLE IF NOT EXISTS purchases (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  supermarket_id INTEGER REFERENCES supermarkets(id) ON DELETE SET NULL,
-  access_key TEXT,
-  date DATE NOT NULL,
-  total_price DECIMAL(10,2) DEFAULT 0,
-  manual BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE purchases DROP CONSTRAINT IF EXISTS purchases_access_key_format_check;
-ALTER TABLE purchases ADD CONSTRAINT purchases_access_key_format_check
-  CHECK (access_key IS NULL OR access_key ~ '^\d{44}$');
-
-ALTER TABLE purchases DROP CONSTRAINT IF EXISTS purchases_total_price_range_check;
-ALTER TABLE purchases ADD CONSTRAINT purchases_total_price_range_check
-  CHECK (total_price >= 0 AND total_price <= 99999999.99);
-
--- =============================================
--- ITEMS TABLE
--- =============================================
-CREATE TABLE IF NOT EXISTS items (
-  id SERIAL PRIMARY KEY,
-  purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  code TEXT,
-  quantity DECIMAL(10,3) DEFAULT 1,
-  unit TEXT,
-  price DECIMAL(10,2) DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE items DROP CONSTRAINT IF EXISTS items_name_length_check;
-ALTER TABLE items ADD CONSTRAINT items_name_length_check
-  CHECK (char_length(btrim(name)) > 0 AND char_length(name) <= 200);
-
-ALTER TABLE items DROP CONSTRAINT IF EXISTS items_code_length_check;
-ALTER TABLE items ADD CONSTRAINT items_code_length_check
-  CHECK (code IS NULL OR char_length(code) <= 80);
-
-ALTER TABLE items DROP CONSTRAINT IF EXISTS items_unit_length_check;
-ALTER TABLE items ADD CONSTRAINT items_unit_length_check
-  CHECK (unit IS NULL OR char_length(unit) <= 16);
-
-ALTER TABLE items DROP CONSTRAINT IF EXISTS items_quantity_range_check;
-ALTER TABLE items ADD CONSTRAINT items_quantity_range_check
-  CHECK (quantity > 0 AND quantity <= 99999);
-
-ALTER TABLE items DROP CONSTRAINT IF EXISTS items_price_range_check;
-ALTER TABLE items ADD CONSTRAINT items_price_range_check
-  CHECK (price >= 0 AND price <= 99999999.99);
-
--- =============================================
--- DRAFTS TABLE
--- =============================================
-CREATE TABLE IF NOT EXISTS drafts (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  supermarket_id INTEGER REFERENCES supermarkets(id) ON DELETE SET NULL,
-  content TEXT,
-  total_price DECIMAL(10,2) DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE drafts DROP CONSTRAINT IF EXISTS drafts_content_length_check;
-ALTER TABLE drafts ADD CONSTRAINT drafts_content_length_check
-  CHECK (content IS NULL OR char_length(content) <= 50000);
-
-CREATE OR REPLACE FUNCTION public.is_valid_draft_items(p_items JSONB)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  v_item JSONB;
-  v_quantity NUMERIC;
-  v_price NUMERIC;
-BEGIN
-  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN
-    RETURN FALSE;
-  END IF;
-
-  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
-  LOOP
-    IF jsonb_typeof(v_item) <> 'object' THEN
-      RETURN FALSE;
-    END IF;
-
-    IF jsonb_typeof(v_item->'name') <> 'string' OR char_length(btrim(COALESCE(v_item->>'name', ''))) = 0 THEN
-      RETURN FALSE;
-    END IF;
-
-    IF v_item ? 'unit' AND jsonb_typeof(v_item->'unit') <> 'string' THEN
-      RETURN FALSE;
-    END IF;
-
-    BEGIN
-      v_quantity := COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1);
-      v_price := COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0);
-    EXCEPTION
-      WHEN invalid_text_representation THEN
-        RETURN FALSE;
-    END;
-
-    IF v_quantity <= 0 OR v_price < 0 THEN
-      RETURN FALSE;
-    END IF;
-  END LOOP;
-
-  RETURN TRUE;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.is_valid_draft_content(p_content TEXT)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  v_content JSONB;
-BEGIN
-  IF p_content IS NULL THEN
-    RETURN TRUE;
-  END IF;
-
-  BEGIN
-    v_content := p_content::JSONB;
-  EXCEPTION
-    WHEN others THEN
-      RETURN FALSE;
-  END;
-
-  IF jsonb_typeof(v_content) <> 'object' THEN
-    RETURN FALSE;
-  END IF;
-
-  IF COALESCE(v_content->>'version', '') <> '1' THEN
-    RETURN FALSE;
-  END IF;
-
-  IF jsonb_typeof(COALESCE(v_content->'notes', '""'::JSONB)) <> 'string' THEN
-    RETURN FALSE;
-  END IF;
-
-  RETURN public.is_valid_draft_items(COALESCE(v_content->'items', '[]'::JSONB));
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.normalize_draft_content(p_content TEXT)
-RETURNS TEXT
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  v_content JSONB;
-  v_notes TEXT;
-  v_items JSONB;
-BEGIN
-  IF p_content IS NULL THEN
-    RETURN NULL;
-  END IF;
-
-  BEGIN
-    v_content := p_content::JSONB;
-  EXCEPTION
-    WHEN others THEN
-      RETURN jsonb_build_object(
-        'version', 1,
-        'notes', p_content,
-        'items', '[]'::JSONB
-      )::TEXT;
-  END;
-
-  IF jsonb_typeof(v_content) <> 'object' THEN
-    RETURN jsonb_build_object(
-      'version', 1,
-      'notes', p_content,
-      'items', '[]'::JSONB
-    )::TEXT;
-  END IF;
-
-  IF COALESCE(v_content->>'version', '') = '1' AND public.is_valid_draft_content(p_content) THEN
-    RETURN jsonb_build_object(
-      'version', 1,
-      'notes', COALESCE(v_content->>'notes', ''),
-      'items', COALESCE(v_content->'items', '[]'::JSONB)
-    )::TEXT;
-  END IF;
-
-  IF jsonb_typeof(COALESCE(v_content->'notes', '""'::JSONB)) = 'string'
-     AND jsonb_typeof(COALESCE(v_content->'items', '[]'::JSONB)) = 'array' THEN
-    v_notes := COALESCE(v_content->>'notes', '');
-    v_items := COALESCE(v_content->'items', '[]'::JSONB);
-
-    RETURN jsonb_build_object(
-      'version', 1,
-      'notes', v_notes,
-      'items', v_items
-    )::TEXT;
-  END IF;
-
-  RETURN jsonb_build_object(
-    'version', 1,
-    'notes', p_content,
-    'items', '[]'::JSONB
-  )::TEXT;
-END;
-$$;
 
 UPDATE drafts
    SET content = public.normalize_draft_content(content)
@@ -344,20 +100,12 @@ CREATE TRIGGER validate_purchase_integrity
   BEFORE INSERT OR UPDATE ON purchases
   FOR EACH ROW EXECUTE FUNCTION public.validate_purchase_row();
 
--- =============================================
--- ROW LEVEL SECURITY (RLS) POLICIES
--- =============================================
-
--- Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supermarkets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drafts ENABLE ROW LEVEL SECURITY;
 
--- =============================================
--- PROFILES POLICIES
--- =============================================
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
@@ -368,14 +116,20 @@ CREATE POLICY "Users can insert own profile" ON profiles
 
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
--- Prevent users from escalating their own role or altering immutable fields
 CREATE OR REPLACE FUNCTION public.prevent_role_escalation()
 RETURNS TRIGGER AS $$
 BEGIN
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    RAISE EXCEPTION 'profiles.role is immutable';
+  END IF;
+
+  NEW.id := OLD.id;
   NEW.role := OLD.role;
   NEW.created_at := OLD.created_at;
+  NEW.updated_at := NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -385,9 +139,6 @@ CREATE TRIGGER protect_profile_immutable_fields
   BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION public.prevent_role_escalation();
 
--- =============================================
--- SUPERMARKETS POLICIES
--- =============================================
 DROP POLICY IF EXISTS "Users can view supermarkets" ON supermarkets;
 CREATE POLICY "Users can view supermarkets" ON supermarkets
   FOR SELECT USING (
@@ -400,15 +151,13 @@ CREATE POLICY "Users can insert supermarkets" ON supermarkets
 
 DROP POLICY IF EXISTS "Users can update own supermarkets" ON supermarkets;
 CREATE POLICY "Users can update own supermarkets" ON supermarkets
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own supermarkets" ON supermarkets;
 CREATE POLICY "Users can delete own supermarkets" ON supermarkets
   FOR DELETE USING (auth.uid() = user_id);
 
--- =============================================
--- PURCHASES POLICIES
--- =============================================
 DROP POLICY IF EXISTS "Users can view own purchases" ON purchases;
 CREATE POLICY "Users can view own purchases" ON purchases
   FOR SELECT USING (auth.uid() = user_id);
@@ -416,15 +165,13 @@ CREATE POLICY "Users can view own purchases" ON purchases
 DROP POLICY IF EXISTS "Users can insert own purchases" ON purchases;
 DROP POLICY IF EXISTS "Users can update own purchases" ON purchases;
 CREATE POLICY "Users can update own purchases" ON purchases
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own purchases" ON purchases;
 CREATE POLICY "Users can delete own purchases" ON purchases
   FOR DELETE USING (auth.uid() = user_id);
 
--- =============================================
--- ITEMS POLICIES
--- =============================================
 DROP POLICY IF EXISTS "Users can view items" ON items;
 CREATE POLICY "Users can view items" ON items
   FOR SELECT USING (
@@ -439,9 +186,6 @@ DROP POLICY IF EXISTS "Users can insert items" ON items;
 DROP POLICY IF EXISTS "Users can update items" ON items;
 DROP POLICY IF EXISTS "Users can delete items" ON items;
 
--- =============================================
--- DRAFTS POLICIES
--- =============================================
 DROP POLICY IF EXISTS "Users can view own drafts" ON drafts;
 CREATE POLICY "Users can view own drafts" ON drafts
   FOR SELECT USING (auth.uid() = user_id);
@@ -452,15 +196,12 @@ CREATE POLICY "Users can insert own drafts" ON drafts
 
 DROP POLICY IF EXISTS "Users can update own drafts" ON drafts;
 CREATE POLICY "Users can update own drafts" ON drafts
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own drafts" ON drafts;
 CREATE POLICY "Users can delete own drafts" ON drafts
   FOR DELETE USING (auth.uid() = user_id);
-
--- =============================================
--- IMMUTABILITY PROTECTIONS
--- =============================================
 
 CREATE OR REPLACE FUNCTION public.prevent_imported_purchase_updates()
 RETURNS TRIGGER AS $$
@@ -478,9 +219,6 @@ CREATE TRIGGER protect_imported_purchases
   BEFORE UPDATE ON purchases
   FOR EACH ROW EXECUTE FUNCTION public.prevent_imported_purchase_updates();
 
--- =============================================
--- AUTO-CREATE PROFILE ON SIGNUP
--- =============================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -489,7 +227,10 @@ BEGIN
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     'user'
-  );
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET name = COALESCE(public.profiles.name, EXCLUDED.name);
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -499,27 +240,6 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- =============================================
--- INDEXES FOR PERFORMANCE
--- =============================================
-CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
-CREATE INDEX IF NOT EXISTS idx_purchases_date ON purchases(date);
-CREATE INDEX IF NOT EXISTS idx_purchases_supermarket_id ON purchases(supermarket_id);
-
-CREATE INDEX IF NOT EXISTS idx_items_purchase_id ON items(purchase_id);
-CREATE INDEX IF NOT EXISTS idx_items_purchase_id_name ON items(purchase_id, name);
-
-CREATE INDEX IF NOT EXISTS idx_drafts_user_id ON drafts(user_id);
-CREATE INDEX IF NOT EXISTS idx_drafts_supermarket_id ON drafts(supermarket_id);
-
-CREATE INDEX IF NOT EXISTS idx_supermarkets_user_id ON supermarkets(user_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_purchases_user_access_key_unique
-  ON purchases(user_id, access_key)
-  WHERE access_key IS NOT NULL;
-
--- =============================================
--- TRANSACTIONAL PURCHASE CREATION
--- =============================================
 CREATE OR REPLACE FUNCTION public.create_purchase_with_items(
   p_supermarket_id INTEGER,
   p_access_key TEXT,
@@ -710,72 +430,6 @@ BEGIN
 END;
 $$;
 
--- =============================================
--- REPORTING HELPERS
--- =============================================
-CREATE OR REPLACE FUNCTION public.report_expenses_by_supermarket(
-  p_start_date DATE DEFAULT NULL,
-  p_end_date DATE DEFAULT NULL
-)
-RETURNS TABLE(supermarket TEXT, total NUMERIC)
-LANGUAGE sql
-SECURITY INVOKER
-AS $$
-  SELECT
-    COALESCE(s.name, 'Sem supermercado') AS supermarket,
-    COALESCE(SUM(p.total_price), 0) AS total
-  FROM purchases p
-  LEFT JOIN supermarkets s ON s.id = p.supermarket_id
-  WHERE p.user_id = auth.uid()
-    AND (p_start_date IS NULL OR p.date >= p_start_date)
-    AND (p_end_date IS NULL OR p.date <= p_end_date)
-  GROUP BY COALESCE(s.name, 'Sem supermercado')
-  ORDER BY total DESC;
-$$;
-
-CREATE OR REPLACE FUNCTION public.report_top_items(
-  p_limit INTEGER DEFAULT 10,
-  p_start_date DATE DEFAULT NULL,
-  p_end_date DATE DEFAULT NULL
-)
-RETURNS TABLE(name TEXT, quantity NUMERIC, total NUMERIC)
-LANGUAGE sql
-SECURITY INVOKER
-AS $$
-  SELECT
-    COALESCE(i.name, 'Sem nome') AS name,
-    COALESCE(SUM(i.quantity), 0) AS quantity,
-    COALESCE(SUM(i.quantity * i.price), 0) AS total
-  FROM items i
-  INNER JOIN purchases p ON p.id = i.purchase_id
-  WHERE p.user_id = auth.uid()
-    AND (p_start_date IS NULL OR p.date >= p_start_date)
-    AND (p_end_date IS NULL OR p.date <= p_end_date)
-  GROUP BY COALESCE(i.name, 'Sem nome')
-  ORDER BY total DESC
-  LIMIT GREATEST(COALESCE(p_limit, 10), 1);
-$$;
-
--- =============================================
--- 2026-03-21 - AUTH PROFILE OWNERSHIP AND DRAFT CONVERSION
--- =============================================
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, name, role)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-    'user'
-  )
-  ON CONFLICT (id) DO UPDATE
-    SET name = COALESCE(public.profiles.name, EXCLUDED.name);
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
 CREATE OR REPLACE FUNCTION public.convert_draft_to_purchase(
   p_draft_id INTEGER,
   p_purchase_date DATE DEFAULT CURRENT_DATE
@@ -836,45 +490,6 @@ BEGIN
   RETURN QUERY SELECT v_purchase_id;
 END;
 $$;
-
--- =============================================
--- 2026-03-21 - UPDATE POLICY HARDENING AND IMMUTABLE FIELDS
--- =============================================
-
-DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can update own supermarkets" ON supermarkets;
-CREATE POLICY "Users can update own supermarkets" ON supermarkets
-  FOR UPDATE USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can update own purchases" ON purchases;
-CREATE POLICY "Users can update own purchases" ON purchases
-  FOR UPDATE USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Users can update own drafts" ON drafts;
-CREATE POLICY "Users can update own drafts" ON drafts
-  FOR UPDATE USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE OR REPLACE FUNCTION public.prevent_role_escalation()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.role IS DISTINCT FROM OLD.role THEN
-    RAISE EXCEPTION 'profiles.role is immutable';
-  END IF;
-
-  NEW.id := OLD.id;
-  NEW.role := OLD.role;
-  NEW.created_at := OLD.created_at;
-  NEW.updated_at := NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.protect_supermarket_immutable_fields()
 RETURNS TRIGGER AS $$

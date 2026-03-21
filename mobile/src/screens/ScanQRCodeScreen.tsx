@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner } from '../components';
+import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../lib/nfceUrlPolicy';
 import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
 import { nfceService, purchaseService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
-import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
 import { colors } from '../theme/colors';
 
 type ScanQRCodeScreenProps = {
@@ -30,7 +30,9 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
     try {
       if (__DEV__) {
-        console.warn('QR Code data:', data);
+        console.warn('QR Code recebido para processamento', {
+          rawLength: data.length,
+        });
       }
 
       const url = buildNFCeUrl(data);
@@ -38,12 +40,14 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
         throw new Error('URL de consulta NFC-e não permitida');
       }
       if (__DEV__) {
-        console.warn('URL SEFAZ:', url);
+        console.warn('URL NFC-e validada', {
+          host: new URL(url).hostname,
+        });
       }
 
       const accessKey = extractAccessKeyFromQRCode(data);
       if (__DEV__) {
-        console.warn('Chave extraída:', accessKey);
+        console.warn('Chave NFC-e extraída com sucesso');
       }
 
       setCurrentUrl(url);
@@ -65,7 +69,11 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   const handleWebViewSuccess = async (scrapedData: NFCeScrapedData) => {
     try {
       if (__DEV__) {
-        console.warn('Dados extraídos:', scrapedData);
+        console.warn('Dados NFC-e extraídos', {
+          itemCount: scrapedData.items.length,
+          hasCnpj: Boolean(scrapedData.cnpj),
+          hasStoreName: Boolean(scrapedData.storeName),
+        });
       }
 
       const result = await nfceService.createPurchaseFromScrapedData(
@@ -74,7 +82,10 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       );
 
       if (__DEV__) {
-        console.warn('Compra salva:', result);
+        console.warn('Compra NFC-e salva', {
+          purchaseId: result.purchaseId,
+          itemCount: result.itemCount,
+        });
       }
 
       const purchase = await purchaseService.getPurchaseById(result.purchaseId);

@@ -6,14 +6,28 @@ set -euo pipefail
 #   bash scripts/android-build-release-local.sh --clean   # full prebuild + build
 
 cd "$(dirname "$0")/.."
+REPO_ROOT="$(pwd)"
 
 APP_VERSION="$(node -p "require('./app.json').expo.version")"
 APK_DIR="android/app/build/outputs/apk/release"
 APK_SOURCE_PATH="$APK_DIR/app-release.apk"
 APK_NAMED_PATH="$APK_DIR/MeuGastov${APP_VERSION}.apk"
+DEFAULT_SIGNING_ENV_FILE="${HOME}/.config/meugasto/release-signing.env"
+
+contains_signing_secret_in_env() {
+	grep -Eq '^(MEUGASTO_STORE_FILE|MEUGASTO_STORE_PASSWORD|MEUGASTO_KEY_ALIAS|MEUGASTO_KEY_PASSWORD)=' .env
+}
 
 # ── Load .env ────────────────────────────────────────────────────────────────
 if [[ -f .env ]]; then
+	if contains_signing_secret_in_env; then
+		echo "ERROR: release signing secrets must not live in mobile/.env"
+		echo "Move them to exported shell variables or to a file outside the repo, for example:"
+		echo "  ${DEFAULT_SIGNING_ENV_FILE}"
+		echo "Then export MEUGASTO_SIGNING_ENV_FILE if you use a custom path."
+		exit 1
+	fi
+
 	set -a
 	# shellcheck disable=SC1091
 	source ./.env
@@ -24,13 +38,27 @@ else
 	exit 1
 fi
 
+SIGNING_ENV_FILE="${MEUGASTO_SIGNING_ENV_FILE:-$DEFAULT_SIGNING_ENV_FILE}"
+if [[ -f "$SIGNING_ENV_FILE" ]]; then
+	SIGNING_ENV_REALPATH="$(realpath "$SIGNING_ENV_FILE")"
+	if [[ "$SIGNING_ENV_REALPATH" == "$REPO_ROOT"/* ]]; then
+		echo "ERROR: signing env file must stay outside the repository workspace"
+		exit 1
+	fi
+
+	set -a
+	# shellcheck disable=SC1090
+	source "$SIGNING_ENV_FILE"
+	set +a
+fi
+
 # ── Validate required vars ────────────────────────────────────────────────────
 : "${EXPO_PUBLIC_SUPABASE_URL:?Missing EXPO_PUBLIC_SUPABASE_URL in .env}"
 : "${EXPO_PUBLIC_SUPABASE_ANON_KEY:?Missing EXPO_PUBLIC_SUPABASE_ANON_KEY in .env}"
-: "${MEUGASTO_STORE_FILE:?Missing MEUGASTO_STORE_FILE in .env}"
-: "${MEUGASTO_STORE_PASSWORD:?Missing MEUGASTO_STORE_PASSWORD in .env}"
-: "${MEUGASTO_KEY_ALIAS:?Missing MEUGASTO_KEY_ALIAS in .env}"
-: "${MEUGASTO_KEY_PASSWORD:?Missing MEUGASTO_KEY_PASSWORD in .env}"
+: "${MEUGASTO_STORE_FILE:?Missing MEUGASTO_STORE_FILE in shell env or $SIGNING_ENV_FILE}"
+: "${MEUGASTO_STORE_PASSWORD:?Missing MEUGASTO_STORE_PASSWORD in shell env or $SIGNING_ENV_FILE}"
+: "${MEUGASTO_KEY_ALIAS:?Missing MEUGASTO_KEY_ALIAS in shell env or $SIGNING_ENV_FILE}"
+: "${MEUGASTO_KEY_PASSWORD:?Missing MEUGASTO_KEY_PASSWORD in shell env or $SIGNING_ENV_FILE}"
 
 case "$EXPO_PUBLIC_SUPABASE_URL" in
 https://*) ;;
@@ -45,11 +73,16 @@ case "$MEUGASTO_STORE_FILE" in
 esac
 
 if [[ "$MEUGASTO_STORE_FILE" != /* ]]; then
-	MEUGASTO_STORE_FILE="$(pwd)/android/app/$MEUGASTO_STORE_FILE"
+	MEUGASTO_STORE_FILE="$REPO_ROOT/android/app/$MEUGASTO_STORE_FILE"
 fi
 
 if [[ ! -f "$MEUGASTO_STORE_FILE" ]]; then
 	echo "ERROR: keystore not found at $MEUGASTO_STORE_FILE"
+	exit 1
+fi
+
+if [[ "$MEUGASTO_STORE_FILE" == "$REPO_ROOT"/* ]]; then
+	echo "ERROR: release keystore must stay outside the repository workspace"
 	exit 1
 fi
 

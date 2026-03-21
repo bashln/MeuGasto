@@ -4,7 +4,7 @@ import { DRAFT_CONTENT_VERSION, serializeContent } from '../draftContent';
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 jest.mock('../../lib/supabaseClient', () => {
-  const mockClient = { from: jest.fn() };
+  const mockClient = { from: jest.fn(), rpc: jest.fn() };
   return {
     supabase: mockClient,
     getSupabaseClient: jest.fn().mockReturnValue(mockClient),
@@ -15,14 +15,10 @@ jest.mock('../authService', () => ({
   authService: { getSession: jest.fn().mockResolvedValue({ user: { id: 'user-123' } }) },
   getCurrentUserId: jest.fn().mockResolvedValue('user-123'),
 }));
-jest.mock('../purchaseService', () => ({
-  purchaseService: {
-    createManualPurchase: jest.fn().mockResolvedValue({ id: 99, products: [] }),
-  },
-}));
 
 import { supabase } from '../../lib/supabaseClient';
-import { purchaseService } from '../purchaseService';
+
+const mockRpc = supabase!.rpc as jest.Mock;
 
 // Builder de cadeia Supabase reutilizável
 const makeMockChain = (overrides: Record<string, jest.Mock> = {}) => {
@@ -173,60 +169,31 @@ describe('draftService.createDraft', () => {
 // ── convertDraftToPurchase ────────────────────────────────────────────────────
 
 describe('draftService.convertDraftToPurchase', () => {
-  const DRAFT_WITH_ITEMS = {
-    id: 1,
-    content: 'Compra de quinta',
-    items: [
-      { name: 'Leite', quantity: 2, unit: 'l', price: 3.5 },
-      { name: 'Pão', quantity: 1, unit: 'un', price: 5.0 },
-    ],
-    totalPrice: 12,
-    supermarket: undefined,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-  };
-
-  it('chama createManualPurchase com os items do rascunho', async () => {
-    jest.spyOn(draftService, 'getDraftById').mockResolvedValue(DRAFT_WITH_ITEMS);
-    jest.spyOn(draftService, 'deleteDraft').mockResolvedValue();
-
-    await draftService.convertDraftToPurchase(1);
-
-    expect(purchaseService.createManualPurchase).toHaveBeenCalledWith(
-      expect.objectContaining({
-        totalPrice: 12,
-        items: DRAFT_WITH_ITEMS.items,
-      })
-    );
-  });
-
-  it('deleta o rascunho após criar a compra com sucesso', async () => {
-    jest.spyOn(draftService, 'getDraftById').mockResolvedValue(DRAFT_WITH_ITEMS);
-    const deleteSpy = jest.spyOn(draftService, 'deleteDraft').mockResolvedValue();
-
-    await draftService.convertDraftToPurchase(1);
-
-    expect(deleteSpy).toHaveBeenCalledWith(1);
-  });
-
-  it('passa a data de hoje para createManualPurchase', async () => {
-    jest.spyOn(draftService, 'getDraftById').mockResolvedValue(DRAFT_WITH_ITEMS);
-    jest.spyOn(draftService, 'deleteDraft').mockResolvedValue();
+  it('chama a RPC transacional de conversao com a data de hoje', async () => {
+    mockRpc.mockResolvedValue({ data: [{ purchase_id: 99 }], error: null });
 
     await draftService.convertDraftToPurchase(1);
 
     const today = new Date().toISOString().split('T')[0];
-    expect(purchaseService.createManualPurchase).toHaveBeenCalledWith(
-      expect.objectContaining({ date: today })
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'convert_draft_to_purchase',
+      expect.objectContaining({
+        p_draft_id: 1,
+        p_purchase_date: today,
+      }),
     );
   });
 
-  it('não deleta o rascunho se createManualPurchase falhar', async () => {
-    jest.spyOn(draftService, 'getDraftById').mockResolvedValue(DRAFT_WITH_ITEMS);
-    const deleteSpy = jest.spyOn(draftService, 'deleteDraft').mockResolvedValue();
-    (purchaseService.createManualPurchase as jest.Mock).mockRejectedValueOnce(new Error('DB error'));
+  it('lanca erro quando a RPC falha', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'DB error' } });
 
     await expect(draftService.convertDraftToPurchase(1)).rejects.toThrow('DB error');
-    expect(deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it('lanca erro quando a RPC nao retorna purchase_id', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    await expect(draftService.convertDraftToPurchase(1)).rejects.toThrow('Não foi possível converter o rascunho em compra');
   });
 });

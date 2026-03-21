@@ -8,6 +8,14 @@ const GITHUB_API_URL = 'https://api.github.com/repos/bashln/MeuGasto/releases/la
 const REQUEST_TIMEOUT_MS = 8000;
 const APK_DOWNLOAD_DIR = 'updates';
 const APK_FILENAME = 'meugasto-latest.apk';
+const UPDATE_PAGE_ALLOWED_HOSTS = new Set(['github.com', 'www.github.com']);
+const UPDATE_DOWNLOAD_ALLOWED_HOSTS = new Set([
+  ...UPDATE_PAGE_ALLOWED_HOSTS,
+  'objects.githubusercontent.com',
+  'github-releases.githubusercontent.com',
+  'release-assets.githubusercontent.com',
+]);
+const RELEASE_VERSION_RE = /^v?\d+\.\d+\.\d+$/;
 
 export interface UpdateInfo {
   latestVersion: string;
@@ -33,6 +41,47 @@ const logUpdateError = (message: string, error: unknown) => {
   if (__DEV__) {
     console.warn(message, error);
   }
+};
+
+const hasAllowedHost = (hostname: string, allowedHosts: Set<string>): boolean => {
+  return allowedHosts.has(hostname.toLowerCase());
+};
+
+export const isTrustedUpdateUrl = (
+  value: string,
+  mode: 'page' | 'download' = 'download'
+): boolean => {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') {
+      return false;
+    }
+
+    if (mode === 'page') {
+      return hasAllowedHost(parsed.hostname, UPDATE_PAGE_ALLOWED_HOSTS);
+    }
+
+    if (!hasAllowedHost(parsed.hostname, UPDATE_DOWNLOAD_ALLOWED_HOSTS)) {
+      return false;
+    }
+
+    return parsed.pathname.toLowerCase().endsWith('.apk');
+  } catch {
+    return false;
+  }
+};
+
+const normalizeReleaseVersion = (tagName: string): string | null => {
+  const normalized = tagName.trim();
+  if (!RELEASE_VERSION_RE.test(normalized)) {
+    return null;
+  }
+
+  return normalized.replace(/^v/, '');
+};
+
+const getTrustedReleasePageUrl = (value: string): string | null => {
+  return isTrustedUpdateUrl(value, 'page') ? value : null;
 };
 
 /**
@@ -71,7 +120,10 @@ const extractMinVersion = (body: string | null): string | null => {
  * Extract APK download URL from release assets
  */
 const extractApkUrl = (release: GitHubRelease): string | null => {
-  const apkAsset = release.assets.find(asset => asset.name.endsWith('.apk'));
+  const apkAsset = release.assets.find((asset) => {
+    return asset.name.toLowerCase().endsWith('.apk')
+      && isTrustedUpdateUrl(asset.browser_download_url, 'download');
+  });
   return apkAsset?.browser_download_url || null;
 };
 
@@ -113,6 +165,11 @@ export const downloadApk = async (
   onProgress?: DownloadApkProgressCallback
 ): Promise<string | null> => {
   try {
+    if (!isTrustedUpdateUrl(url, 'download')) {
+      logUpdateError('[Update] Refusing untrusted APK download URL', { url });
+      return null;
+    }
+
     if (!FileSystem.cacheDirectory) {
       logUpdateError('[Update] Cache directory unavailable for APK download', null);
       return null;
@@ -193,9 +250,21 @@ export const updateService = {
       }
 
       const release: GitHubRelease = await response.json();
-      
-      // Extract version from tag (remove 'v' prefix if present)
-      const latestVersion = release.tag_name.replace(/^v/, '');
+      const latestVersion = normalizeReleaseVersion(release.tag_name);
+      if (!latestVersion) {
+        logUpdateError('[Update] Ignoring release with invalid semantic version tag', {
+          tag: release.tag_name,
+        });
+        return null;
+      }
+
+      const releasePageUrl = getTrustedReleasePageUrl(release.html_url);
+      if (!releasePageUrl) {
+        logUpdateError('[Update] Ignoring release with untrusted page URL', {
+          html_url: release.html_url,
+        });
+        return null;
+      }
       
       // Cache the latest version — errors are non-fatal
       try {
@@ -224,7 +293,7 @@ export const updateService = {
         currentVersion,
         isUpdateAvailable: true,
         isMandatory,
-        releasePageUrl: release.html_url,
+        releasePageUrl,
         apkDownloadUrl,
         releaseNotes: release.body || '',
       };

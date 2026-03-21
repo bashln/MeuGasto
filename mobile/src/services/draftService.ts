@@ -1,7 +1,6 @@
 import { getSupabaseClient } from '../lib/supabaseClient';
 import { Draft, DraftFilter, CreateDraftRequest, UpdateDraftRequest } from '../types';
 import { getCurrentUserId } from './authService';
-import { purchaseService } from './purchaseService';
 import { DraftItem, parseContent, serializeContent } from './draftContent';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -184,20 +183,21 @@ export const draftService = {
   },
 
   async convertDraftToPurchase(id: number): Promise<void> {
-    const draft = await this.getDraftById(id);
+    const supabase = getClient();
+    const purchaseDate = new Date().toISOString().split('T')[0];
 
-    await purchaseService.createManualPurchase({
-      supermarketId: draft.supermarket?.id,
-      date: new Date().toISOString().split('T')[0],
-      totalPrice: draft.totalPrice,
-      items: (draft.items || []).map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        unit: item.unit,
-        price: item.price,
-      })),
+    const { data, error } = await supabase.rpc('convert_draft_to_purchase', {
+      p_draft_id: id,
+      p_purchase_date: purchaseDate,
     });
 
-    await this.deleteDraft(id);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const purchaseId = data?.[0]?.purchase_id;
+    if (!purchaseId) {
+      throw new Error('Não foi possível converter o rascunho em compra');
+    }
   },
 };

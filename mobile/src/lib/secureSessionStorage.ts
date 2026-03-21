@@ -12,6 +12,16 @@ const inMemoryStore: Record<string, string> = {};
 
 let useInMemory = false;
 
+const logSessionStorageFallback = (message: string, error: unknown): void => {
+  if (__DEV__) {
+    console.warn(message, error);
+  }
+};
+
+const SECURE_STORE_OPTIONS = {
+  keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+};
+
 const getItem = async (key: string): Promise<string | null> => {
   if (useInMemory) {
     return inMemoryStore[key] || null;
@@ -19,7 +29,7 @@ const getItem = async (key: string): Promise<string | null> => {
   try {
     return await SecureStore.getItemAsync(key);
   } catch (error) {
-    console.warn('[SecureSessionStorage] SecureStore getItem failed, using in-memory:', error);
+    logSessionStorageFallback('[SecureSessionStorage] SecureStore getItem failed, using in-memory:', error);
     useInMemory = true;
     return inMemoryStore[key] || null;
   }
@@ -31,9 +41,9 @@ const setItem = async (key: string, value: string): Promise<void> => {
     return;
   }
   try {
-    await SecureStore.setItemAsync(key, value);
+    await SecureStore.setItemAsync(key, value, SECURE_STORE_OPTIONS);
   } catch (error) {
-    console.warn('[SecureSessionStorage] SecureStore setItem failed, using in-memory:', error);
+    logSessionStorageFallback('[SecureSessionStorage] SecureStore setItem failed, using in-memory:', error);
     useInMemory = true;
     inMemoryStore[key] = value;
   }
@@ -47,7 +57,7 @@ const removeItem = async (key: string): Promise<void> => {
   try {
     await SecureStore.deleteItemAsync(key);
   } catch (error) {
-    console.warn('[SecureSessionStorage] SecureStore removeItem failed, using in-memory:', error);
+    logSessionStorageFallback('[SecureSessionStorage] SecureStore removeItem failed, using in-memory:', error);
     useInMemory = true;
     delete inMemoryStore[key];
   }

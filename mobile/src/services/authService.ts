@@ -26,6 +26,28 @@ interface RegisterRequest {
 
 const NON_JSON_RESPONSE_ERROR = 'JSON Parse error: Unexpected character: <';
 
+const getConfiguredAuthRedirectUrl = (): string | undefined => {
+  const rawValue = process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL?.trim();
+  if (!rawValue) {
+    return undefined;
+  }
+
+  try {
+    const parsedUrl = new URL(rawValue);
+    if (parsedUrl.protocol !== 'https:') {
+      throw new Error('redirect_must_use_https');
+    }
+
+    return parsedUrl.toString();
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[Auth] Ignoring invalid EXPO_PUBLIC_AUTH_REDIRECT_URL; expected https:// URL', error);
+    }
+
+    return undefined;
+  }
+};
+
 const getSupabaseConfigurationErrorMessage = (): string => {
   const config = getResolvedSupabaseConfig();
 
@@ -41,6 +63,24 @@ const getSupabaseConfigurationErrorMessage = (): string => {
   }
 };
 
+const getPreferredUserName = (options: {
+  profileName?: string | null;
+  metadataName?: string | null;
+  email?: string | null;
+}): string => {
+  const profileName = options.profileName?.trim();
+  if (profileName) {
+    return profileName;
+  }
+
+  const metadataName = options.metadataName?.trim();
+  if (metadataName) {
+    return metadataName;
+  }
+
+  return options.email?.split('@')[0] || '';
+};
+
 const getClient = (): SupabaseClient => {
   const client = getSupabaseClient();
   if (!client) {
@@ -54,8 +94,14 @@ const normalizeAuthError = (error: unknown, action: 'login' | 'register'): Error
 
   if (message.includes(NON_JSON_RESPONSE_ERROR)) {
     if (__DEV__) {
+      const config = getResolvedSupabaseConfig();
       console.error(`Supabase ${action} returned non-JSON response`, {
-        config: getResolvedSupabaseConfig(),
+        config: {
+          source: config.source,
+          error: config.error,
+          url: config.url ? 'defined' : 'undefined',
+          anonKey: config.anonKey ? 'defined' : 'undefined',
+        },
         supabaseUrl,
         authEndpoint: `${supabaseUrl}/auth/v1/token?grant_type=password`,
         hint: 'Check EXPO_PUBLIC_SUPABASE_URL and whether the Android build is using the latest env values.',
@@ -87,6 +133,7 @@ export const authService = {
     const supabase = getClient();
 
     try {
+      const authRedirectUrl = getConfiguredAuthRedirectUrl();
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -94,20 +141,12 @@ export const authService = {
           data: {
             name: userData.name,
           },
-          emailRedirectTo: 'com.prati.meugasto://auth/callback',
+          ...(authRedirectUrl ? { emailRedirectTo: authRedirectUrl } : {}),
         },
       });
 
       if (error) {
         throw new Error(error.message);
-      }
-
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          name: userData.name,
-          role: 'user',
-        });
       }
 
       return {
@@ -141,7 +180,10 @@ export const authService = {
         throw new Error(error.message);
       }
 
-      let userName = credentials.email.split('@')[0];
+      let userName = getPreferredUserName({
+        metadataName: data.user?.user_metadata?.name,
+        email: data.user?.email || credentials.email,
+      });
 
       if (data.user) {
         const { data: profile } = await supabase
@@ -150,15 +192,11 @@ export const authService = {
           .eq('id', data.user.id)
           .single();
 
-        if (profile?.name) {
-          userName = profile.name;
-        } else {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            name: userName,
-            role: 'user',
-          });
-        }
+        userName = getPreferredUserName({
+          profileName: profile?.name,
+          metadataName: data.user.user_metadata?.name,
+          email: data.user.email,
+        });
       }
 
       return {
@@ -205,7 +243,11 @@ export const authService = {
       user: {
         id: session.user.id,
         email: session.user.email || '',
-        name: profile?.name || session.user.email?.split('@')[0] || '',
+        name: getPreferredUserName({
+          profileName: profile?.name,
+          metadataName: session.user.user_metadata?.name,
+          email: session.user.email,
+        }),
         role: profile?.role || 'user',
       },
     };
@@ -231,9 +273,11 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<void> {
     const supabase = getClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'com.prati.meugasto://auth/callback',
-    });
+    const authRedirectUrl = getConfiguredAuthRedirectUrl();
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email,
+      authRedirectUrl ? { redirectTo: authRedirectUrl } : undefined,
+    );
     if (error) {
       throw error;
     }

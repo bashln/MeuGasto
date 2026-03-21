@@ -74,6 +74,37 @@ describe('purchaseService', () => {
     ).rejects.toThrow(/N[aã]o foi poss[ií]vel criar a compra manual/i);
   });
 
+  it('recalcula o total antes de chamar a RPC quando existem itens', async () => {
+    mockRpc.mockResolvedValue({ data: [{ purchase_id: 10 }], error: null });
+    mockFrom.mockReturnValue(
+      makeChain({
+        data: {
+          id: 10,
+          supermarket: { id: 1, name: 'Mercado' },
+          access_key: null,
+          date: '2026-02-02',
+          total_price: '12.00',
+          manual: true,
+          items: [{ id: 1, name: 'Cafe', quantity: '2', unit: 'UN', price: '6.00' }],
+          created_at: '2026-02-02T00:00:00.000Z',
+          updated_at: '2026-02-02T00:00:00.000Z',
+        },
+        error: null,
+      })
+    );
+
+    await purchaseService.createManualPurchase({
+      date: '2026-02-02',
+      totalPrice: 999,
+      items: [{ name: 'Cafe', quantity: 2, unit: 'UN', price: 6 }],
+    });
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_purchase_with_items',
+      expect.objectContaining({ p_total_price: 12 })
+    );
+  });
+
   it('bloqueia update de compra importada', async () => {
     const selectChain = makeChain({
       data: { manual: false },
