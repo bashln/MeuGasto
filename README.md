@@ -7,7 +7,7 @@ Arquitetura preparada para evolução para modelo SaaS.
 
 ## Download
 
-Baixe a versão mais recente diretamente na seção de [Releases](https://github.com/bashln/MeuGasto/releases).
+Baixe a versão mais recente diretamente na seção de [Releases](https://github.com/paesmont/MeuGasto/releases).
 
 Os APKs são gerados automaticamente via GitHub Actions a cada nova tag de versão (`v*`).
 
