@@ -10,7 +10,7 @@ interface DraftCardProps {
   onDelete?: (draft: Draft) => void;
 }
 
-export const DraftCard: React.FC<DraftCardProps> = ({ draft, onPress, onDelete }) => {
+export const DraftCard: React.FC<DraftCardProps> = React.memo(({ draft, onPress, onDelete }) => {
   const theme = useTheme();
 
   return (
@@ -53,7 +53,9 @@ export const DraftCard: React.FC<DraftCardProps> = ({ draft, onPress, onDelete }
       </Card>
     </TouchableOpacity>
   );
-};
+});
+
+DraftCard.displayName = 'DraftCard';
 
 const styles = StyleSheet.create({
   card: {

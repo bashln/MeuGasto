@@ -235,3 +235,24 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 - Fluxo principal do app
 - Invariantes arquiteturais observáveis
 - Tipos/interfaces e tecnologias observáveis
+
+## Notas Técnicas (Explore 29/03)
+
+### Áreas de Atenção Identificadas
+
+**Performance:**
+- Listas sem memoização (`PurchaseCard`, `DraftCard`)
+- Filtros recalculados a cada render (`PurchasesScreen`)
+- Múltiplas chamadas paralelas no dashboard (5 requests)
+
+**Manutenibilidade:**
+- Código duplicado entre contexts (paginação)
+- Pattern repetido de error handling (39+ ocorrências)
+- Funções complexas em services (N+1 queries)
+
+**UX:**
+- Sem debounce em buscas
+- Sem retry automático em falhas de rede
+- Sem suporte offline
+
+Ver `memory/architecture.md` para plano de melhorias detalhado por fases.

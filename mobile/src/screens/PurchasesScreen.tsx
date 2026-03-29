@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text as RNText, Alert, TextInput, ActivityIndicator } from 'react-native';
 import { FAB } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { Header, PurchaseCard, Loading, ErrorMessage } from '../components';
 import { Purchase, PurchaseFilter } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { formatMoney } from '../utils';
+import { formatMoney, getErrorMessage } from '../utils';
 import { colors } from '../theme/colors';
 
 type PurchasesScreenProps = {
@@ -17,10 +17,20 @@ type PurchasesScreenProps = {
 export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) => {
   const { purchases, isLoading, isLoadingMore, hasMore, page, error, fetchPurchases, loadMorePurchases, deletePurchase } = usePurchases();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
   const PAGE_SIZE = 20;
+
+  // Debounce para busca (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const buildServerFilter = useCallback((pageNumber = 0): PurchaseFilter => {
     const isManual = filterType === 'all' ? undefined : filterType === 'manual';
@@ -77,7 +87,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
               await deletePurchase(purchase.id);
               await loadPurchases(buildServerFilter(0));
             } catch (err) {
-              console.warn('Erro ao deletar:', err);
+              console.warn('Erro ao deletar:', getErrorMessage(err, 'Falha ao excluir compra'));
             }
           },
         },
@@ -94,16 +104,18 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
     navigation.navigate('PurchaseEdit', { purchaseId: purchase.id });
   };
 
-  const filteredPurchases = (purchases || []).filter((purchase) => {
-    const matchesSearch =
-      purchase.supermarket?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      purchase.accessKey?.includes(searchQuery);
+  const filteredPurchases = useMemo(() => {
+    return (purchases || []).filter((purchase) => {
+      const matchesSearch =
+        purchase.supermarket?.name?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        purchase.accessKey?.includes(debouncedSearchQuery);
     
-    if (filterType === 'all') return matchesSearch;
-    if (filterType === 'manual') return matchesSearch && purchase.isManual;
-    if (filterType === 'nfce') return matchesSearch && !purchase.isManual;
-    return matchesSearch;
-  });
+      if (filterType === 'all') return matchesSearch;
+      if (filterType === 'manual') return matchesSearch && purchase.isManual;
+      if (filterType === 'nfce') return matchesSearch && !purchase.isManual;
+      return matchesSearch;
+    });
+  }, [purchases, debouncedSearchQuery, filterType]);
 
   // Métricas
   const totalPurchases = purchases?.length || 0;

@@ -12,7 +12,7 @@ interface PurchaseCardProps {
   onEdit?: (purchase: Purchase) => void;
 }
 
-export const PurchaseCard: React.FC<PurchaseCardProps> = ({ purchase, onPress, onDelete, onEdit }) => {
+export const PurchaseCard: React.FC<PurchaseCardProps> = React.memo(({ purchase, onPress, onDelete, onEdit }) => {
   const itemCount = purchase.products?.length ?? 0;
 
   return (
@@ -67,7 +67,9 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({ purchase, onPress, o
       </View>
     </TouchableOpacity>
   );
-};
+});
+
+PurchaseCard.displayName = 'PurchaseCard';
 
 const styles = StyleSheet.create({
   card: {
