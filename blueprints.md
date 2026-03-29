@@ -236,23 +236,29 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 - Invariantes arquiteturais observáveis
 - Tipos/interfaces e tecnologias observáveis
 
-## Notas Técnicas (Explore 29/03)
+## Notas Técnicas (Explore 29/03 + Implementações 30/03)
 
-### Áreas de Atenção Identificadas
+### Melhorias Implementadas (Fase 1 - 30/03)
+✅ **Performance Imediata:**
+- React.memo nos cards (PurchaseCard, DraftCard)
+- useMemo para filtros de listas
+- Debounce 300ms em buscas
+- Utilitário getErrorMessage() com 8 testes
 
-**Performance:**
-- Listas sem memoização (`PurchaseCard`, `DraftCard`)
-- Filtros recalculados a cada render (`PurchasesScreen`)
-- Múltiplas chamadas paralelas no dashboard (5 requests)
+### Áreas de Atenção Pendentes
 
-**Manutenibilidade:**
-- Código duplicado entre contexts (paginação)
-- Pattern repetido de error handling (39+ ocorrências)
-- Funções complexas em services (N+1 queries)
+**Performance (Fases 2-3):**
+- Múltiplas chamadas paralelas no dashboard (5 requests) - Fase 3
+- N+1 queries em relatórios - Fase 3
 
-**UX:**
-- Sem debounce em buscas
-- Sem retry automático em falhas de rede
-- Sem suporte offline
+**Funcionalidade (Fase 2):**
+- Updates otimistas para mutações
+- Retry automático com exponential backoff
+- Editar items individuais da compra
 
-Ver `memory/architecture.md` para plano de melhorias detalhado por fases.
+**Arquitetura (Fase 3):**
+- Offline support (Queue + cache)
+- Server-side search para grandes datasets
+- Hook de paginação genérico (eliminar duplicação)
+
+Ver `memory/architecture.md` para plano detalhado.

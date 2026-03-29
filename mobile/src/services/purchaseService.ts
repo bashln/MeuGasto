@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../lib/supabaseClient';
 import { Purchase, PurchaseFilter, PageResponse } from '../types';
 import { getCurrentUserId } from './authService';
+import { withRetry } from '../utils/retryUtils';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 const getClient = (): SupabaseClient => {
@@ -46,51 +47,105 @@ const calculateItemsTotal = (
 
 export const purchaseService = {
   async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
-    const userId = await getCurrentUserId();
-    const page = filter?.page ?? 0;
-    const size = filter?.size ?? 20;
-    const from = page * size;
-    const to = from + size - 1;
-    
-    const supabase = getClient();
-    
-    let query = supabase
-      .from('purchases')
-      .select(`
-        *,
-        supermarket:supermarkets(*),
-        items(*)
-      `, { count: 'exact' })
-      .eq('user_id', userId);
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
+      const page = filter?.page ?? 0;
+      const size = filter?.size ?? 20;
+      const from = page * size;
+      const to = from + size - 1;
+      
+      const supabase = getClient();
+      
+      let query = supabase
+        .from('purchases')
+        .select(`
+          *,
+          supermarket:supermarkets(*),
+          items(*)
+        `, { count: 'exact' })
+        .eq('user_id', userId);
 
-    if (filter?.supermarketId) {
-      query = query.eq('supermarket_id', filter.supermarketId);
-    }
-    if (filter?.isManual !== undefined) {
-      query = query.eq('manual', filter.isManual);
-    }
-    if (filter?.startDate) {
-      query = query.gte('date', filter.startDate);
-    }
-    if (filter?.endDate) {
-      query = query.lte('date', filter.endDate);
-    }
-    if (filter?.minPrice !== undefined) {
-      query = query.gte('total_price', filter.minPrice);
-    }
-    if (filter?.maxPrice !== undefined) {
-      query = query.lte('total_price', filter.maxPrice);
-    }
+      if (filter?.supermarketId) {
+        query = query.eq('supermarket_id', filter.supermarketId);
+      }
+      if (filter?.isManual !== undefined) {
+        query = query.eq('manual', filter.isManual);
+      }
+      if (filter?.startDate) {
+        query = query.gte('date', filter.startDate);
+      }
+      if (filter?.endDate) {
+        query = query.lte('date', filter.endDate);
+      }
+      if (filter?.minPrice !== undefined) {
+        query = query.gte('total_price', filter.minPrice);
+      }
+      if (filter?.maxPrice !== undefined) {
+        query = query.lte('total_price', filter.maxPrice);
+      }
 
-    const { data: purchases, error, count } = await query
-      .order('date', { ascending: false })
-      .range(from, to);
+      const { data: purchases, error, count } = await query
+        .order('date', { ascending: false })
+        .range(from, to);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    const purchaseData = (purchases || []).map((purchase) => {
+      const purchaseData = (purchases || []).map((purchase) => {
+        return {
+          id: purchase.id,
+          supermarket: purchase.supermarket,
+          accessKey: purchase.access_key,
+          date: purchase.date,
+          totalPrice: parseFloat(purchase.total_price) || 0,
+          isManual: purchase.manual,
+          products: mapPurchaseItems(purchase.items),
+          createdAt: purchase.created_at,
+          updatedAt: purchase.updated_at,
+        };
+      });
+
+      const totalElements = count || 0;
+      const totalPages = Math.ceil(totalElements / size);
+
+      return {
+        data: purchaseData,
+        page: {
+          pageNumber: page,
+          pageSize: size,
+          totalElements,
+          totalPages,
+          last: page >= totalPages - 1,
+        },
+      };
+    }, { maxRetries: 3, initialDelay: 500 });
+  },
+
+  async getPurchaseById(id: number): Promise<Purchase> {
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
+      const supabase = getClient();
+
+      const { data: purchase, error } = await supabase
+        .from('purchases')
+        .select(`
+          *,
+          supermarket:supermarkets(*),
+          items(*)
+        `)
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!purchase) {
+        throw new Error('Compra não encontrada');
+      }
+
       return {
         id: purchase.id,
         supermarket: purchase.supermarket,
@@ -102,54 +157,7 @@ export const purchaseService = {
         createdAt: purchase.created_at,
         updatedAt: purchase.updated_at,
       };
-    });
-
-    const totalElements = count || 0;
-    const totalPages = Math.ceil(totalElements / size);
-
-    return {
-      data: purchaseData,
-      page: {
-        pageNumber: page,
-        pageSize: size,
-        totalElements,
-        totalPages,
-        last: totalPages === 0 ? true : page >= totalPages - 1,
-      },
-    };
-  },
-
-  async getPurchaseById(id: number): Promise<Purchase> {
-    const userId = await getCurrentUserId();
-
-    const supabase = getClient();
-
-    const { data: purchase, error } = await supabase
-      .from('purchases')
-      .select(`
-        *,
-        supermarket:supermarkets(*),
-        items(*)
-      `)
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return {
-      id: purchase.id,
-      supermarket: purchase.supermarket,
-      accessKey: purchase.access_key,
-      date: purchase.date,
-      totalPrice: parseFloat(purchase.total_price) || 0,
-      isManual: purchase.manual,
-      products: mapPurchaseItems(purchase.items),
-      createdAt: purchase.created_at,
-      updatedAt: purchase.updated_at,
-    };
+    }, { maxRetries: 3, initialDelay: 500 });
   },
 
   async createManualPurchase(purchase: {
@@ -205,55 +213,131 @@ export const purchaseService = {
       supermarketId: number | null;
     }>
   ): Promise<Purchase> {
-    const userId = await getCurrentUserId();
-    const supabase = getClient();
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
+      const supabase = getClient();
 
-    const { data: existingPurchase, error: existingPurchaseError } = await supabase
-      .from('purchases')
-      .select('manual')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .single();
+      const { data: existingPurchase, error: existingPurchaseError } = await supabase
+        .from('purchases')
+        .select('manual')
+        .eq('id', id)
+        .eq('user_id', userId)
+        .single();
 
-    if (existingPurchaseError) {
-      throw new Error(existingPurchaseError.message);
-    }
+      if (existingPurchaseError) {
+        throw new Error(existingPurchaseError.message);
+      }
 
-    if (!existingPurchase?.manual) {
-      throw new Error('Compras importadas via NFC-e não podem ser alteradas.');
-    }
+      if (!existingPurchase?.manual) {
+        throw new Error('Compras importadas via NFC-e não podem ser alteradas.');
+      }
 
-    const updateData: PurchaseUpdateData = { updated_at: new Date().toISOString() };
-    if (updates.date) updateData.date = updates.date;
-    if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
-    if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
+      const updateData: PurchaseUpdateData = { updated_at: new Date().toISOString() };
+      if (updates.date) updateData.date = updates.date;
+      if (updates.totalPrice !== undefined) updateData.total_price = updates.totalPrice;
+      if (updates.supermarketId !== undefined) updateData.supermarket_id = updates.supermarketId;
 
-    const { error } = await supabase
-      .from('purchases')
-      .update(updateData)
-      .eq('id', id)
-      .eq('user_id', userId);
+      const { error } = await supabase
+        .from('purchases')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', userId);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    return this.getPurchaseById(id);
+      return this.getPurchaseById(id);
+    }, { maxRetries: 2, initialDelay: 300 });
   },
 
   async deletePurchase(id: number): Promise<void> {
-    const userId = await getCurrentUserId();
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
 
-    const supabase = getClient();
+      const supabase = getClient();
 
-    const { error } = await supabase
-      .from('purchases')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId);
+      const { error } = await supabase
+        .from('purchases')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        throw new Error(error.message);
+      }
+    }, { maxRetries: 2, initialDelay: 300 });
+  },
+
+  async updatePurchaseItems(
+    purchaseId: number,
+    items: Array<{ id?: number; name: string; quantity: number; unit: string; price: number }>
+  ): Promise<Purchase> {
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
+      const supabase = getClient();
+
+      // Verifica se a compra existe e pertence ao usuário
+      const { data: purchase, error: purchaseError } = await supabase
+        .from('purchases')
+        .select('id, manual')
+        .eq('id', purchaseId)
+        .eq('user_id', userId)
+        .single();
+
+      if (purchaseError || !purchase) {
+        throw new Error('Compra não encontrada');
+      }
+
+      if (!purchase.manual) {
+        throw new Error('Compras importadas via NFC-e não podem ter itens alterados.');
+      }
+
+      // Deleta items existentes
+      const { error: deleteError } = await supabase
+        .from('items')
+        .delete()
+        .eq('purchase_id', purchaseId);
+
+      if (deleteError) {
+        throw new Error(`Erro ao remover itens antigos: ${deleteError.message}`);
+      }
+
+      // Insere novos items
+      const itemsToInsert = items.map(item => ({
+        purchase_id: purchaseId,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('items')
+        .insert(itemsToInsert);
+
+      if (insertError) {
+        throw new Error(`Erro ao inserir novos itens: ${insertError.message}`);
+      }
+
+      // Recalcula o total
+      const newTotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+
+      // Atualiza o total da compra
+      const { error: updateError } = await supabase
+        .from('purchases')
+        .update({ 
+          total_price: newTotal,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', purchaseId)
+        .eq('user_id', userId);
+
+      if (updateError) {
+        throw new Error(`Erro ao atualizar total: ${updateError.message}`);
+      }
+
+      return this.getPurchaseById(purchaseId);
+    }, { maxRetries: 2, initialDelay: 300 });
   },
 };

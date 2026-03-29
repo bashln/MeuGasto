@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useCallback } from 'react';
 import { draftService } from '../services';
 import { Draft, DraftFilter, PageResponse, CreateDraftRequest, UpdateDraftRequest } from '../types';
+import { usePagination } from '../hooks/usePagination';
 
 interface DraftContextType {
   drafts: Draft[];
@@ -21,61 +22,38 @@ interface DraftContextType {
 const DraftContext = createContext<DraftContextType | undefined>(undefined);
 
 interface DraftProviderProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
+const PAGE_SIZE = 20;
+
 export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState<PageResponse<Draft>['page'] | null>(null);
+  const [paginationState, paginationActions] = usePagination<Draft>(PAGE_SIZE);
 
   const fetchDrafts = useCallback(async (filter?: DraftFilter) => {
-    const isLoadMore = (filter?.page ?? 0) > 0;
-
-    if (isLoadMore) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoading(true);
-    }
-
-    setError(null);
-
-    try {
-      const response = await draftService.getDrafts(filter);
-
-      setDrafts((prev) => {
-        if (!isLoadMore) {
-          return response.data;
-        }
-
-        const merged = [...prev, ...response.data];
-        return merged.filter((draft, index, array) => array.findIndex((d) => d.id === draft.id) === index);
-      });
-
-      setPage(response.page);
-      setHasMore(!response.page.last);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar rascunhos';
-      setError(message);
-    } finally {
-      if (isLoadMore) {
-        setIsLoadingMore(false);
-      } else {
-        setIsLoading(false);
-      }
-    }
-  }, []);
+    const page = filter?.page ?? 0;
+    
+    await paginationActions.fetchData(
+      async (p, size) => {
+        const response = await draftService.getDrafts({
+          ...filter,
+          page: p,
+          size,
+        });
+        return response;
+      },
+      page
+    );
+  }, [paginationActions]);
 
   const loadMoreDrafts = useCallback(async (filter?: DraftFilter) => {
-    if (isLoadingMore || !hasMore) {
+    if (paginationState.isLoadingMore || !paginationState.hasMore) {
       return;
     }
 
-    await fetchDrafts(filter);
-  }, [fetchDrafts, hasMore, isLoadingMore]);
+    const nextPage = (paginationState.page?.pageNumber ?? 0) + 1;
+    await fetchDrafts({ ...filter, page: nextPage });
+  }, [fetchDrafts, paginationState.hasMore, paginationState.isLoadingMore, paginationState.page?.pageNumber]);
 
   const getDraft = useCallback(async (id: number): Promise<Draft> => {
     return draftService.getDraftById(id);
@@ -83,35 +61,80 @@ export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
 
   const createDraft = useCallback(async (data: CreateDraftRequest): Promise<Draft> => {
     const draft = await draftService.createDraft(data);
-    await fetchDrafts();
+    // Update otimista: adiciona ao início da lista
+    paginationActions.addItem(draft);
     return draft;
-  }, [fetchDrafts]);
+  }, [paginationActions]);
 
   const updateDraft = useCallback(async (id: number, data: UpdateDraftRequest): Promise<Draft> => {
-    const draft = await draftService.updateDraft(id, data);
-    await fetchDrafts();
-    return draft;
-  }, [fetchDrafts]);
+    // Update otimista: atualiza localmente primeiro
+    const previousDraft = paginationState.data.find(d => d.id === id);
+    
+    if (previousDraft) {
+      paginationActions.updateItem(id, (draft) => ({
+        ...draft,
+        ...data,
+        content: data.content ?? draft.content,
+        items: data.items ?? draft.items,
+        supermarket: data.supermarketId !== undefined && draft.supermarket
+          ? { ...draft.supermarket, id: data.supermarketId }
+          : draft.supermarket,
+      }));
+    }
+
+    try {
+      const draft = await draftService.updateDraft(id, data);
+      // Confirma o update com dados do servidor
+      paginationActions.updateItem(id, () => draft);
+      return draft;
+    } catch (error) {
+      // Rollback em caso de erro
+      if (previousDraft) {
+        paginationActions.updateItem(id, () => previousDraft);
+      }
+      throw error;
+    }
+  }, [paginationActions, paginationState.data]);
 
   const deleteDraft = useCallback(async (id: number): Promise<void> => {
-    await draftService.deleteDraft(id);
-    await fetchDrafts();
-  }, [fetchDrafts]);
+    // Update otimista: remove localmente primeiro
+    paginationActions.removeItem(id, (draft) => draft.id);
+
+    try {
+      await draftService.deleteDraft(id);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[DraftContext] Erro ao deletar, item removido localmente:', error);
+      }
+      throw error;
+    }
+  }, [paginationActions]);
 
   const convertToPurchase = useCallback(async (id: number): Promise<void> => {
-    await draftService.convertDraftToPurchase(id);
-    await fetchDrafts();
-  }, [fetchDrafts]);
+    // Update otimista: remove rascunho (vai virar compra)
+    paginationActions.removeItem(id, (draft) => draft.id);
+
+    try {
+      await draftService.convertDraftToPurchase(id);
+    } catch (error) {
+      // Recarrega em caso de erro para restaurar estado
+      if (__DEV__) {
+        console.warn('[DraftContext] Erro ao converter, recarregando lista:', error);
+      }
+      await fetchDrafts();
+      throw error;
+    }
+  }, [fetchDrafts, paginationActions]);
 
   return (
     <DraftContext.Provider
       value={{
-        drafts,
-        isLoading,
-        isLoadingMore,
-        hasMore,
-        error,
-        page,
+        drafts: paginationState.data,
+        isLoading: paginationState.isLoading,
+        isLoadingMore: paginationState.isLoadingMore,
+        hasMore: paginationState.hasMore,
+        error: paginationState.error,
+        page: paginationState.page,
         fetchDrafts,
         loadMoreDrafts,
         getDraft,
