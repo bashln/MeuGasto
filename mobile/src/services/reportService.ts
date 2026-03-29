@@ -102,6 +102,107 @@ export const reportService = {
     };
   },
 
+  async getUserSavings(
+    month?: number,
+    year?: number
+  ): Promise<number> {
+    const userId = await getCurrentUserId();
+    const supabase = getClient();
+    const { startDate, endDate } = buildDateRange(month, year);
+
+    try {
+      // Primeiro, buscar IDs das compras do período atual
+      const { data: currentPurchases, error: purchasesError } = await supabase
+        .from('purchases')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (purchasesError || !currentPurchases || currentPurchases.length === 0) {
+        return 0;
+      }
+
+      const currentPurchaseIds = currentPurchases.map(p => p.id);
+
+      // Buscar items das compras atuais
+      const { data: currentItems, error: currentError } = await supabase
+        .from('items')
+        .select('name, price, quantity, purchase_id')
+        .in('purchase_id', currentPurchaseIds);
+
+      if (currentError || !currentItems || currentItems.length === 0) {
+        return 0;
+      }
+
+      // Buscar IDs das compras históricas (antes do período atual)
+      const { data: historicalPurchases, error: histPurchasesError } = await supabase
+        .from('purchases')
+        .select('id')
+        .eq('user_id', userId)
+        .lt('date', startDate);
+
+      if (histPurchasesError || !historicalPurchases || historicalPurchases.length === 0) {
+        return 0;
+      }
+
+      const historicalPurchaseIds = historicalPurchases.map(p => p.id);
+
+      // Buscar nomes únicos dos items atuais
+      const itemNames = [...new Set(currentItems.map(item => item.name))];
+
+      // Buscar items históricos com mesmo nome
+      const { data: historicalItems, error: historicalError } = await supabase
+        .from('items')
+        .select('name, price')
+        .in('name', itemNames)
+        .in('purchase_id', historicalPurchaseIds);
+
+      if (historicalError || !historicalItems || historicalItems.length === 0) {
+        return 0;
+      }
+
+      // Calcular média por item
+      const avgPrices: Record<string, { sum: number; count: number }> = {};
+      historicalItems.forEach(item => {
+        if (!avgPrices[item.name]) {
+          avgPrices[item.name] = { sum: 0, count: 0 };
+        }
+        const priceValue = parseFloat(item.price);
+        if (!Number.isNaN(priceValue)) {
+          avgPrices[item.name].sum += priceValue;
+          avgPrices[item.name].count += 1;
+        }
+      });
+
+      // Calcular economia total
+      let totalSavings = 0;
+      
+      currentItems.forEach(currentItem => {
+        const itemAvg = avgPrices[currentItem.name];
+        if (itemAvg && itemAvg.count >= 2) {  // Pelo menos 2 compras anteriores
+          const avgPrice = itemAvg.sum / itemAvg.count;
+          const currentPrice = parseFloat(currentItem.price);
+          const quantity = parseFloat(currentItem.quantity);
+          
+          if (!Number.isNaN(currentPrice) && !Number.isNaN(quantity)) {
+            const savingsPerItem = (avgPrice - currentPrice) * quantity;
+            if (savingsPerItem > 0) {
+              totalSavings += savingsPerItem;
+            }
+          }
+        }
+      });
+
+      return totalSavings;
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[ReportService] Error calculating savings:', error);
+      }
+      return 0;
+    }
+  },
+
   async getMonthlyExpenses(
     yearOrStartDate: number | string,
     endDate?: string

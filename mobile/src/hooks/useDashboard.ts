@@ -42,7 +42,7 @@ export const useDashboard = (): UseDashboardResult => {
     const { startDate, endDate } = getMonthRange(selectedMonth, selectedYear);
     
     try {
-      const [statsData, itemsData, marketsData, monthlyData, previousYearMonthlyData] = await Promise.all([
+      const [statsData, itemsData, marketsData, monthlyData, previousYearMonthlyData, savingsData] = await Promise.all([
         reportService.getDashboardStats(selectedMonth, selectedYear),
         reportService.getTopItems(5, startDate, endDate),
         reportService.getExpensesBySupermarket(startDate, endDate),
@@ -50,8 +50,12 @@ export const useDashboard = (): UseDashboardResult => {
         selectedMonth === 1
           ? reportService.getMonthlyExpenses(selectedYear - 1)
           : Promise.resolve([] as Array<{ month: number; total: number }>),
+        reportService.getUserSavings(selectedMonth, selectedYear),
       ]);
-      setStats(statsData);
+      setStats({
+        ...statsData,
+        savings: savingsData,
+      });
       setTopItems(itemsData);
       setSupermarketData(marketsData);
       setMonthlyTotals(monthlyData);

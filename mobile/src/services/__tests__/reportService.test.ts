@@ -224,4 +224,202 @@ describe('reportService', () => {
       },
     ]);
   });
+
+  describe('getUserSavings', () => {
+    it('calcula economia quando preco atual e menor que media historica', async () => {
+      // Mock purchases do período atual
+      const currentPurchasesResponse = {
+        data: [{ id: 1 }, { id: 2 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+      };
+
+      // Mock items do período atual (preço atual = 8, quantidade = 2)
+      const currentItemsResponse = {
+        data: [
+          { name: 'Arroz', price: '8.00', quantity: '2', purchase_id: 1 },
+          { name: 'Feijao', price: '10.00', quantity: '1', purchase_id: 2 },
+        ],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+      };
+
+      // Mock purchases históricos
+      const historicalPurchasesResponse = {
+        data: [{ id: 10 }, { id: 11 }, { id: 12 }, { id: 13 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        lt: jest.fn().mockReturnThis(),
+      };
+
+      // Mock items históricos (preço médio = 10)
+      const historicalItemsResponse = {
+        data: [
+          { name: 'Arroz', price: '10.00' },
+          { name: 'Arroz', price: '10.00' },
+          { name: 'Feijao', price: '12.00' },
+          { name: 'Feijao', price: '12.00' },
+        ],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+      };
+
+      let callCount = 0;
+      mockFrom.mockImplementation((table: string) => {
+        callCount++;
+        if (table === 'purchases') {
+          // Chamada 1 e 3 são para purchases (atual e histórico)
+          if (callCount === 1) {
+            return currentPurchasesResponse;
+          }
+          return historicalPurchasesResponse;
+        }
+        // Chamada 2 e 4 são para items (atual e histórico)
+        if (callCount === 2) {
+          return currentItemsResponse;
+        }
+        return historicalItemsResponse;
+      });
+
+      const result = await reportService.getUserSavings(1, 2024);
+
+      // Arroz: (10 - 8) * 2 = 4.00 de economia
+      // Feijao: (12 - 10) * 1 = 2.00 de economia
+      // Total: 6.00
+      expect(result).toBe(6);
+    });
+
+    it('retorna 0 quando nao ha compras no periodo', async () => {
+      const emptyResponse = {
+        data: [],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+      };
+
+      mockFrom.mockImplementation(() => emptyResponse);
+
+      const result = await reportService.getUserSavings(1, 2024);
+
+      expect(result).toBe(0);
+    });
+
+    it('retorna 0 quando preco atual e maior que media (sem economia negativa)', async () => {
+      const currentPurchasesResponse = {
+        data: [{ id: 1 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+      };
+
+      // Preço atual = 15, maior que média histórica de 10
+      const currentItemsResponse = {
+        data: [{ name: 'Arroz', price: '15.00', quantity: '1', purchase_id: 1 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+      };
+
+      const historicalPurchasesResponse = {
+        data: [{ id: 10 }, { id: 11 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        lt: jest.fn().mockReturnThis(),
+      };
+
+      const historicalItemsResponse = {
+        data: [
+          { name: 'Arroz', price: '10.00' },
+          { name: 'Arroz', price: '10.00' },
+        ],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+      };
+
+      let callCount = 0;
+      mockFrom.mockImplementation((table: string) => {
+        callCount++;
+        if (table === 'purchases') {
+          if (callCount === 1) {
+            return currentPurchasesResponse;
+          }
+          return historicalPurchasesResponse;
+        }
+        if (callCount === 2) {
+          return currentItemsResponse;
+        }
+        return historicalItemsResponse;
+      });
+
+      const result = await reportService.getUserSavings(1, 2024);
+
+      // Não deve mostrar economia negativa
+      expect(result).toBe(0);
+    });
+
+    it('retorna 0 quando nao ha historico suficiente (menos de 2 compras)', async () => {
+      const currentPurchasesResponse = {
+        data: [{ id: 1 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+      };
+
+      const currentItemsResponse = {
+        data: [{ name: 'Arroz', price: '8.00', quantity: '1', purchase_id: 1 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+      };
+
+      const historicalPurchasesResponse = {
+        data: [{ id: 10 }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        lt: jest.fn().mockReturnThis(),
+      };
+
+      // Apenas 1 compra histórica (precisa de pelo menos 2)
+      const historicalItemsResponse = {
+        data: [{ name: 'Arroz', price: '10.00' }],
+        error: null,
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+      };
+
+      let callCount = 0;
+      mockFrom.mockImplementation((table: string) => {
+        callCount++;
+        if (table === 'purchases') {
+          if (callCount === 1) {
+            return currentPurchasesResponse;
+          }
+          return historicalPurchasesResponse;
+        }
+        if (callCount === 2) {
+          return currentItemsResponse;
+        }
+        return historicalItemsResponse;
+      });
+
+      const result = await reportService.getUserSavings(1, 2024);
+
+      expect(result).toBe(0);
+    });
+  });
 });
