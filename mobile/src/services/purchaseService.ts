@@ -251,22 +251,116 @@ export const purchaseService = {
     }, { maxRetries: 2, initialDelay: 300 });
   },
 
-  async deletePurchase(id: number): Promise<void> {
+  async searchPurchases(
+    query: string,
+    filter?: PurchaseFilter
+  ): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
     return withRetry(async () => {
       const userId = await getCurrentUserId();
-
+      const page = filter?.page ?? 0;
+      const size = filter?.size ?? 20;
+      const from = page * size;
+      const to = from + size - 1;
+      
       const supabase = getClient();
-
-      const { error } = await supabase
+      
+      // Busca server-side com texto
+      let dbQuery = supabase
         .from('purchases')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
+        .select(`
+          *,
+          supermarket:supermarkets(*),
+          items(*)
+        `, { count: 'exact' })
+        .eq('user_id', userId)
+        .or(`access_key.ilike.%${query}%,supermarket.name.ilike.%${query}%`);
+
+      if (filter?.isManual !== undefined) {
+        dbQuery = dbQuery.eq('manual', filter.isManual);
+      }
+      if (filter?.startDate) {
+        dbQuery = dbQuery.gte('date', filter.startDate);
+      }
+      if (filter?.endDate) {
+        dbQuery = dbQuery.lte('date', filter.endDate);
+      }
+
+      const { data: purchases, error, count } = await dbQuery
+        .order('date', { ascending: false })
+        .range(from, to);
 
       if (error) {
         throw new Error(error.message);
       }
-    }, { maxRetries: 2, initialDelay: 300 });
+
+      const purchaseData = (purchases || []).map((purchase) => {
+        return {
+          id: purchase.id,
+          supermarket: purchase.supermarket,
+          accessKey: purchase.access_key,
+          date: purchase.date,
+          totalPrice: parseFloat(purchase.total_price) || 0,
+          isManual: purchase.manual,
+          products: mapPurchaseItems(purchase.items),
+          createdAt: purchase.created_at,
+          updatedAt: purchase.updated_at,
+        };
+      });
+
+      const totalElements = count || 0;
+      const totalPages = Math.ceil(totalElements / size);
+
+      return {
+        data: purchaseData,
+        page: {
+          pageNumber: page,
+          pageSize: size,
+          totalElements,
+          totalPages,
+          last: page >= totalPages - 1,
+        },
+      };
+    }, { maxRetries: 3, initialDelay: 500 });
+  },
+
+  async getDashboardData(
+    month: number,
+    year: number
+  ): Promise<{
+    stats: {
+      totalSpent: number;
+      purchaseCount: number;
+      itemCount: number;
+    };
+    topItems: Array<{ name: string; quantity: number; total: number }>;
+    supermarketData: Array<{ supermarket: string; total: number }>;
+    monthlyTotals: Array<{ month: number; total: number }>;
+    savings: number;
+  }> {
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      
+      const supabase = getClient();
+
+      // Query única consolidada para dashboard
+      const { data: dashboardData, error } = await supabase.rpc('get_dashboard_data', {
+        p_user_id: userId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_year: year,
+      });
+
+      if (error) {
+        // Fallback para queries individuais se RPC não existir
+        console.warn('RPC não disponível, usando fallback:', error);
+        throw error;
+      }
+
+      return dashboardData;
+    }, { maxRetries: 3, initialDelay: 500 });
   },
 
   async updatePurchaseItems(
@@ -338,6 +432,24 @@ export const purchaseService = {
       }
 
       return this.getPurchaseById(purchaseId);
+    }, { maxRetries: 2, initialDelay: 300 });
+  },
+
+  async deletePurchase(id: number): Promise<void> {
+    return withRetry(async () => {
+      const userId = await getCurrentUserId();
+
+      const supabase = getClient();
+
+      const { error } = await supabase
+        .from('purchases')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) {
+        throw new Error(error.message);
+      }
     }, { maxRetries: 2, initialDelay: 300 });
   },
 };

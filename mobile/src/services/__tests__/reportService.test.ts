@@ -57,37 +57,34 @@ describe('reportService', () => {
   });
 
   it('calcula preco medio do item com base na quantidade total comprada', async () => {
-    const purchasesResponse = Promise.resolve({
-      data: [{ id: 10, supermarket: { name: 'Mercado A' } }],
+    // Nova query otimizada com JOIN - mock para tabela 'items'
+    const itemsResponse = Promise.resolve({
+      data: [
+        { 
+          quantity: 5, 
+          price: 3.19, 
+          purchase_id: 10,
+          purchases: { supermarket: { name: 'Mercado A' } }
+        }
+      ],
       error: null,
-    }) as Promise<{ data: Array<{ id: number; supermarket: { name: string } }>; error: null }> & {
+    }) as Promise<{ data: Array<{ quantity: number; price: number; purchase_id: number; purchases: { supermarket: { name: string } } }>; error: null }> & {
       select: jest.Mock;
       eq: jest.Mock;
       gte: jest.Mock;
       lte: jest.Mock;
     };
-    purchasesResponse.select = jest.fn(() => purchasesResponse);
-    purchasesResponse.eq = jest.fn(() => purchasesResponse);
-    purchasesResponse.gte = jest.fn(() => purchasesResponse);
-    purchasesResponse.lte = jest.fn(() => purchasesResponse);
-
-    const itemsResponse = Promise.resolve({
-      data: [{ purchase_id: 10, name: 'Cerveja', quantity: 5, price: 3.19 }],
-      error: null,
-    }) as Promise<{ data: Array<{ purchase_id: number; name: string; quantity: number; price: number }>; error: null }> & {
-      select: jest.Mock;
-      in: jest.Mock;
-      eq: jest.Mock;
-    };
     itemsResponse.select = jest.fn(() => itemsResponse);
-    itemsResponse.in = jest.fn(() => itemsResponse);
     itemsResponse.eq = jest.fn(() => itemsResponse);
+    itemsResponse.gte = jest.fn(() => itemsResponse);
+    itemsResponse.lte = jest.fn(() => itemsResponse);
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'purchases') {
-        return purchasesResponse;
+      if (table === 'items') {
+        return itemsResponse;
       }
-      return itemsResponse;
+      // Fallback para purchases (não usado na nova implementação)
+      return Promise.resolve({ data: [], error: null });
     });
 
     const result = await reportService.getItemReport('Cerveja', '2026-03-01', '2026-03-31');
@@ -175,43 +172,29 @@ describe('reportService', () => {
   });
 
   it('agrupa historico de preco por mes sem deslocamento de timezone', async () => {
-    const purchasesResponse = Promise.resolve({
+    // Mock da query otimizada de items com join
+    const itemsResponse = Promise.resolve({
       data: [
-        { id: 10, date: '2024-01-01' },
-        { id: 11, date: '2024-01-31' },
+        { quantity: 1, price: 10, purchase_id: 10, purchases: { date: '2024-01-01' } },
+        { quantity: 1, price: 14, purchase_id: 11, purchases: { date: '2024-01-31' } },
       ],
       error: null,
-    }) as Promise<{ data: Array<{ id: number; date: string }>; error: null }> & {
+    }) as Promise<{ data: Array<{ quantity: number; price: number; purchase_id: number; purchases: { date: string } }>; error: null }> & {
       select: jest.Mock;
       eq: jest.Mock;
       gte: jest.Mock;
       lte: jest.Mock;
     };
-    purchasesResponse.select = jest.fn(() => purchasesResponse);
-    purchasesResponse.eq = jest.fn(() => purchasesResponse);
-    purchasesResponse.gte = jest.fn(() => purchasesResponse);
-    purchasesResponse.lte = jest.fn(() => purchasesResponse);
-
-    const itemsResponse = Promise.resolve({
-      data: [
-        { purchase_id: 10, quantity: 1, price: 10 },
-        { purchase_id: 11, quantity: 1, price: 14 },
-      ],
-      error: null,
-    }) as Promise<{ data: Array<{ purchase_id: number; quantity: number; price: number }>; error: null }> & {
-      select: jest.Mock;
-      eq: jest.Mock;
-      in: jest.Mock;
-    };
     itemsResponse.select = jest.fn(() => itemsResponse);
     itemsResponse.eq = jest.fn(() => itemsResponse);
-    itemsResponse.in = jest.fn(() => itemsResponse);
+    itemsResponse.gte = jest.fn(() => itemsResponse);
+    itemsResponse.lte = jest.fn(() => itemsResponse);
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === 'purchases') {
-        return purchasesResponse;
+      if (table === 'items') {
+        return itemsResponse;
       }
-      return itemsResponse;
+      return Promise.resolve({ data: [], error: null });
     });
 
     const result = await reportService.getItemPriceHistory('Arroz', '2024-01-01', '2024-01-31');

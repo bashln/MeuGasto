@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { purchaseService } from '../services';
 import { Purchase, PurchaseFilter, PageResponse } from '../types';
 import { usePagination } from '../hooks/usePagination';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 interface PurchaseContextType {
   purchases: Purchase[];
@@ -16,6 +17,8 @@ interface PurchaseContextType {
   updatePurchase: (id: number, data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>) => Promise<Purchase>;
   deletePurchase: (id: number) => Promise<void>;
   updatePurchaseItems: (id: number, items: Array<{ id?: number; name: string; quantity: number; unit: string; price: number }>) => Promise<Purchase>;
+  isOnline: boolean;
+  isSyncing: boolean;
 }
 
 const PurchaseContext = createContext<PurchaseContextType | undefined>(undefined);
@@ -28,9 +31,37 @@ const PAGE_SIZE = 20;
 
 export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) => {
   const [paginationState, paginationActions] = usePagination<Purchase>(PAGE_SIZE);
+  const offlineSync = useOfflineSync();
+
+  // Carrega cache offline na inicialização
+  useEffect(() => {
+    const loadOfflineCache = async () => {
+      const cached = await offlineSync.getCachedPurchases();
+      if (cached && cached.length > 0) {
+        // Preenche com dados cacheados primeiro
+        paginationActions.reset();
+        cached.forEach(purchase => paginationActions.addItem(purchase));
+      }
+    };
+    
+    loadOfflineCache();
+  }, []);
+
+  // Cacheia quando recebe novos dados
+  useEffect(() => {
+    if (paginationState.data.length > 0 && !paginationState.isLoading) {
+      offlineSync.cachePurchases(paginationState.data);
+    }
+  }, [paginationState.data, paginationState.isLoading]);
 
   const fetchPurchases = useCallback(async (filter?: PurchaseFilter) => {
     const page = filter?.page ?? 0;
+    
+    // Se estiver offline, não mostra erro
+    if (!offlineSync.isOnline) {
+      // Mantém dados cacheados
+      return;
+    }
     
     await paginationActions.fetchData(
       async (p, size) => {
@@ -43,7 +74,7 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
       },
       page
     );
-  }, [paginationActions]);
+  }, [paginationActions, offlineSync.isOnline]);
 
   const loadMorePurchases = useCallback(async (filter?: PurchaseFilter) => {
     if (paginationState.isLoadingMore || !paginationState.hasMore) {
@@ -62,7 +93,6 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
     id: number,
     data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>
   ): Promise<Purchase> => {
-    // Update otimista: atualiza localmente primeiro
     const previousPurchase = paginationState.data.find(p => p.id === id);
     
     if (previousPurchase) {
@@ -79,45 +109,57 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
 
     try {
       const purchase = await purchaseService.updatePurchase(id, data);
-      // Confirma o update com dados do servidor
       paginationActions.updateItem(id, () => purchase);
       return purchase;
     } catch (error) {
-      // Rollback: restaura estado anterior em caso de erro
       if (previousPurchase) {
         paginationActions.updateItem(id, () => previousPurchase);
       }
+      
+      // Se falhar por falta de conexão, adiciona à fila offline
+      if (!offlineSync.isOnline) {
+        await offlineSync.queueOperation({
+          type: 'update',
+          entity: 'purchase',
+          data: { id, ...data },
+        });
+      }
+      
       throw error;
     }
-  }, [paginationActions, paginationState.data]);
+  }, [paginationActions, paginationState.data, offlineSync]);
 
   const deletePurchase = useCallback(async (id: number): Promise<void> => {
-    // Update otimista: remove localmente primeiro
     paginationActions.removeItem(id, (purchase) => purchase.id);
 
     try {
       await purchaseService.deletePurchase(id);
     } catch (error) {
-      // Rollback seria complexo (precisaria recarregar), então só logamos
-      if (__DEV__) {
-        console.warn('[PurchaseContext] Erro ao deletar, item removido localmente:', error);
+      if (!offlineSync.isOnline) {
+        await offlineSync.queueOperation({
+          type: 'delete',
+          entity: 'purchase',
+          data: { id },
+        });
+      } else {
+        if (__DEV__) {
+          console.warn('[PurchaseContext] Erro ao deletar:', error);
+        }
+        throw error;
       }
-      throw error;
     }
-  }, [paginationActions]);
+  }, [paginationActions, offlineSync]);
 
   const updatePurchaseItems = useCallback(async (
     id: number,
     items: Array<{ id?: number; name: string; quantity: number; unit: string; price: number }>
   ): Promise<Purchase> => {
-    // Calcula novo total para update otimista
     const newTotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
     
-    // Update otimista: atualiza items e total localmente
     paginationActions.updateItem(id, (purchase) => ({
       ...purchase,
       products: items.map((item, index) => ({
-        id: item.id || -(index + 1), // IDs temporários negativos para novos items
+        id: item.id || -(index + 1),
         name: item.name,
         quantity: item.quantity,
         unit: item.unit,
@@ -129,21 +171,18 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
 
     try {
       const purchase = await purchaseService.updatePurchaseItems(id, items);
-      // Confirma o update com dados do servidor
       paginationActions.updateItem(id, () => purchase);
       return purchase;
     } catch (error) {
-      // Em caso de erro, recarrega a compra para restaurar estado
       if (__DEV__) {
-        console.warn('[PurchaseContext] Erro ao atualizar items, recarregando compra:', error);
+        console.warn('[PurchaseContext] Erro ao atualizar items, recarregando:', error);
       }
       try {
         const refreshedPurchase = await purchaseService.getPurchaseById(id);
         paginationActions.updateItem(id, () => refreshedPurchase);
       } catch (refreshError) {
-        // Se não conseguir recarregar, mantém o estado anterior
         if (__DEV__) {
-          console.error('[PurchaseContext] Falha ao recarregar compra:', refreshError);
+          console.error('[PurchaseContext] Falha ao recarregar:', refreshError);
         }
       }
       throw error;
@@ -165,11 +204,21 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
         updatePurchase,
         deletePurchase,
         updatePurchaseItems,
+        isOnline: offlineSync.isOnline,
+        isSyncing: offlineSync.isSyncing,
       }}
     >
       {children}
     </PurchaseContext.Provider>
   );
+};
+
+export const usePurchases = (): PurchaseContextType => {
+  const context = useContext(PurchaseContext);
+  if (context === undefined) {
+    throw new Error('usePurchases must be used within a PurchaseProvider');
+  }
+  return context;
 };
 
 export const usePurchases = (): PurchaseContextType => {

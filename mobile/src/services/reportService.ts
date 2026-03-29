@@ -406,26 +406,37 @@ export const reportService = {
       };
     }
 
-    let purchasesQuery = supabase
-      .from('purchases')
-      .select('id, supermarket:supermarkets(name), date')
-      .eq('user_id', userId);
+    // Query otimizada com JOIN único (elimina N+1)
+    let query = supabase
+      .from('items')
+      .select(`
+        quantity,
+        price,
+        purchase_id,
+        purchases!inner(
+          id,
+          supermarket:supermarkets(name),
+          date,
+          user_id
+        )
+      `)
+      .eq('name', itemName)
+      .eq('purchases.user_id', userId);
 
     if (startDate) {
-      purchasesQuery = purchasesQuery.gte('date', startDate);
+      query = query.gte('purchases.date', startDate);
     }
     if (endDate) {
-      purchasesQuery = purchasesQuery.lte('date', endDate);
+      query = query.lte('purchases.date', endDate);
     }
 
-    const { data: purchases, error: purchasesError } = await purchasesQuery;
+    const { data: items, error } = await query;
 
-    if (purchasesError) {
-      throw new Error(purchasesError.message);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    const purchaseIds = purchases?.map(p => p.id) || [];
-    if (purchaseIds.length === 0) {
+    if (!items || items.length === 0) {
       return {
         totalQuantity: 0,
         totalSpent: 0,
@@ -435,42 +446,31 @@ export const reportService = {
       };
     }
 
-    const supermarketByPurchaseId: Record<number, string> = {};
-    const purchasesWithMarket = (purchases ?? []) as Array<{
-      id: number;
-      supermarket: { name?: string } | Array<{ name?: string }> | null;
-    }>;
-    purchasesWithMarket.forEach((p) => {
-      const supermarket = p.supermarket;
-      const name = (Array.isArray(supermarket) ? supermarket[0]?.name : supermarket?.name) || 'Sem supermercado';
-      supermarketByPurchaseId[p.id] = name;
-    });
-
-    const { data: items, error: itemsError } = await supabase
-      .from('items')
-      .select('purchase_id, name, quantity, price')
-      .in('purchase_id', purchaseIds)
-      .eq('name', itemName);
-
-    if (itemsError) {
-      throw new Error(itemsError.message);
-    }
-
     let totalQuantity = 0;
     let totalSpent = 0;
     const purchaseIdSet = new Set<number>();
     const bySupermarketTotals: Record<string, { totalQuantity: number; totalSpent: number }> = {};
 
-    (items || []).forEach(item => {
-      const quantity = parseFloat(item.quantity) || 0;
-      const price = parseFloat(item.price) || 0;
+    (items || []).forEach((item: unknown) => {
+      const typedItem = item as {
+        quantity: string | number;
+        price: string | number;
+        purchase_id: number;
+        purchases: {
+          supermarket: { name?: string } | Array<{ name?: string }> | null;
+        };
+      };
+      
+      const quantity = parseFloat(String(typedItem.quantity)) || 0;
+      const price = parseFloat(String(typedItem.price)) || 0;
       const itemTotal = quantity * price;
-      const purchaseId = item.purchase_id as number;
-      const supermarketName = supermarketByPurchaseId[purchaseId] || 'Sem supermercado';
+      
+      const supermarket = typedItem.purchases?.supermarket;
+      const supermarketName = (Array.isArray(supermarket) ? supermarket[0]?.name : supermarket?.name) || 'Sem supermercado';
 
       totalQuantity += quantity;
       totalSpent += itemTotal;
-      purchaseIdSet.add(purchaseId);
+      purchaseIdSet.add(typedItem.purchase_id);
 
       if (!bySupermarketTotals[supermarketName]) {
         bySupermarketTotals[supermarketName] = { totalQuantity: 0, totalSpent: 0 };
@@ -507,54 +507,48 @@ export const reportService = {
       return [];
     }
 
-    let purchasesQuery = supabase
-      .from('purchases')
-      .select('id, date')
-      .eq('user_id', userId);
+    // Query otimizada com JOIN único (elimina N+1)
+    let query = supabase
+      .from('items')
+      .select(`
+        quantity,
+        price,
+        purchases!inner(
+          date,
+          user_id
+        )
+      `)
+      .eq('name', itemName)
+      .eq('purchases.user_id', userId);
 
     if (startDate) {
-      purchasesQuery = purchasesQuery.gte('date', startDate);
+      query = query.gte('purchases.date', startDate);
     }
 
     if (endDate) {
-      purchasesQuery = purchasesQuery.lte('date', endDate);
+      query = query.lte('purchases.date', endDate);
     }
 
-    const { data: purchases, error: purchasesError } = await purchasesQuery;
+    const { data: items, error } = await query;
 
-    if (purchasesError) {
-      throw new Error(purchasesError.message);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    const purchaseList = (purchases ?? []) as Array<{ id: number; date: string }>;
-    if (purchaseList.length === 0) {
+    if (!items || items.length === 0) {
       return [];
-    }
-
-    const purchaseIds = purchaseList.map((purchase) => purchase.id);
-    const purchaseDateById = new Map<number, string>();
-    purchaseList.forEach((purchase) => {
-      purchaseDateById.set(purchase.id, purchase.date);
-    });
-
-    const { data: items, error: itemsError } = await supabase
-      .from('items')
-      .select('purchase_id, quantity, price')
-      .eq('name', itemName)
-      .in('purchase_id', purchaseIds);
-
-    if (itemsError) {
-      throw new Error(itemsError.message);
     }
 
     const monthlyMap = new Map<string, { totalSpent: number; totalQuantity: number; month: number; year: number }>();
 
-    (items ?? []).forEach((item) => {
-      if (item.purchase_id == null) {
-        return;
-      }
-      const purchaseId = Number(item.purchase_id);
-      const purchaseDate = purchaseDateById.get(purchaseId);
+    (items ?? []).forEach((item: unknown) => {
+      const typedItem = item as {
+        quantity: string | number;
+        price: string | number;
+        purchases: { date: string };
+      };
+      
+      const purchaseDate = typedItem.purchases?.date;
       if (!purchaseDate) {
         return;
       }
@@ -567,8 +561,8 @@ export const reportService = {
       const month = dateParts.month;
       const year = dateParts.year;
       const key = `${year}-${String(month).padStart(2, '0')}`;
-      const quantity = Number(item.quantity) || 0;
-      const price = Number(item.price) || 0;
+      const quantity = parseFloat(String(typedItem.quantity)) || 0;
+      const price = parseFloat(String(typedItem.price)) || 0;
 
       const current = monthlyMap.get(key) ?? { totalSpent: 0, totalQuantity: 0, month, year };
 

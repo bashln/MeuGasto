@@ -238,27 +238,25 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 
 ## Notas Técnicas (Explore 29/03 + Implementações 30/03)
 
-### Melhorias Implementadas (Fase 1 - 30/03)
-✅ **Performance Imediata:**
+### Melhorias Implementadas (Fases 1 e 2 - 30/03)
+✅ **Fase 1 - Performance Imediata:**
 - React.memo nos cards (PurchaseCard, DraftCard)
 - useMemo para filtros de listas
 - Debounce 300ms em buscas
 - Utilitário getErrorMessage() com 8 testes
 
-### Áreas de Atenção Pendentes
+✅ **Fase 2 - Funcionalidades Core:**
+- Hook genérico usePagination (DRY)
+- Updates otimistas com rollback automático
+- Retry com exponential backoff (6 testes)
+- Editar items da compra (updatePurchaseItems)
 
-**Performance (Fases 2-3):**
-- Múltiplas chamadas paralelas no dashboard (5 requests) - Fase 3
-- N+1 queries em relatórios - Fase 3
+### Áreas de Atenção Pendentes (Fase 3)
 
-**Funcionalidade (Fase 2):**
-- Updates otimistas para mutações
-- Retry automático com exponential backoff
-- Editar items individuais da compra
-
-**Arquitetura (Fase 3):**
+**Arquitetura Avançada:**
 - Offline support (Queue + cache)
 - Server-side search para grandes datasets
-- Hook de paginação genérico (eliminar duplicação)
+- N+1 queries em relatórios
+- Consolidar 5 chamadas do dashboard
 
 Ver `memory/architecture.md` para plano detalhado.
