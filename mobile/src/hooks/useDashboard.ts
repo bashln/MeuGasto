@@ -4,6 +4,7 @@ import { DashboardStats } from '../types';
 
 interface UseDashboardResult {
   isLoading: boolean;
+  isLoadingSavings: boolean;
   error: string | null;
   stats: DashboardStats | null;
   topItems: Array<{ name: string; quantity: number; total: number }>;
@@ -20,6 +21,7 @@ interface UseDashboardResult {
 
 export const useDashboard = (): UseDashboardResult => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSavings, setIsLoadingSavings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
@@ -38,11 +40,13 @@ export const useDashboard = (): UseDashboardResult => {
 
   const loadDashboard = useCallback(async () => {
     setIsLoading(true);
+    setIsLoadingSavings(false);
     setError(null);
     const { startDate, endDate } = getMonthRange(selectedMonth, selectedYear);
     
     try {
-      const [statsData, itemsData, marketsData, monthlyData, previousYearMonthlyData, savingsData] = await Promise.all([
+      // Fase 1: Carregar dados principais (prioridade alta)
+      const [statsData, itemsData, marketsData, monthlyData, previousYearMonthlyData] = await Promise.all([
         reportService.getDashboardStats(selectedMonth, selectedYear),
         reportService.getTopItems(5, startDate, endDate),
         reportService.getExpensesBySupermarket(startDate, endDate),
@@ -50,20 +54,34 @@ export const useDashboard = (): UseDashboardResult => {
         selectedMonth === 1
           ? reportService.getMonthlyExpenses(selectedYear - 1)
           : Promise.resolve([] as Array<{ month: number; total: number }>),
-        reportService.getUserSavings(selectedMonth, selectedYear),
       ]);
-      setStats({
-        ...statsData,
-        savings: savingsData,
-      });
+      
+      // Mostrar dados principais imediatamente
+      setStats(statsData);
       setTopItems(itemsData);
       setSupermarketData(marketsData);
       setMonthlyTotals(monthlyData);
       setPreviousYearMonthlyTotals(previousYearMonthlyData);
+      setIsLoading(false);
+      
+      // Fase 2: Carregar economia em background (lazy load)
+      setIsLoadingSavings(true);
+      try {
+        const savingsData = await reportService.getUserSavings(selectedMonth, selectedYear);
+        setStats(currentStats => 
+          currentStats ? { ...currentStats, savings: savingsData } : null
+        );
+      } catch (savingsError) {
+        // Falha silenciosa - economia não é crítica
+        if (__DEV__) {
+          console.warn('[useDashboard] Failed to load savings:', savingsError);
+        }
+      } finally {
+        setIsLoadingSavings(false);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar dashboard';
       setError(message);
-    } finally {
       setIsLoading(false);
     }
   }, [selectedMonth, selectedYear, getMonthRange]);
@@ -78,6 +96,7 @@ export const useDashboard = (): UseDashboardResult => {
 
   return {
     isLoading,
+    isLoadingSavings,
     error,
     stats,
     topItems,
