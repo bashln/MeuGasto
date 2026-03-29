@@ -26,6 +26,7 @@ type DraftDetailScreenProps = {
 };
 
 const UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx'];
+const NEW_DRAFT_ID = 0;
 
 interface DraftItem {
   name: string;
@@ -51,7 +52,7 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
   const [newItem, setNewItem] = useState<DraftItem>({ name: '', quantity: 1, unit: 'un', price: 0 });
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
 
-  const isNewDraft = draftId === 0 || draftId === undefined;
+  const isNewDraft = draftId === NEW_DRAFT_ID || draftId === undefined;
 
   const loadDraft = useCallback(async () => {
     try {

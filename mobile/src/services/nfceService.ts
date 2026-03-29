@@ -46,11 +46,12 @@ const findOrCreateSupermarket = async (
   if (!actualSupermarketId && data.cnpj) {
     const cnpjDigits = normalizeCnpj(data.cnpj);
 
-    if (data.allowCnpjLikeMatch && cnpjDigits) {
+    if (data.allowCnpjLikeMatch && cnpjDigits && cnpjDigits.length >= 8) {
+      const escapedCnpj = cnpjDigits.replace(/[%_\\]/g, '\\$&');
       const { data: existingCnpj } = await supabase
         .from('supermarkets')
         .select('id')
-        .like('cnpj', `%${cnpjDigits}%`)
+        .like('cnpj', `%${escapedCnpj}%`)
         .limit(1)
         .single();
 

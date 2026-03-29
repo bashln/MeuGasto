@@ -72,7 +72,10 @@ export const reportService = {
     }
 
     const purchaseCount = purchases?.length || 0;
-    const totalSpent = purchases?.reduce((sum, p) => sum + (parseFloat(p.total_price) || 0), 0) || 0;
+    const totalSpent = purchases?.reduce((sum, p) => {
+      const value = parseFloat(p.total_price);
+      return sum + (Number.isNaN(value) ? 0 : value);
+    }, 0) || 0;
 
     const purchaseIds = purchases?.map(p => p.id) || [];
     let itemCount = 0;
@@ -84,7 +87,10 @@ export const reportService = {
         .in('purchase_id', purchaseIds);
 
       if (!itemsError && items) {
-        itemCount = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+        itemCount = items.reduce((sum, item) => {
+          const value = parseFloat(item.quantity);
+          return sum + (Number.isNaN(value) ? 0 : value);
+        }, 0);
       }
     }
 
@@ -178,10 +184,13 @@ export const reportService = {
       throw new Error(error.message);
     }
 
-    return (Array.isArray(data) ? (data as Array<{ supermarket: string; total: number | string }>) : []).map(row => ({
-      supermarket: row.supermarket,
-      total: Number(row.total) || 0,
-    }));
+    return (Array.isArray(data) ? (data as Array<{ supermarket: string; total: number | string }>) : []).map(row => {
+      const totalValue = Number(row.total);
+      return {
+        supermarket: row.supermarket,
+        total: Number.isNaN(totalValue) ? 0 : totalValue,
+      };
+    });
   },
 
   async getMarketRanking(
@@ -219,7 +228,8 @@ export const reportService = {
     purchases.forEach((purchase) => {
       const market = purchase.supermarket;
       const name = (Array.isArray(market) ? market[0]?.name : market?.name) || 'Sem supermercado';
-      const totalPrice = Number(purchase.total_price) || 0;
+      const totalPriceValue = Number(purchase.total_price);
+      const totalPrice = Number.isNaN(totalPriceValue) ? 0 : totalPriceValue;
       const current = grouped.get(name) ?? { total: 0, purchaseCount: 0 };
 
       grouped.set(name, {

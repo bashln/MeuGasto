@@ -68,6 +68,9 @@ Thumbs.db
 *.md
 !README.md
 
+# Memory files (documentação estrutural gerada)
+memory/
+
 # Mobile (Expo)
 .expo/
 expo-env.d.ts
