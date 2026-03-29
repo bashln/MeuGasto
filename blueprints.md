@@ -75,8 +75,8 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 
 ### `mobile/src/context`
 - `AuthContext.tsx`: bootstrap de autenticação, controle de onboarding, observação de sessão e atualização do usuário autenticado.
-- `PurchaseContext.tsx`: listagem paginada de compras, carregamento incremental e mutações de compra.
-- `DraftContext.tsx`: listagem paginada de rascunhos, CRUD e conversão de rascunho em compra.
+- `PurchaseContext.tsx`: listagem paginada de compras, carregamento incremental, mutações de compra, updates otimistas com rollback automático e integração com fila offline.
+- `DraftContext.tsx`: listagem paginada de rascunhos, CRUD, conversão de rascunho em compra, updates otimistas e integração com fila offline.
 - `index.ts` reexporta providers e hooks públicos.
 
 ### `mobile/src/features/reports`
@@ -90,6 +90,9 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 
 ### `mobile/src/hooks`
 - `useDashboard.ts`: carrega estatísticas do dashboard, top itens, gastos por mercado e séries mensais.
+- `useOfflineSync.ts`: gerencia fila de operações offline, sincronização automática e cache local (AsyncStorage + NetInfo).
+- `usePagination.ts`: hook genérico reutilizável para listas paginadas com fetch, loadMore, reset, updateItem, removeItem e addItem.
+- `usePurchasePagination.ts`: especialização de usePagination para compras.
 - `useReports.ts`: wrapper de compatibilidade que reexporta o hook público de `features/reports`.
 - `useUpdateCheck.ts`: checa atualização do app e expõe estado para o diálogo de update.
 - `index.ts` reexporta hooks públicos.
@@ -98,6 +101,7 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 - Infraestrutura e utilitários de baixo nível.
 - `supabaseClient.ts`: resolve configuração do Supabase via `process.env`/`expo.extra` e instancia o cliente com persistência segura.
 - `secureSessionStorage.ts`: persistência segura de sessão.
+- `offlineStorage.ts`: fila de operações offline e cache de dados com expiração para suporte offline (AsyncStorage).
 - `csvSecurity.ts`: sanitização para exportação CSV.
 - `nfcePayloadValidation.ts`: validação e saneamento de payload de NFC-e.
 - Há testes em `mobile/src/lib/__tests__/`.
@@ -125,7 +129,7 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 - Camada de acesso a dados e integrações, reexportada por `services/index.ts`.
 - Serviços observáveis:
   - `authService.ts`: autenticação, sessão, recuperação de senha e atualização de perfil.
-  - `purchaseService.ts`: operações de compras.
+  - `purchaseService.ts`: operações de compras com retry automático, busca textual server-side, atualização de itens e endpoint consolidado de dashboard.
   - `supermarketService.ts`: consulta de supermercados.
   - `draftService.ts`: CRUD e conversão de rascunhos.
   - `reportService.ts`: estatísticas de dashboard, séries mensais, top itens, ranking de mercados, relatório de item e histórico de preços.
@@ -149,6 +153,8 @@ Repositório centrado em um aplicativo mobile Expo/React Native em `mobile/`. O 
 
 ### `mobile/src/utils`
 - Utilitários gerais exportados por `utils/index.ts`: `formatMoney`, `formatDate` e `priceComparison`.
+- `errorUtils.ts`: `getErrorMessage()` para extração segura de mensagens de erro e `isError()` para type guards.
+- `retryUtils.ts`: `withRetry()` para retry automático com exponential backoff e decorator `@retryable()`.
 - `nfceScraperScript.ts` mantém o script auxiliar de scraping usado no fluxo de NFC-e.
 - Há testes em `mobile/src/utils/__tests__/`.
 
