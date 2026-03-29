@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { draftService } from '../services';
 import { Draft, DraftFilter, PageResponse, CreateDraftRequest, UpdateDraftRequest } from '../types';
 import { usePagination } from '../hooks/usePagination';
+import { useOfflineSync } from '../hooks/useOfflineSync';
 
 interface DraftContextType {
   drafts: Draft[];
@@ -17,6 +18,9 @@ interface DraftContextType {
   updateDraft: (id: number, data: UpdateDraftRequest) => Promise<Draft>;
   deleteDraft: (id: number) => Promise<void>;
   convertToPurchase: (id: number) => Promise<void>;
+  isOnline: boolean;
+  isSyncing: boolean;
+  isFromCache: boolean;
 }
 
 const DraftContext = createContext<DraftContextType | undefined>(undefined);
@@ -29,6 +33,33 @@ const PAGE_SIZE = 20;
 
 export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
   const [paginationState, paginationActions] = usePagination<Draft>(PAGE_SIZE);
+  const offlineSync = useOfflineSync();
+  const [isFromCache, setIsFromCache] = useState(false);
+
+  // Carrega cache offline na inicialização
+  useEffect(() => {
+    const loadOfflineCache = async () => {
+      const cached = await offlineSync.getCachedDrafts();
+      if (cached && cached.length > 0) {
+        // Preenche com dados cacheados primeiro
+        paginationActions.reset();
+        cached.forEach(draft => paginationActions.addItem(draft));
+        setIsFromCache(true);
+      }
+    };
+    
+    loadOfflineCache();
+  }, []);
+
+  // Cacheia quando recebe novos dados
+  useEffect(() => {
+    if (paginationState.data.length > 0 && !paginationState.isLoading) {
+      offlineSync.cacheDrafts(paginationState.data);
+      if (isFromCache && !offlineSync.isOnline) {
+        setIsFromCache(false);
+      }
+    }
+  }, [paginationState.data, paginationState.isLoading, offlineSync.isOnline]);
 
   const fetchDrafts = useCallback(async (filter?: DraftFilter) => {
     const page = filter?.page ?? 0;
@@ -60,11 +91,35 @@ export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
   }, []);
 
   const createDraft = useCallback(async (data: CreateDraftRequest): Promise<Draft> => {
-    const draft = await draftService.createDraft(data);
-    // Update otimista: adiciona ao início da lista
-    paginationActions.addItem(draft);
-    return draft;
-  }, [paginationActions]);
+    try {
+      const draft = await draftService.createDraft(data);
+      // Update otimista: adiciona ao início da lista
+      paginationActions.addItem(draft);
+      return draft;
+    } catch (error) {
+      // Se offline, adiciona à fila
+      if (!offlineSync.isOnline) {
+        await offlineSync.queueOperation({
+          type: 'create',
+          entity: 'draft',
+          data,
+        });
+        // Cria draft local temporário
+        const tempDraft: Draft = {
+          id: -Date.now(), // ID negativo temporário
+          ...data,
+          content: data.content || '',
+          items: data.items || [],
+          totalPrice: data.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Draft;
+        paginationActions.addItem(tempDraft);
+        return tempDraft;
+      }
+      throw error;
+    }
+  }, [paginationActions, offlineSync]);
 
   const updateDraft = useCallback(async (id: number, data: UpdateDraftRequest): Promise<Draft> => {
     // Update otimista: atualiza localmente primeiro
@@ -92,9 +147,19 @@ export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
       if (previousDraft) {
         paginationActions.updateItem(id, () => previousDraft);
       }
+      
+      // Se offline, adiciona à fila
+      if (!offlineSync.isOnline) {
+        await offlineSync.queueOperation({
+          type: 'update',
+          entity: 'draft',
+          data: { id, ...data },
+        });
+      }
+      
       throw error;
     }
-  }, [paginationActions, paginationState.data]);
+  }, [paginationActions, paginationState.data, offlineSync]);
 
   const deleteDraft = useCallback(async (id: number): Promise<void> => {
     // Update otimista: remove localmente primeiro
@@ -103,12 +168,21 @@ export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
     try {
       await draftService.deleteDraft(id);
     } catch (error) {
-      if (__DEV__) {
-        console.warn('[DraftContext] Erro ao deletar, item removido localmente:', error);
+      // Se offline, adiciona à fila de sincronização
+      if (!offlineSync.isOnline) {
+        await offlineSync.queueOperation({
+          type: 'delete',
+          entity: 'draft',
+          data: { id },
+        });
+      } else {
+        if (__DEV__) {
+          console.warn('[DraftContext] Erro ao deletar:', error);
+        }
+        throw error;
       }
-      throw error;
     }
-  }, [paginationActions]);
+  }, [paginationActions, offlineSync]);
 
   const convertToPurchase = useCallback(async (id: number): Promise<void> => {
     // Update otimista: remove rascunho (vai virar compra)
@@ -142,6 +216,9 @@ export const DraftProvider: React.FC<DraftProviderProps> = ({ children }) => {
         updateDraft,
         deleteDraft,
         convertToPurchase,
+        isOnline: offlineSync.isOnline,
+        isSyncing: offlineSync.isSyncing,
+        isFromCache,
       }}
     >
       {children}

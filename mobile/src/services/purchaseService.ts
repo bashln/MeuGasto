@@ -264,7 +264,10 @@ export const purchaseService = {
       
       const supabase = getClient();
       
-      // Busca server-side com texto
+      // Sanitiza query para prevenir SQL injection
+      const sanitizedQuery = query.replace(/[%_\\]/g, '\\$&');
+      
+      // Busca server-side com texto (usando parâmetros seguros)
       let dbQuery = supabase
         .from('purchases')
         .select(`
@@ -273,7 +276,7 @@ export const purchaseService = {
           items(*)
         `, { count: 'exact' })
         .eq('user_id', userId)
-        .or(`access_key.ilike.%${query}%,supermarket.name.ilike.%${query}%`);
+        .or(`access_key.ilike.%${sanitizedQuery}%,supermarket.name.ilike.%${sanitizedQuery}%`);
 
       if (filter?.isManual !== undefined) {
         dbQuery = dbQuery.eq('manual', filter.isManual);

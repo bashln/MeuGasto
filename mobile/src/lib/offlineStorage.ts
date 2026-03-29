@@ -11,6 +11,7 @@ export interface OfflineQueueItem {
 
 const OFFLINE_QUEUE_KEY = 'meugasto_offline_queue';
 const OFFLINE_DATA_KEY = 'meugasto_offline_data';
+const MAX_QUEUE_SIZE = 100; // Limite para evitar estourar AsyncStorage (6MB limit)
 
 /**
  * Adiciona uma operação à fila offline
@@ -18,6 +19,16 @@ const OFFLINE_DATA_KEY = 'meugasto_offline_data';
 export const addToOfflineQueue = async (item: Omit<OfflineQueueItem, 'id' | 'timestamp' | 'retryCount'>): Promise<void> => {
   try {
     const queue = await getOfflineQueue();
+    
+    // Verifica limite da fila
+    if (queue.length >= MAX_QUEUE_SIZE) {
+      // Remove itens mais antigos (primeiros 10) para fazer espaço
+      queue.splice(0, 10);
+      if (__DEV__) {
+        console.warn('[OfflineQueue] Fila cheia, removendo 10 itens mais antigos');
+      }
+    }
+    
     const newItem: OfflineQueueItem = {
       ...item,
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

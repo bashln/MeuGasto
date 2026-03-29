@@ -24,7 +24,7 @@ export interface PaginationActions<T> {
   addItem: (item: T) => void;
 }
 
-export function usePagination<T>(pageSize: number = 20): [PaginationState<T>, PaginationActions<T>] {
+export function usePagination<T extends { id: number | string }>(pageSize: number = 20): [PaginationState<T>, PaginationActions<T>] {
   const [state, setState] = useState<PaginationState<T>>({
     data: [],
     isLoading: false,

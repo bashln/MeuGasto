@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { purchaseService } from '../services';
 import { Purchase, PurchaseFilter, PageResponse } from '../types';
 import { usePagination } from '../hooks/usePagination';
@@ -19,6 +19,7 @@ interface PurchaseContextType {
   updatePurchaseItems: (id: number, items: Array<{ id?: number; name: string; quantity: number; unit: string; price: number }>) => Promise<Purchase>;
   isOnline: boolean;
   isSyncing: boolean;
+  isFromCache: boolean; // Indica se dados são do cache offline
 }
 
 const PurchaseContext = createContext<PurchaseContextType | undefined>(undefined);
@@ -32,6 +33,7 @@ const PAGE_SIZE = 20;
 export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) => {
   const [paginationState, paginationActions] = usePagination<Purchase>(PAGE_SIZE);
   const offlineSync = useOfflineSync();
+  const [isFromCache, setIsFromCache] = useState(false);
 
   // Carrega cache offline na inicialização
   useEffect(() => {
@@ -41,6 +43,7 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
         // Preenche com dados cacheados primeiro
         paginationActions.reset();
         cached.forEach(purchase => paginationActions.addItem(purchase));
+        setIsFromCache(true);
       }
     };
     
@@ -51,8 +54,12 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
   useEffect(() => {
     if (paginationState.data.length > 0 && !paginationState.isLoading) {
       offlineSync.cachePurchases(paginationState.data);
+      // Marca que não é mais do cache quando tem dados atualizados
+      if (isFromCache && !offlineSync.isOnline) {
+        setIsFromCache(false);
+      }
     }
-  }, [paginationState.data, paginationState.isLoading]);
+  }, [paginationState.data, paginationState.isLoading, offlineSync.isOnline]);
 
   const fetchPurchases = useCallback(async (filter?: PurchaseFilter) => {
     const page = filter?.page ?? 0;
@@ -206,19 +213,12 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
         updatePurchaseItems,
         isOnline: offlineSync.isOnline,
         isSyncing: offlineSync.isSyncing,
+        isFromCache,
       }}
     >
       {children}
     </PurchaseContext.Provider>
   );
-};
-
-export const usePurchases = (): PurchaseContextType => {
-  const context = useContext(PurchaseContext);
-  if (context === undefined) {
-    throw new Error('usePurchases must be used within a PurchaseProvider');
-  }
-  return context;
 };
 
 export const usePurchases = (): PurchaseContextType => {
