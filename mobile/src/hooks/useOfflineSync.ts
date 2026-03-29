@@ -119,7 +119,12 @@ export function useOfflineSync(): UseOfflineSyncResult {
   }, []);
 
   const processPurchaseOperation = async (item: OfflineQueueItem) => {
-    const data = item.data as { id?: number } & Record<string, unknown>;
+    const data = item.data as { 
+      id?: number;
+      date?: string;
+      totalPrice?: number;
+      supermarketId?: number | null;
+    };
     
     switch (item.type) {
       case 'create':
@@ -127,7 +132,11 @@ export function useOfflineSync(): UseOfflineSyncResult {
         break;
       case 'update':
         if (data.id) {
-          await purchaseService.updatePurchase(data.id, data);
+          await purchaseService.updatePurchase(data.id, {
+            date: data.date,
+            totalPrice: data.totalPrice,
+            supermarketId: data.supermarketId,
+          });
         }
         break;
       case 'delete':
@@ -139,15 +148,28 @@ export function useOfflineSync(): UseOfflineSyncResult {
   };
 
   const processDraftOperation = async (item: OfflineQueueItem) => {
-    const data = item.data as { id?: number } & Record<string, unknown>;
+    const data = item.data as { 
+      id?: number;
+      supermarketId?: number;
+      content: string;
+      items: Array<{ name: string; quantity: number; unit: string; price: number }>;
+    };
     
     switch (item.type) {
       case 'create':
-        await draftService.createDraft(data as { supermarketId?: number; content: string; items: unknown[] });
+        await draftService.createDraft({
+          supermarketId: data.supermarketId,
+          content: data.content,
+          items: data.items,
+        });
         break;
       case 'update':
         if (data.id) {
-          await draftService.updateDraft(data.id, data);
+          await draftService.updateDraft(data.id, {
+            supermarketId: data.supermarketId,
+            content: data.content,
+            items: data.items,
+          });
         }
         break;
       case 'delete':
