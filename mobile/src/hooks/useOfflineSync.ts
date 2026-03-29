@@ -183,6 +183,37 @@ export function useOfflineSync(): UseOfflineSyncResult {
     };
   }, [sync, updateQueueSize]);
 
+  const queueOperation = useCallback(async (
+    operation: Omit<OfflineQueueItem, 'id' | 'timestamp' | 'retryCount'>
+  ) => {
+    // Se estiver online, executa imediatamente
+    if (isOnline) {
+      try {
+        await processOfflineOperation({
+          ...operation,
+          id: 'temp',
+          timestamp: Date.now(),
+          retryCount: 0,
+        });
+        return;
+      } catch (error) {
+        // Se falhar, adiciona à fila
+        if (__DEV__) {
+          console.warn('[OfflineSync] Operação falhou, adicionando à fila:', error);
+        }
+      }
+    }
+    
+    // Adiciona à fila offline
+    const { addToOfflineQueue } = await import('../lib/offlineStorage');
+    await addToOfflineQueue(operation);
+    await updateQueueSize();
+  }, [isOnline, processOfflineOperation, updateQueueSize]);
+
+  const cachePurchases = useCallback(async (purchases: Purchase[]) => {
+    await cacheData('purchases', purchases);
+  }, []);
+
   const cacheDrafts = useCallback(async (drafts: Draft[]) => {
     await cacheData('drafts', drafts);
   }, []);
