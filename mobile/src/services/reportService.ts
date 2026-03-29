@@ -135,12 +135,17 @@ export const reportService = {
         return 0;
       }
 
-      // Buscar IDs das compras históricas (antes do período atual)
+      // Buscar IDs das compras históricas (últimos 12 meses antes do período atual)
+      const oneYearAgo = new Date(startDate);
+      oneYearAgo.setMonth(oneYearAgo.getMonth() - 12);
+      const minDate = oneYearAgo.toISOString().split('T')[0];
+      
       const { data: historicalPurchases, error: histPurchasesError } = await supabase
         .from('purchases')
         .select('id')
         .eq('user_id', userId)
-        .lt('date', startDate);
+        .lt('date', startDate)
+        .gte('date', minDate);
 
       if (histPurchasesError || !historicalPurchases || historicalPurchases.length === 0) {
         return 0;
@@ -151,12 +156,13 @@ export const reportService = {
       // Buscar nomes únicos dos items atuais
       const itemNames = [...new Set(currentItems.map(item => item.name))];
 
-      // Buscar items históricos com mesmo nome
+      // Buscar items históricos com mesmo nome (limitado a 1000 para performance)
       const { data: historicalItems, error: historicalError } = await supabase
         .from('items')
         .select('name, price')
         .in('name', itemNames)
-        .in('purchase_id', historicalPurchaseIds);
+        .in('purchase_id', historicalPurchaseIds)
+        .limit(1000);
 
       if (historicalError || !historicalItems || historicalItems.length === 0) {
         return 0;
@@ -180,7 +186,7 @@ export const reportService = {
       
       currentItems.forEach(currentItem => {
         const itemAvg = avgPrices[currentItem.name];
-        if (itemAvg && itemAvg.count >= 2) {  // Pelo menos 2 compras anteriores
+        if (itemAvg && itemAvg.count >= 3) {  // Pelo menos 3 compras anteriores para média confiável
           const avgPrice = itemAvg.sum / itemAvg.count;
           const currentPrice = parseFloat(currentItem.price);
           const quantity = parseFloat(currentItem.quantity);

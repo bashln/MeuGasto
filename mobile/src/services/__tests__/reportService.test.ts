@@ -246,22 +246,26 @@ describe('reportService', () => {
         error: null,
         select: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
       };
 
-      // Mock purchases históricos
+      // Mock purchases históricos (6 compras para 6 items)
       const historicalPurchasesResponse = {
-        data: [{ id: 10 }, { id: 11 }, { id: 12 }, { id: 13 }],
+        data: [{ id: 10 }, { id: 11 }],
         error: null,
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         lt: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
       };
 
-      // Mock items históricos (preço médio = 10)
+      // Mock items históricos (preço médio = 10) - 3 compras para média confiável
       const historicalItemsResponse = {
         data: [
           { name: 'Arroz', price: '10.00' },
           { name: 'Arroz', price: '10.00' },
+          { name: 'Arroz', price: '10.00' },
+          { name: 'Feijao', price: '12.00' },
           { name: 'Feijao', price: '12.00' },
           { name: 'Feijao', price: '12.00' },
         ],
@@ -328,6 +332,7 @@ describe('reportService', () => {
         error: null,
         select: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
       };
 
       const historicalPurchasesResponse = {
@@ -336,6 +341,7 @@ describe('reportService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         lt: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
       };
 
       const historicalItemsResponse = {
@@ -346,6 +352,7 @@ describe('reportService', () => {
         error: null,
         select: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
       };
 
       let callCount = 0;
@@ -369,7 +376,7 @@ describe('reportService', () => {
       expect(result).toBe(0);
     });
 
-    it('retorna 0 quando nao ha historico suficiente (menos de 2 compras)', async () => {
+    it('retorna 0 quando nao ha historico suficiente (menos de 3 compras)', async () => {
       const currentPurchasesResponse = {
         data: [{ id: 1 }],
         error: null,
@@ -384,22 +391,27 @@ describe('reportService', () => {
         error: null,
         select: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
       };
 
       const historicalPurchasesResponse = {
-        data: [{ id: 10 }],
+        data: [{ id: 10 }, { id: 11 }],
         error: null,
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         lt: jest.fn().mockReturnThis(),
       };
 
-      // Apenas 1 compra histórica (precisa de pelo menos 2)
+      // Apenas 2 compras históricas (precisa de pelo menos 3)
       const historicalItemsResponse = {
-        data: [{ name: 'Arroz', price: '10.00' }],
+        data: [
+          { name: 'Arroz', price: '10.00' },
+          { name: 'Arroz', price: '10.00' },
+        ],
         error: null,
         select: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
       };
 
       let callCount = 0;
