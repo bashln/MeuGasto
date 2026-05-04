@@ -2,8 +2,8 @@
 node_modules/
 dist/
 dist-ssr/
-*.md
-!README.md
+# Tracked .md files are in docs/, root stubs, and standard root files (README.md, CHANGELOG.md, SECURITY.md)
+# Ignore any other stray .md files not explicitly tracked
 
 # Environment variables
 .env
