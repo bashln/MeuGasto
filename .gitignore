@@ -72,3 +72,5 @@ mobile/ios/
 local.properties
 deploymentTargetDropDown.xml
 render.experimental.xml
+*.md
+!README.md
