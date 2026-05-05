@@ -1,0 +1,250 @@
+{
+  "name": "MeuGasto - Estabilização e Fundação para Novas Features",
+  "description": "PRD focado em destravar a pipeline de qualidade, corrigir bugs críticos, implementar segurança pendente (SEC-002) e estabelecer base sólida para as próximas features (categorização, alertas, relatórios).",
+  "branchName": "dev",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Corrigir testes quebrados do secureSessionStorage",
+      "description": "Como desenvolvedor, quero que os 2 testes falhando em secureSessionStorage.test.ts passem, para que a pipeline de qualidade seja confiável.",
+      "acceptanceCriteria": [
+        "Teste 'propaga erro explicito ao falhar leitura' alinhado com comportamento real de fallback in-memory",
+        "Teste 'limpa chave de sessao do supabase' não vaza estado entre execuções (resetar useInMemory)",
+        "npm test passa 121/121 testes",
+        "npm run typecheck limpo",
+        "npm run lint limpo"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Arquivos: src/lib/secureSessionStorage.ts, src/lib/__tests__/secureSessionStorage.test.ts",
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-002",
+      "title": "Corrigir erros de lint no projeto",
+      "description": "Como desenvolvedor, quero zero erros e warnings de lint, para que o CI seja confiável e padrões de código sejam consistentes.",
+      "acceptanceCriteria": [
+        "Substituir require() por import em src/lib/__tests__/supabaseClient.test.ts",
+        "Escapar aspas duplas em src/screens/PriceComparatorScreen.tsx (linhas 96:55, 96:70)",
+        "Remover variável não utilizada createInMemoryStorage em src/lib/secureSessionStorage.ts",
+        "Remover variável não utilizada mockSetItemAsync em src/services/__tests__/updateService.test.ts",
+        "npm run lint retorna 0 erros e 0 warnings"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "3 erros, 2 warnings atualmente. US-001 é pré-requisito para garantir pipeline consistente.",
+      "dependsOn": [
+        "US-001"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Corrigir exibição de quantidade de itens (BUG-001)",
+      "description": "Como usuário, quero ver a quantidade correta de cada item nas minhas compras (ex: '2x Pão R$2,00' ao invés de '1x Pão R$4,00').",
+      "acceptanceCriteria": [
+        "Item com quantity > 1 exibe 'Nx' com valor unitário (ex: '2x Pão R$2,00')",
+        "Item com quantity === 1 exibe '1x' com valor unitário (ex: '1x Leite R$5,00')",
+        "Valor total do item (quantity * unitPrice) exibido corretamente no subtotal",
+        "Cálculo existente em PurchaseContext/useDashboard não regride",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Arquivos afetados: PurchaseDetailScreen.tsx, componentes PurchaseCard/DraftCard. US-001 e US-002 são pré-requisitos.",
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Corrigir erros de TypeScript nos testes unitários",
+      "description": "Como desenvolvedor, quero que os testes unitários compilem sem erros de TypeScript, especialmente com mocks do Supabase.",
+      "acceptanceCriteria": [
+        "Todos os arquivos .test.ts/.test.tsx compilam sem erros de tipo",
+        "Erros com supabase null/mock resolvidos",
+        "npm test executa sem erros de compilação",
+        "npm run typecheck, npm run lint limpos"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Erros conhecidos com null handling do supabase client mock.",
+      "dependsOn": [
+        "US-001"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Proteger chaves de acesso NFC-e com hash SHA-256 (SEC-002)",
+      "description": "Como usuário, quero que as chaves de acesso NFC-e sejam protegidas antes do envio ao scraper externo, para que meus dados fiscais não sejam expostos.",
+      "acceptanceCriteria": [
+        "Chave de acesso hasheada com SHA-256 antes de enviar ao scraper externo",
+        "Hash implementado em nfceService.ts como função hashAccessKey()",
+        "Scraper externo recebe hash, não a chave original",
+        "Exibição local da chave original preservada para o usuário",
+        "Testes do nfceService.ts passam com fluxo de hash",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "SEC-002 do security audit. Pendente desde v1.0.4. Impacto mitigado por SEC-003/SEC-004 já implementados.",
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Criar workflow de qualidade no CI/CD",
+      "description": "Como desenvolvedor, quero que lint, test e typecheck sejam executados automaticamente em todo PR, para que problemas sejam detectados antes do merge.",
+      "acceptanceCriteria": [
+        "GitHub Actions workflow quality.yml criado",
+        "Workflow executa npm run lint, npm test, npm run typecheck",
+        "Workflow bloqueia PR se qualquer step falhar",
+        "Workflow executa em PRs para dev e main",
+        "Workflow usa cache de node_modules para performance"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ".github/workflows/quality.yml. Depende da pipeline local estar verde primeiro.",
+      "dependsOn": [
+        "US-001",
+        "US-002",
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Expandir cobertura de testes unitários",
+      "description": "Como desenvolvedor, quero testes para hooks, contextos e telas críticas, para que eu tenha confiança em refatorações.",
+      "acceptanceCriteria": [
+        "Testes para hooks: useDashboard, useReports, useUpdateCheck",
+        "Testes para telas críticas: DashboardScreen, PurchasesScreen",
+        "Expansão de testes de contexto: PurchaseContext, DraftContext",
+        "Cobertura geral >= 60% configurada no Jest",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Seguir padrão existente em context/__tests__/AuthContext.test.tsx e screens/__tests__/PriceComparatorScreen.test.tsx.",
+      "dependsOn": [
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Criar módulo de categorização automática de produtos",
+      "description": "Como usuário, quero que produtos sejam categorizados automaticamente ao registrar uma compra, para que meus relatórios sejam segmentados por tipo de produto.",
+      "acceptanceCriteria": [
+        "ProductCategorizerService implementado com regras regex configuráveis",
+        "Dataset inicial de 50+ regras para categorias comuns (alimentação, limpeza, higiene, bebidas, etc.)",
+        "Fallback 'Outros' para itens não categorizados",
+        "Campo category_id populado em items no momento da criação da compra",
+        "Cobertura de categorização >= 80% validada com dataset de teste",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "Módulo puro (sem dependências externas), ideal para testes determinísticos.",
+      "dependsOn": [
+        "US-001",
+        "US-002",
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Adicionar UI de reclassificação de produtos",
+      "description": "Como usuário, quero poder reclassificar um produto caso a categorização automática esteja errada, para que meus relatórios sejam precisos.",
+      "acceptanceCriteria": [
+        "Botão 'Reclassificar' no item do purchase detail",
+        "Picker/modal com categorias disponíveis",
+        "Reclassificação persiste no banco",
+        "ProductCategorizerService.learnReclassification() chamado ao reclassificar",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-008"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Adicionar relatório por categoria no ReportsScreen",
+      "description": "Como usuário, quero ver meus gastos segmentados por categoria de produto, para que eu entenda para onde meu dinheiro está indo.",
+      "acceptanceCriteria": [
+        "Novo gráfico (pizza ou barras) no ReportsScreen mostrando gastos por categoria",
+        "Filtro por categoria disponível na listagem de compras",
+        "Top categorias com maior gasto exibido com valores absolutos e percentuais",
+        "Exportação CSV inclui coluna de categoria",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Reaproveitar lógica existente de ReportService e report RPCs do Supabase.",
+      "dependsOn": [
+        "US-008"
+      ]
+    },
+    {
+      "id": "US-011",
+      "title": "Adicionar edição individual de itens em compras manuais",
+      "description": "Como usuário, quero editar itens individuais dentro de uma compra manual, para que eu possa corrigir erros sem recriar a compra inteira.",
+      "acceptanceCriteria": [
+        "Cada item em compra manual é editável (nome, quantidade, preço unitário)",
+        "Toque no item abre modal de edição com campos preenchidos",
+        "Salvar atualiza o item no banco e recalcula total da compra",
+        "Compras NFC-e permanecem read-only com indicador visual",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "PurchaseService.editItem() + modificação em PurchaseDetailScreen.",
+      "dependsOn": [
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-012",
+      "title": "Adicionar remoção de itens em compras manuais",
+      "description": "Como usuário, quero remover itens de uma compra manual existente, para que eu possa ajustar minhas compras após o registro.",
+      "acceptanceCriteria": [
+        "Ícone de lixeira ou swipe-to-delete em item de compra manual (com confirmação)",
+        "Remover item recalcula total da compra",
+        "Compras NFC-e não permitem remover itens",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "PurchaseService.removeItem() + confirmação modal.",
+      "dependsOn": [
+        "US-011"
+      ]
+    },
+    {
+      "id": "US-013",
+      "title": "Configurar auto-update in-app via GitHub Releases",
+      "description": "Como usuário, quero ser notificado automaticamente quando uma nova versão do app estiver disponível, para que eu mantenha o app atualizado sem verificar manualmente.",
+      "acceptanceCriteria": [
+        "Verificação in-app via GitHub Releases API com cache de 24h",
+        "Dialog não-bloqueante para update opcional",
+        "Update obrigatório suportado via minVersion no release body",
+        "Download do APK via Linking.openURL direto para asset .apk",
+        "npm run typecheck, npm run lint, npm test limpos"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "Feature já implementada em v1.3.0. Verificar se está operacional e testar integração.",
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-05-05T22:39:11.034Z"
+  }
+}

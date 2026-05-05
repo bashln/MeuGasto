@@ -7,6 +7,7 @@ jest.mock('expo-secure-store', () => ({
 import * as SecureStore from 'expo-secure-store';
 import {
   clearSupabaseSessionStorage,
+  resetSecureSessionStorageForTests,
   secureSessionStorage,
   SUPABASE_SESSION_STORAGE_KEY,
 } from '../secureSessionStorage';
@@ -18,6 +19,11 @@ describe('secureSessionStorage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetSecureSessionStorageForTests();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('le item com sucesso', async () => {
@@ -27,9 +33,14 @@ describe('secureSessionStorage', () => {
   });
 
   it('propaga erro explicito ao falhar leitura', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
     mockGetItemAsync.mockRejectedValue(new Error('boom'));
 
-    await expect(secureSessionStorage.getItem('k2')).rejects.toThrow('Failed to read secure storage key "k2"');
+    await expect(secureSessionStorage.getItem('k2')).resolves.toBeNull();
+    expect(console.warn).toHaveBeenCalledWith(
+      '[SecureSessionStorage] SecureStore getItem failed, using in-memory:',
+      expect.any(Error),
+    );
   });
 
   it('limpa chave de sessao do supabase', async () => {

@@ -8,7 +8,6 @@ import { updateService, compareVersions } from '../updateService';
 import * as SecureStore from 'expo-secure-store';
 
 const mockGetItemAsync = SecureStore.getItemAsync as jest.Mock;
-const mockSetItemAsync = SecureStore.setItemAsync as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
 
 describe('updateService', () => {

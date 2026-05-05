@@ -93,7 +93,7 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cart-off" size={32} color={colors.mutedText} />
             <RNText style={styles.emptyText}>Nenhum item para comparar.</RNText>
-            <RNText style={styles.emptyHint}>Toque em "Adicionar Item" para começar.</RNText>
+            <RNText style={styles.emptyHint}>{'Toque em "Adicionar Item" para começar.'}</RNText>
           </View>
         ) : (
           items.map((item) => (

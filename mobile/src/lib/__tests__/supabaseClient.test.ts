@@ -6,6 +6,7 @@ describe('supabaseClient configuration', () => {
     let mod: typeof import('../supabaseClient');
 
     jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       mod = require('../supabaseClient') as typeof import('../supabaseClient');
     });
 

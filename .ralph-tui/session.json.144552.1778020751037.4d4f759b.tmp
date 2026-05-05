@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
+  "status": "running",
+  "startedAt": "2026-05-05T22:36:09.971Z",
+  "updatedAt": "2026-05-05T22:39:11.035Z",
+  "currentIteration": 0,
+  "maxIterations": 10,
+  "tasksCompleted": 0,
+  "isPaused": false,
+  "agentPlugin": "codex",
+  "trackerState": {
+    "plugin": "json",
+    "prdPath": "docs/ai/prd.json",
+    "totalTasks": 13,
+    "tasks": [
+      {
+        "id": "US-001",
+        "title": "Corrigir testes quebrados do secureSessionStorage",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-002",
+        "title": "Corrigir erros de lint no projeto",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-003",
+        "title": "Corrigir exibição de quantidade de itens (BUG-001)",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-004",
+        "title": "Corrigir erros de TypeScript nos testes unitários",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-005",
+        "title": "Proteger chaves de acesso NFC-e com hash SHA-256 (SEC-002)",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-006",
+        "title": "Criar workflow de qualidade no CI/CD",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-007",
+        "title": "Expandir cobertura de testes unitários",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-008",
+        "title": "Criar módulo de categorização automática de produtos",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-009",
+        "title": "Adicionar UI de reclassificação de produtos",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-010",
+        "title": "Adicionar relatório por categoria no ReportsScreen",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-011",
+        "title": "Adicionar edição individual de itens em compras manuais",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-012",
+        "title": "Adicionar remoção de itens em compras manuais",
+        "status": "open",
+        "completedInSession": false
+      },
+      {
+        "id": "US-013",
+        "title": "Configurar auto-update in-app via GitHub Releases",
+        "status": "open",
+        "completedInSession": false
+      }
+    ]
+  },
+  "iterations": [],
+  "skippedTaskIds": [],
+  "cwd": "/home/leonamduarte/coding/meuGastoAi",
+  "activeTaskIds": [],
+  "subagentPanelVisible": true
+}
