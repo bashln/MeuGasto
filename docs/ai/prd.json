@@ -145,11 +145,12 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/services/reportService.ts:293. Risco baixo: nomes podem variar em caixa/acentos entre NFC-es.",
       "dependsOn": [
         "US-005"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-010",
@@ -266,6 +267,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:31:59.119Z"
+    "updatedAt": "2026-05-05T23:33:13.028Z"
   }
 }

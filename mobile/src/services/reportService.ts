@@ -295,7 +295,7 @@ export const reportService = {
       .from('items')
       .select('purchase_id, name, quantity, price')
       .in('purchase_id', purchaseIds)
-      .eq('name', itemName);
+      .ilike('name', itemName);
 
     if (itemsError) {
       throw new Error(itemsError.message);

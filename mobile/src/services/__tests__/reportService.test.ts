@@ -91,4 +91,55 @@ describe('reportService', () => {
       { categoryId: 2, category: 'Bebidas', total: 10, percentage: 50 },
     ]);
   });
+
+  it('retorna o mesmo relatorio para ARROZ e arroz com match case-insensitive', async () => {
+    const createPurchaseQuery = () => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockResolvedValue({
+        data: [{ id: 1, supermarket: { name: 'Mercado A' } }],
+        error: null,
+      }),
+    });
+
+    const createItemsQuery = () => ({
+      select: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      ilike: jest.fn().mockResolvedValue({
+        data: [{ purchase_id: 1, name: 'arroz', quantity: '2', price: '5' }],
+        error: null,
+      }),
+    });
+
+    const itemsQueryUpper = createItemsQuery();
+    const itemsQueryLower = createItemsQuery();
+
+    mockFrom
+      .mockReturnValueOnce(createPurchaseQuery())
+      .mockReturnValueOnce(itemsQueryUpper)
+      .mockReturnValueOnce(createPurchaseQuery())
+      .mockReturnValueOnce(itemsQueryLower);
+
+    const upperResult = await reportService.getItemReport('ARROZ', '2026-01-01', '2026-12-31');
+    const lowerResult = await reportService.getItemReport('arroz', '2026-01-01', '2026-12-31');
+
+    expect(itemsQueryUpper.ilike).toHaveBeenCalledWith('name', 'ARROZ');
+    expect(itemsQueryLower.ilike).toHaveBeenCalledWith('name', 'arroz');
+    expect(upperResult).toEqual(lowerResult);
+    expect(upperResult).toEqual({
+      totalQuantity: 2,
+      totalSpent: 10,
+      averagePrice: 5,
+      purchaseCount: 1,
+      bySupermarket: [
+        {
+          supermarket: 'Mercado A',
+          totalQuantity: 2,
+          totalSpent: 10,
+          averagePrice: 5,
+        },
+      ],
+    });
+  });
 });
