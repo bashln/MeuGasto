@@ -110,13 +110,14 @@
         "Workflow usa cache de node_modules para performance"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": ".github/workflows/quality.yml. Depende da pipeline local estar verde primeiro.",
       "dependsOn": [
         "US-001",
         "US-002",
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-007",
@@ -250,6 +251,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T22:46:06.544Z"
+    "updatedAt": "2026-05-05T22:47:21.441Z"
   }
 }

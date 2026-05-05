@@ -3,7 +3,7 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T22:46:07.580Z",
+  "updatedAt": "2026-05-05T22:47:21.441Z",
   "currentIteration": 6,
   "maxIterations": 10,
   "tasksCompleted": 6,
@@ -158,8 +158,6 @@
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
-  "activeTaskIds": [
-    "US-006"
-  ],
+  "activeTaskIds": [],
   "subagentPanelVisible": true
 }
