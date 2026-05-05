@@ -45,9 +45,21 @@ describe('nfceService QR parsing', () => {
 });
 
 describe('nfceService URL and allowlist', () => {
+  it('usa endpoint da UF correta para cUFs sem duplicacao incorreta', () => {
+    const rrUrl = buildNFCeUrl('14180611111111111111111111111111111111111111');
+    const baUrl = buildNFCeUrl('29180611111111111111111111111111111111111111');
+    const piUrl = buildNFCeUrl('22180611111111111111111111111111111111111111');
+    const rjUrl = buildNFCeUrl('33180611111111111111111111111111111111111111');
+
+    expect(rrUrl).toContain('sefaz.rr.gov.br');
+    expect(baUrl).toContain('sefaz.ba.gov.br');
+    expect(piUrl).toContain('sefaz.pi.gov.br');
+    expect(rjUrl).toContain('fazenda.rj.gov.br');
+  });
+
   it('preserva payload completo para estado 43 (RS)', () => {
     const url = buildNFCeUrl('43180611111111111111111111111111111111111111|2|1|1|HASH');
-    expect(url).toContain('dfe-portal.svrs.rs.gov.br');
+    expect(url).toContain('sefaz.rs.gov.br/NFCE/NFCE-COM.aspx');
     expect(url).toContain('43180611111111111111111111111111111111111111|2|1|1|HASH');
   });
 
@@ -61,13 +73,13 @@ describe('nfceService URL and allowlist', () => {
 
   it('valida path esperado quando solicitado', () => {
     expect(
-      isAllowedNfceUrl('https://www.sefaz.sc.gov.br/nfce/consulta?p=1', {
+      isAllowedNfceUrl('https://sat.sef.sc.gov.br/nfce/consulta?p=1', {
         requireExpectedPath: true,
       })
     ).toBe(true);
 
     expect(
-      isAllowedNfceUrl('https://www.sefaz.sc.gov.br/outro?p=1', {
+      isAllowedNfceUrl('https://sat.sef.sc.gov.br/outro?p=1', {
         requireExpectedPath: true,
       })
     ).toBe(false);
