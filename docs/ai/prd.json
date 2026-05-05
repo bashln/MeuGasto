@@ -179,9 +179,10 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/screens/PurchaseDetailScreen.tsx:326. Risco baixo: IDs SQL começam em 1, mas defensivo.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-012",
@@ -193,9 +194,10 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/screens/ReportsScreen.tsx:105-109. Risco baixo: zero prices são raros.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-013",
@@ -268,6 +270,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:34:35.127Z"
+    "updatedAt": "2026-05-05T23:36:43.029Z"
   }
 }

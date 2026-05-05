@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:33:14.072Z",
-  "currentIteration": 23,
+  "updatedAt": "2026-05-05T23:35:34.177Z",
+  "currentIteration": 25,
   "maxIterations": 10,
-  "tasksCompleted": 23,
+  "tasksCompleted": 25,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -324,12 +324,32 @@
       "durationMs": 72825,
       "startedAt": "2026-05-05T23:32:00.203Z",
       "endedAt": "2026-05-05T23:33:13.028Z"
+    },
+    {
+      "iteration": 24,
+      "status": "completed",
+      "taskId": "US-010",
+      "taskTitle": "Corrigir buildDateRange para usar undefined check explícito",
+      "taskCompleted": true,
+      "durationMs": 81063,
+      "startedAt": "2026-05-05T23:33:14.064Z",
+      "endedAt": "2026-05-05T23:34:35.127Z"
+    },
+    {
+      "iteration": 25,
+      "status": "completed",
+      "taskId": "US-011",
+      "taskTitle": "Corrigir key={item.id || index} para evitar falsy id=0",
+      "taskCompleted": true,
+      "durationMs": 56969,
+      "startedAt": "2026-05-05T23:34:36.167Z",
+      "endedAt": "2026-05-05T23:35:33.136Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
   "activeTaskIds": [
-    "US-010"
+    "US-012"
   ],
   "subagentPanelVisible": true
 }

@@ -105,8 +105,15 @@ export const ReportsScreen: React.FC = () => {
   const comparisonPrices = itemReportData.bySupermarket
     .map(row => row.averagePrice)
     .filter(price => price > 0);
-  const minPrice = comparisonPrices.length > 0 ? Math.min(...comparisonPrices) : 0;
-  const maxPrice = comparisonPrices.length > 0 ? Math.max(...comparisonPrices) : 0;
+  let minPrice = 0;
+  let maxPrice = 0;
+  if (comparisonPrices.length === 0) {
+    minPrice = 0;
+    maxPrice = 0;
+  } else {
+    minPrice = Math.min(...comparisonPrices);
+    maxPrice = Math.max(...comparisonPrices);
+  }
 
   // Dados do gráfico (simplificado)
   const chartData = monthlyData.map(m => ({
