@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:25:19.813Z",
-  "currentIteration": 19,
+  "updatedAt": "2026-05-05T23:26:25.380Z",
+  "currentIteration": 20,
   "maxIterations": 10,
-  "tasksCompleted": 19,
+  "tasksCompleted": 20,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -284,12 +284,22 @@
       "durationMs": 102311,
       "startedAt": "2026-05-05T23:23:36.464Z",
       "endedAt": "2026-05-05T23:25:18.775Z"
+    },
+    {
+      "iteration": 20,
+      "status": "completed",
+      "taskId": "US-007",
+      "taskTitle": "Endurecer asserções do formatMoney.test.ts",
+      "taskCompleted": true,
+      "durationMs": 64492,
+      "startedAt": "2026-05-05T23:25:19.807Z",
+      "endedAt": "2026-05-05T23:26:24.299Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
   "activeTaskIds": [
-    "US-007"
+    "US-015"
   ],
   "subagentPanelVisible": true
 }
