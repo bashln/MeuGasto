@@ -240,15 +240,16 @@
         "npm run typecheck, npm run lint, npm test limpos"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Feature já implementada em v1.3.0. Verificar se está operacional e testar integração.",
       "dependsOn": [
         "US-001",
         "US-002"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T22:45:10.140Z"
+    "updatedAt": "2026-05-05T22:46:06.544Z"
   }
 }
