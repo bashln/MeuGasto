@@ -162,11 +162,12 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/services/reportService.ts. Risco baixo: meses são 1-12 no código atual, mas defensivo.",
       "dependsOn": [
         "US-005"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-011",
@@ -267,6 +268,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:33:13.028Z"
+    "updatedAt": "2026-05-05T23:34:35.127Z"
   }
 }

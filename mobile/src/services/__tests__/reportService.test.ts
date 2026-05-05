@@ -36,6 +36,25 @@ describe('reportService', () => {
     expect(result).toEqual([{ supermarket: 'Mercado A', total: 33.7 }]);
   });
 
+  it('usa janeiro quando month=0 ao montar range de dashboard', async () => {
+    const purchaseQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockResolvedValue({
+        data: [],
+        error: null,
+      }),
+    };
+
+    mockFrom.mockReturnValueOnce(purchaseQuery);
+
+    await reportService.getDashboardStats(0, 2026);
+
+    expect(purchaseQuery.gte).toHaveBeenCalledWith('date', '2026-01-01');
+    expect(purchaseQuery.lte).toHaveBeenCalledWith('date', '2026-01-31');
+  });
+
   it('retorna vazio e nao chama RPC quando nao ha userId', async () => {
     mockGetCurrentUserId.mockResolvedValue(null);
 

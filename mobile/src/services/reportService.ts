@@ -13,10 +13,11 @@ const getClient = (): SupabaseClient => {
 };
 
 const buildDateRange = (month?: number, year?: number): { startDate: string; endDate: string } => {
-  if (month && year) {
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  if (month !== undefined && year !== undefined) {
+    const normalizedMonth = month === 0 ? 1 : month;
+    const startDate = `${year}-${String(normalizedMonth).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, normalizedMonth, 0).getDate();
+    const endDate = `${year}-${String(normalizedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     return { startDate, endDate };
   }
 
