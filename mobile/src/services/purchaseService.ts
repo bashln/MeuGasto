@@ -15,6 +15,7 @@ const getClient = (): SupabaseClient => {
 
 type PurchaseItemRow = {
   id: number;
+  purchase_id?: number;
   name: string;
   code?: string;
   category_id?: number;
@@ -28,6 +29,12 @@ type PurchaseUpdateData = {
   total_price?: number;
   supermarket_id?: number | null;
   updated_at: string;
+};
+
+type EditItemPayload = {
+  name: string;
+  quantity: number;
+  price: number;
 };
 
 const mapPurchaseItems = (items: unknown): Purchase['products'] => {
@@ -259,5 +266,80 @@ export const purchaseService = {
     }
 
     productCategorizer.learnReclassification(productName, categoryId);
+  },
+
+  async editItem(purchaseId: number, itemId: number, updates: EditItemPayload): Promise<Purchase> {
+    const userId = await getCurrentUserId();
+    const name = updates.name.trim();
+    const quantity = Number(updates.quantity);
+    const price = Number(updates.price);
+
+    if (!name) {
+      throw new Error('Nome do item é obrigatório');
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error('Quantidade deve ser maior que zero');
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      throw new Error('Preço unitário inválido');
+    }
+
+    const supabase = getClient();
+
+    const { data: purchase, error: purchaseError } = await supabase
+      .from('purchases')
+      .select('id, manual')
+      .eq('id', purchaseId)
+      .eq('user_id', userId)
+      .single();
+
+    if (purchaseError) {
+      throw new Error(purchaseError.message);
+    }
+    if (!purchase?.manual) {
+      throw new Error('Compras NFC-e são somente leitura');
+    }
+
+    const { error: itemError } = await supabase
+      .from('items')
+      .update({
+        name,
+        quantity,
+        price,
+      })
+      .eq('id', itemId)
+      .eq('purchase_id', purchaseId);
+
+    if (itemError) {
+      throw new Error(itemError.message);
+    }
+
+    const { data: items, error: itemsError } = await supabase
+      .from('items')
+      .select('quantity, price')
+      .eq('purchase_id', purchaseId);
+
+    if (itemsError) {
+      throw new Error(itemsError.message);
+    }
+
+    const recalculatedTotal = (items ?? []).reduce((acc: number, item: { quantity: number | string; price: number | string }) => {
+      return acc + (Number(item.quantity) || 0) * (Number(item.price) || 0);
+    }, 0);
+
+    const { error: purchaseUpdateError } = await supabase
+      .from('purchases')
+      .update({
+        total_price: Number(recalculatedTotal.toFixed(2)),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', purchaseId)
+      .eq('user_id', userId);
+
+    if (purchaseUpdateError) {
+      throw new Error(purchaseUpdateError.message);
+    }
+
+    return this.getPurchaseById(purchaseId);
   },
 };
