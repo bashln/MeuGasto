@@ -110,34 +110,36 @@ export const parseQrInput = (input: string): string => {
   throw new Error('QR Code NFC-e inválido: não foi possível extrair a chave de acesso');
 };
 
+// Fonte oficial (produção): ENCAT NFC-e "URL por UF utilizada QR code"
+// https://nfce.encat.org/desenvolvedor/qrcode/ (acesso em 2026-05-05)
 const STATE_URLS: Record<string, string> = {
-  '11': 'https://www.sefaz.am.gov.br/nfce/consulta',
-  '12': 'https://www.sefaz.ac.gov.br/nfce/consulta',
-  '13': 'https://www.sefaz.ap.gov.br/nfce/consulta',
-  '14': 'https://www.sefaz.se.gov.br/nfce/consulta',
-  '15': 'https://www.sefaz.to.gov.br/nfce/consulta',
-  '16': 'https://www.fazenda.ma.gov.br/nfce/consulta',
-  '17': 'https://www.sefaz.pi.gov.br/nfce/consulta',
-  '21': 'https://www.fazenda.mg.gov.br/nfce/consulta',
-  '22': 'https://www.sefaz.es.gov.br/nfce/consulta',
-  '23': 'https://www.sefaz.rj.gov.br/nfce/consulta',
-  '24': 'https://www.sefaz.rj.gov.br/nfce/consulta',
-  '25': 'https://www.sefaz.pb.gov.br/nfce/consulta',
-  '26': 'https://www.sefaz.pe.gov.br/nfce/consulta',
-  '27': 'https://www.sefaz.al.gov.br/nfce/consulta',
-  '28': 'https://www.sefaz.ba.gov.br/nfce/consulta',
-  '29': 'https://www.sefaz.se.gov.br/nfce/consulta',
-  '31': 'https://www.sefaz.mt.gov.br/nfce/consulta',
-  '32': 'https://www.sefaz.ms.gov.br/nfce/consulta',
-  '33': 'https://www.sefaz.rj.gov.br/nfce/consulta',
-  '35': 'https://www.fazenda.sp.gov.br/nfce/consulta',
-  '41': 'https://www.fazenda.pr.gov.br/nfce/consulta',
-  '42': 'https://www.sefaz.sc.gov.br/nfce/consulta',
-  '43': 'https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce',
-  '50': 'https://www.sefaz.go.gov.br/nfce/consulta',
-  '51': 'https://www.sefaz.mt.gov.br/nfce/consulta',
-  '52': 'https://www.sefaz.ro.gov.br/nfce/consulta',
-  '53': 'https://www.sefaz.to.gov.br/nfce/consulta',
+  '11': 'https://www.nfce.sefin.ro.gov.br/consultanfce/consulta.jsp', // RO
+  '12': 'https://www.sefaznet.ac.gov.br/nfce/qrcode', // AC
+  '13': 'https://sistemas.sefaz.am.gov.br/nfceweb/consultarNFCe.jsp', // AM
+  '14': 'https://www.sefaz.rr.gov.br/nfce/servlet/qrcode', // RR
+  '15': 'https://appnfc.sefa.pa.gov.br/portal/view/consultas/nfce/nfceForm.seam', // PA
+  '16': 'https://www.sefaz.ap.gov.br/nfce/nfcep.php', // AP
+  '17': 'https://www.sefaz.to.gov.br/nfce/qrcode', // TO
+  '21': 'https://nfce.sefaz.ma.gov.br/portal/consultarNFCe.jsp', // MA
+  '22': 'https://www.sefaz.pi.gov.br/nfce/qrcode', // PI
+  '23': 'https://nfce.sefaz.ce.gov.br/pages/ShowNFCe.html', // CE
+  '24': 'https://nfce.set.rn.gov.br/consultarNFCe.aspx', // RN
+  '25': 'https://www.sefaz.pb.gov.br/nfce', // PB
+  '26': 'https://nfce.sefaz.pe.gov.br/nfce/consulta', // PE
+  '27': 'https://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp', // AL
+  '28': 'https://www.nfce.se.gov.br/nfce/qrcode', // SE
+  '29': 'https://nfe.sefaz.ba.gov.br/servicos/nfce/qrcode.aspx', // BA
+  '31': 'https://portalsped.fazenda.mg.gov.br/portalnfce/sistema/qrcode.xhtml', // MG
+  '32': 'https://app.sefaz.es.gov.br/ConsultaNFCe', // ES
+  '33': 'https://consultadfe.fazenda.rj.gov.br/consultaNFCe/QRCode', // RJ
+  '35': 'https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx', // SP
+  '41': 'https://www.fazenda.pr.gov.br/nfce/qrcode', // PR
+  '42': 'https://sat.sef.sc.gov.br/nfce/consulta', // SC
+  '43': 'https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx', // RS
+  '50': 'https://www.dfe.ms.gov.br/nfce/qrcode', // MS
+  '51': 'https://www.sefaz.mt.gov.br/nfce/consultanfce', // MT
+  '52': 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/danfeNFCe', // GO
+  '53': 'https://www.fazenda.df.gov.br/nfce/qrcode', // DF
 };
 
 export const buildNFCeUrl = (input: string): string => {
