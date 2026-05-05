@@ -236,11 +236,12 @@
         "npm run lint && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: .github/workflows/quality.yml + jest.config.js. Thresholds já existem, CI não executa --coverage.",
       "dependsOn": [
         "US-002"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-016",
@@ -264,6 +265,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:26:24.300Z"
+    "updatedAt": "2026-05-05T23:27:34.060Z"
   }
 }

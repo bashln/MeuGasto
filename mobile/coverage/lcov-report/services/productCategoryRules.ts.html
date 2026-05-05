@@ -1,0 +1,373 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for services/productCategoryRules.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../prettify.css" />
+    <link rel="stylesheet" href="../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">services</a> productCategoryRules.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>3/3</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>3/3</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { ProductCategoryRule } from './productCategorizerService';
+&nbsp;
+export const CATEGORY_IDS = {
+  ALIMENTACAO: 1,
+  BEBIDAS: 2,
+  LIMPEZA: 3,
+  HIGIENE: 4,
+  PADARIA: 5,
+  HORTIFRUTI: 6,
+  CARNES_E_FRIOS: 7,
+  LATICINIOS: 8,
+  OUTROS: 999,
+} as const;
+&nbsp;
+export const PRODUCT_CATEGORY_OPTIONS: Array&lt;{ id: number; label: string }&gt; = [
+  { id: CATEGORY_IDS.ALIMENTACAO, label: 'Alimentação' },
+  { id: CATEGORY_IDS.BEBIDAS, label: 'Bebidas' },
+  { id: CATEGORY_IDS.LIMPEZA, label: 'Limpeza' },
+  { id: CATEGORY_IDS.HIGIENE, label: 'Higiene' },
+  { id: CATEGORY_IDS.PADARIA, label: 'Padaria' },
+  { id: CATEGORY_IDS.HORTIFRUTI, label: 'Hortifruti' },
+  { id: CATEGORY_IDS.CARNES_E_FRIOS, label: 'Carnes e Frios' },
+  { id: CATEGORY_IDS.LATICINIOS, label: 'Laticínios' },
+  { id: CATEGORY_IDS.OUTROS, label: 'Outros' },
+];
+&nbsp;
+export const DEFAULT_PRODUCT_CATEGORY_RULES: ProductCategoryRule[] = [
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(arroz|feijao|macarrao|espaguete|farinha|acucar|sal|molho de tomate)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(oleo de soja|azeite|vinagre|maionese|mostarda|ketchup)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(atum|sardinha|milho verde|ervilha|seleta|palmito|extrato)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(biscoito|bolacha|wafer|cookies|torrada|granola)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(cereal|aveia|quinoa|lentilha|grao de bico)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(miojo|tempero pronto|caldo|canjao|canjicao|canjica)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(pipoca|amendoim|castanha|uvas passas|fruta seca)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(chocolate em po|achocolatado|doce de leite|geleia|mel)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(agua mineral|agua com gas|agua sem gas)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(refrigerante|guarana|cola|soda)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(suco|nectar|cha pronto|isotonico|energetico)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(cerveja|chopp|vinho|espumante|vodka|whisky|gin|rum)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(leite vegetal|agua de coco|cafe pronto)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(capsula de cafe|po para preparo de bebida|xarope)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(detergente|lava[- ]?loucas|sabao em po|sabao liquido|amaciante)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(desinfetante|agua sanitaria|cloro|alvejante)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(limpador multiuso|limpa vidro|desengordurante|lustra moveis)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(esponja|palha de aco|saco de lixo|pano de limpeza|vassoura)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(rodo|balde|luva de limpeza|inseticida|odorizador de ambiente)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(sabao em barra|limpa piso|limpa forno|limpa banheiro)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(shampoo|condicionador|sabonete|creme dental|escova dental)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(fio dental|enxaguante bucal|desodorante|hidratante)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(protetor solar|absorvente|papel higienico|lenço umedecido)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(frada|fralda|pomada assadura|talco|algodao)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(cotonete|gilete|espuma de barbear|aparelho de barbear)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(sabonete liquido|alcool em gel|mascara descartavel)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(pao frances|pao de forma|pao integral|bisnaguinha)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(croissant|baguete|pao de queijo|broa|sonho)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(bolo|torta doce|rosca|panetone|colomba)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(fermento biologico|mistura para bolo|massa pronta)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(pizza congelada|esfiha|salgado assado|salgado frito)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(tapioca pronta|beiju|crepioca)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(banana|maca|pera|uva|laranja|tangerina|mexerica)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(mamao|abacaxi|melancia|melao|morango|kiwi|abacate)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(alface|couve|espinafre|rucula|agri[aã]o)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(tomate|cebola|alho|batata|cenoura|abobrinha|berinjela)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(mandioca|inhame|beterraba|chuchu|pepino|pimentao)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(coentro|salsinha|cebolinha|hortela|manjericao)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(carne bovina|patinho|acem|coxao mole|contra file)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(frango|peito de frango|coxa|sobrecoxa|asa de frango)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(carne suina|lombo|costela suina|bacon|linguica)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(peixe|tilapia|salmao|merluza|atum fresco|camarao)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(presunto|mussarela|queijo prato|mortadela|salame)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(salsicha|nuggets|hamburguer|kibe|almond[eê]ga)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(leite integral|leite desnatado|leite semidesnatado)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(iogurte|coalhada|bebida lactea|yakult)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(queijo minas|queijo parmesao|requeijao|cream cheese)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(manteiga|margarina|creme de leite|leite condensado)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(doce de leite cremoso|sobremesa lactea|pudim pronto)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(leite em po|whey protein|proteina lactea)\b/i },
+&nbsp;
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(ovo branco|ovo caipira|ovos)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(cuscuz|fuba|polvilho|farofa pronta)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(molho shoyu|molho ingles|pimenta|oregano|cominho)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(cafe torrado|cafe moido|cha mate|cha de camomila)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(suporte para escova dental|saboneteira|toalha umedecida)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(refil mop|panos multiuso|saponaceo|removedor)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(cogumelo|shitake|shimeji|broto de feijao)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(peru defumado|peito de peru|carpaccio|charque)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(pao australiano|pao de alho|grissini|focaccia)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(kefir|ricota|queijo cottage|queijo brie)\b/i },
+];
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-05-05T23:27:16.303Z
+            </div>
+        <script src="../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../sorter.js"></script>
+        <script src="../block-navigation.js"></script>
+    </body>
+</html>
+    

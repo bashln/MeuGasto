@@ -41,7 +41,7 @@ jobs:
 
       - name: Test
         working-directory: ./mobile
-        run: npm test -- --runInBand
+        run: npm test -- --runInBand --coverage
 
       - name: Typecheck
         working-directory: ./mobile
