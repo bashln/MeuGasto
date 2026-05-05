@@ -10,13 +10,14 @@ export interface SessionStorageAdapter {
 
 const inMemoryStore: Record<string, string> = {};
 
-const createInMemoryStorage = (): SessionStorageAdapter => ({
-  getItem: async (key: string) => inMemoryStore[key] || null,
-  setItem: async (key: string, value: string) => { inMemoryStore[key] = value; },
-  removeItem: async (key: string) => { delete inMemoryStore[key]; },
-});
-
 let useInMemory = false;
+
+export const resetSecureSessionStorageForTests = (): void => {
+  useInMemory = false;
+  Object.keys(inMemoryStore).forEach((key) => {
+    delete inMemoryStore[key];
+  });
+};
 
 const getItem = async (key: string): Promise<string | null> => {
   if (useInMemory) {
