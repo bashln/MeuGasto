@@ -21,6 +21,7 @@ const normalizeProductName = (value: string): string => {
 export class ProductCategorizerService {
   private readonly rules: ProductCategoryRule[];
   private readonly fallbackCategoryId: number;
+  private readonly learnedReclassifications = new Map<string, number>();
 
   constructor(config: ProductCategorizerConfig) {
     this.rules = config.rules;
@@ -29,6 +30,10 @@ export class ProductCategorizerService {
 
   categorizeProduct(productName: string): number {
     const normalized = normalizeProductName(productName || '');
+    const learnedCategory = this.learnedReclassifications.get(normalized);
+    if (learnedCategory !== undefined) {
+      return learnedCategory;
+    }
 
     for (const rule of this.rules) {
       if (rule.pattern.test(normalized)) {
@@ -37,5 +42,14 @@ export class ProductCategorizerService {
     }
 
     return this.fallbackCategoryId;
+  }
+
+  learnReclassification(productName: string, categoryId: number): void {
+    const normalized = normalizeProductName(productName || '');
+    if (!normalized) {
+      return;
+    }
+
+    this.learnedReclassifications.set(normalized, categoryId);
   }
 }

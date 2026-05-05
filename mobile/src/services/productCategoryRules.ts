@@ -12,6 +12,18 @@ export const CATEGORY_IDS = {
   OUTROS: 999,
 } as const;
 
+export const PRODUCT_CATEGORY_OPTIONS: Array<{ id: number; label: string }> = [
+  { id: CATEGORY_IDS.ALIMENTACAO, label: 'Alimentação' },
+  { id: CATEGORY_IDS.BEBIDAS, label: 'Bebidas' },
+  { id: CATEGORY_IDS.LIMPEZA, label: 'Limpeza' },
+  { id: CATEGORY_IDS.HIGIENE, label: 'Higiene' },
+  { id: CATEGORY_IDS.PADARIA, label: 'Padaria' },
+  { id: CATEGORY_IDS.HORTIFRUTI, label: 'Hortifruti' },
+  { id: CATEGORY_IDS.CARNES_E_FRIOS, label: 'Carnes e Frios' },
+  { id: CATEGORY_IDS.LATICINIOS, label: 'Laticínios' },
+  { id: CATEGORY_IDS.OUTROS, label: 'Outros' },
+];
+
 export const DEFAULT_PRODUCT_CATEGORY_RULES: ProductCategoryRule[] = [
   { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(arroz|feijao|macarrao|espaguete|farinha|acucar|sal|molho de tomate)\b/i },
   { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(oleo de soja|azeite|vinagre|maionese|mostarda|ketchup)\b/i },

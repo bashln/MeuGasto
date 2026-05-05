@@ -59,4 +59,10 @@ describe('ProductCategorizerService', () => {
 
     expect(coverage).toBeGreaterThanOrEqual(0.8);
   });
+
+  it('prioriza categoria aprendida apos reclassificacao manual', () => {
+    service.learnReclassification('Cafe Torrado e Moido', CATEGORY_IDS.ALIMENTACAO);
+
+    expect(service.categorizeProduct('café torrado e moído')).toBe(CATEGORY_IDS.ALIMENTACAO);
+  });
 });
