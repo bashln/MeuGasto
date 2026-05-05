@@ -11,7 +11,7 @@ jest.mock('../../lib/supabaseClient', () => {
 });
 
 jest.mock('../authService', () => ({
-  getCurrentUserId: jest.fn(),
+  getCurrentUserId: jest.fn().mockResolvedValue('11111111-1111-4111-8111-111111111111'),
 }));
 
 import {
@@ -138,6 +138,7 @@ describe('nfceService purchase creation', () => {
     expect(mockRpc).toHaveBeenCalledWith(
       'create_purchase_with_items',
       expect.objectContaining({
+        p_supermarket_id: 11,
         p_items: [
           expect.objectContaining({
             name: 'Shampoo Anticaspa',
@@ -145,6 +146,94 @@ describe('nfceService purchase creation', () => {
           }),
         ],
       })
+    );
+  });
+
+  it('usa supermercado encontrado por cnpj exato quando like nao encontra', async () => {
+    const likeLookupChain = {
+      select: jest.fn().mockReturnThis(),
+      like: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const exactLookupChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 22 }, error: null }),
+    };
+
+    mockFrom
+      .mockReturnValueOnce(likeLookupChain)
+      .mockReturnValueOnce(exactLookupChain);
+    mockRpc.mockResolvedValue({ data: [{ purchase_id: 44 }], error: null });
+
+    await nfceService.createPurchaseFromScrapedData(
+      {
+        total: 12.5,
+        emittedAt: '03/05/2026 10:32:00',
+        cnpj: '12345678000195',
+        storeName: 'Mercado Exato',
+        city: 'Curitiba',
+        state: 'PR',
+        items: [{ name: 'Arroz', quantity: 1, unit: 'UN', unityPrice: 12.5 }],
+      },
+      '43180611111111111111111111111111111111111111'
+    );
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_purchase_with_items',
+      expect.objectContaining({ p_supermarket_id: 22 })
+    );
+  });
+
+  it('cria supermercado quando nao encontra por cnpj e usa id criado', async () => {
+    const likeLookupChain = {
+      select: jest.fn().mockReturnThis(),
+      like: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const exactLookupChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const createChain = {
+      insert: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 33 }, error: null }),
+    };
+
+    mockFrom
+      .mockReturnValueOnce(likeLookupChain)
+      .mockReturnValueOnce(exactLookupChain)
+      .mockReturnValueOnce(createChain);
+    mockRpc.mockResolvedValue({ data: [{ purchase_id: 45 }], error: null });
+
+    await nfceService.createPurchaseFromScrapedData(
+      {
+        total: 8.9,
+        emittedAt: '03/05/2026 10:32:00',
+        cnpj: '12345678000195',
+        storeName: 'Mercado Novo',
+        city: 'Curitiba',
+        state: 'PR',
+        items: [{ name: 'Feijao', quantity: 1, unit: 'UN', unityPrice: 8.9 }],
+      },
+      '43180611111111111111111111111111111111111111'
+    );
+
+    expect(createChain.insert).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Mercado Novo',
+      cnpj: '12345678000195',
+      manual: false,
+      user_id: '11111111-1111-4111-8111-111111111111',
+    }));
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_purchase_with_items',
+      expect.objectContaining({ p_supermarket_id: 33 })
     );
   });
 });

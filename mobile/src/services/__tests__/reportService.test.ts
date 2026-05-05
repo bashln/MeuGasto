@@ -55,6 +55,41 @@ describe('reportService', () => {
     expect(purchaseQuery.lte).toHaveBeenCalledWith('date', '2026-01-31');
   });
 
+  it('agrega dashboard com compras e itens', async () => {
+    const purchaseQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockResolvedValue({
+        data: [
+          { id: 1, total_price: '10.5' },
+          { id: 2, total_price: '4.5' },
+        ],
+        error: null,
+      }),
+    };
+    const itemsQuery = {
+      select: jest.fn().mockReturnThis(),
+      in: jest.fn().mockResolvedValue({
+        data: [{ quantity: '2' }, { quantity: '3' }],
+        error: null,
+      }),
+    };
+
+    mockFrom
+      .mockReturnValueOnce(purchaseQuery)
+      .mockReturnValueOnce(itemsQuery);
+
+    const result = await reportService.getDashboardStats(5, 2026);
+
+    expect(result).toEqual({
+      totalSpent: 15,
+      purchaseCount: 2,
+      itemCount: 5,
+      savings: 0,
+    });
+  });
+
   it('retorna vazio e nao chama RPC quando nao ha userId', async () => {
     mockGetCurrentUserId.mockResolvedValue(null);
 
@@ -109,6 +144,45 @@ describe('reportService', () => {
       { categoryId: 1, category: 'Alimentação', total: 10, percentage: 50 },
       { categoryId: 2, category: 'Bebidas', total: 10, percentage: 50 },
     ]);
+  });
+
+  it('consolida gastos mensais por ano', async () => {
+    const query = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockResolvedValue({
+        data: [
+          { date: '2026-01-12T12:00:00Z', total_price: '10' },
+          { date: '2026-01-20T12:00:00Z', total_price: '5' },
+          { date: '2026-02-01T12:00:00Z', total_price: '3.5' },
+        ],
+        error: null,
+      }),
+    };
+    mockFrom.mockReturnValue(query);
+
+    const result = await reportService.getMonthlyExpenses(2026);
+
+    expect(result.find((r) => r.month === 1)).toEqual({ month: 1, total: 15 });
+    expect(result.find((r) => r.month === 2)).toEqual({ month: 2, total: 3.5 });
+    expect(result).toHaveLength(12);
+  });
+
+  it('retorna top itens convertendo quantity e total para number', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{ name: 'Arroz', quantity: '2', total: '13.4' }],
+      error: null,
+    });
+
+    const result = await reportService.getTopItems(5, '2026-01-01', '2026-01-31');
+
+    expect(mockRpc).toHaveBeenCalledWith('report_top_items', {
+      p_limit: 5,
+      p_start_date: '2026-01-01',
+      p_end_date: '2026-01-31',
+    });
+    expect(result).toEqual([{ name: 'Arroz', quantity: 2, total: 13.4 }]);
   });
 
   it('retorna o mesmo relatorio para ARROZ e arroz com match case-insensitive', async () => {
