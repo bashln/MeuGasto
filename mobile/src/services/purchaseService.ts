@@ -60,6 +60,49 @@ const mapPurchaseItems = (items: unknown): Purchase['products'] => {
 const productCategorizer = new ProductCategorizerService({
   rules: DEFAULT_PRODUCT_CATEGORY_RULES,
   fallbackCategoryId: CATEGORY_IDS.OUTROS,
+  persistence: {
+    load: async () => {
+      const userId = await getCurrentUserId().catch(() => null);
+      if (!userId) {
+        return [];
+      }
+
+      const supabase = getClient();
+      const { data, error } = await supabase
+        .from('learned_reclassifications')
+        .select('normalized_name, category_id')
+        .eq('user_id', userId);
+
+      if (error || !data) {
+        return [];
+      }
+
+      return data.map((entry: { normalized_name: string; category_id: number }) => ({
+        productName: entry.normalized_name,
+        categoryId: entry.category_id,
+      }));
+    },
+    save: async (entry) => {
+      const userId = await getCurrentUserId().catch(() => null);
+      if (!userId) {
+        return;
+      }
+
+      const supabase = getClient();
+      const { error } = await supabase
+        .from('learned_reclassifications')
+        .upsert({
+          user_id: userId,
+          normalized_name: entry.productName,
+          category_id: entry.categoryId,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,normalized_name' });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+  },
 });
 
 export const purchaseService = {
@@ -184,6 +227,7 @@ export const purchaseService = {
       price: number;
     }>;
   }): Promise<Purchase> {
+    await productCategorizer.ready();
     const itemsPayload = (purchase.items ?? []).map(item => ({
         name: item.name,
         code: '',
@@ -274,7 +318,7 @@ export const purchaseService = {
       throw new Error(error.message);
     }
 
-    productCategorizer.learnReclassification(productName, categoryId);
+    await productCategorizer.learnReclassification(productName, categoryId);
   },
 
   async editItem(purchaseId: number, itemId: number, updates: EditItemPayload): Promise<Purchase> {

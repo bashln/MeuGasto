@@ -28,6 +28,7 @@ const makeChain = (result: unknown) => ({
   single: jest.fn().mockResolvedValue(result),
   update: jest.fn().mockReturnThis(),
   delete: jest.fn().mockReturnThis(),
+  upsert: jest.fn().mockResolvedValue(result),
 });
 
 describe('purchaseService', () => {
@@ -106,18 +107,31 @@ describe('purchaseService', () => {
   });
 
   it('persiste reclassificacao e dispara aprendizado no categorizador', async () => {
-    const chain = makeChain({ error: null });
     const updateChain = {
-      ...chain,
+      ...makeChain({ error: null }),
       eq: jest.fn().mockResolvedValue({ error: null }),
     };
-    mockFrom.mockReturnValue(updateChain);
+    const persistChain = {
+      upsert: jest.fn().mockResolvedValue({ error: null }),
+    };
+    mockFrom
+      .mockReturnValueOnce(updateChain)
+      .mockReturnValueOnce(persistChain);
 
     await purchaseService.reclassifyPurchaseItem(77, 'Detergente Neutro', 1);
 
     expect(mockFrom).toHaveBeenCalledWith('items');
+    expect(mockFrom).toHaveBeenCalledWith('learned_reclassifications');
     expect(updateChain.update).toHaveBeenCalledWith({ category_id: 1 });
     expect(updateChain.eq).toHaveBeenCalledWith('id', 77);
+    expect(persistChain.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: 'user-1',
+        normalized_name: 'detergente neutro',
+        category_id: 1,
+      }),
+      { onConflict: 'user_id,normalized_name' }
+    );
   });
 
   it('edita item de compra manual e recalcula total da compra', async () => {

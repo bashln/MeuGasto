@@ -2,9 +2,13 @@ import { CATEGORY_IDS, DEFAULT_PRODUCT_CATEGORY_RULES } from '../productCategory
 import { ProductCategorizerService } from '../productCategorizerService';
 
 describe('ProductCategorizerService', () => {
-  const service = new ProductCategorizerService({
-    rules: DEFAULT_PRODUCT_CATEGORY_RULES,
-    fallbackCategoryId: CATEGORY_IDS.OUTROS,
+  let service: ProductCategorizerService;
+
+  beforeEach(() => {
+    service = new ProductCategorizerService({
+      rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+      fallbackCategoryId: CATEGORY_IDS.OUTROS,
+    });
   });
 
   it('possui dataset inicial com 50+ regras configuraveis', () => {
@@ -60,9 +64,48 @@ describe('ProductCategorizerService', () => {
     expect(coverage).toBeGreaterThanOrEqual(0.8);
   });
 
-  it('prioriza categoria aprendida apos reclassificacao manual', () => {
-    service.learnReclassification('Cafe Torrado e Moido', CATEGORY_IDS.ALIMENTACAO);
+  it('prioriza categoria aprendida apos reclassificacao manual', async () => {
+    await service.learnReclassification('Cafe Torrado e Moido', CATEGORY_IDS.ALIMENTACAO);
 
     expect(service.categorizeProduct('café torrado e moído')).toBe(CATEGORY_IDS.ALIMENTACAO);
+  });
+
+  it('carrega reclassificacoes persistidas ao inicializar', async () => {
+    const load = jest.fn().mockResolvedValue([
+      { productName: 'cafe torrado e moido', categoryId: CATEGORY_IDS.ALIMENTACAO },
+    ]);
+    const persistedService = new ProductCategorizerService({
+      rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+      fallbackCategoryId: CATEGORY_IDS.OUTROS,
+      persistence: {
+        load,
+        save: jest.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await persistedService.ready();
+
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(persistedService.categorizeProduct('Café torrado e moído')).toBe(CATEGORY_IDS.ALIMENTACAO);
+  });
+
+  it('persiste reclassificacao ao aprender categoria manual', async () => {
+    const save = jest.fn().mockResolvedValue(undefined);
+    const persistedService = new ProductCategorizerService({
+      rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+      fallbackCategoryId: CATEGORY_IDS.OUTROS,
+      persistence: {
+        load: jest.fn().mockResolvedValue([]),
+        save,
+      },
+    });
+
+    await persistedService.ready();
+    await persistedService.learnReclassification('Detergente Neutro', CATEGORY_IDS.ALIMENTACAO);
+
+    expect(save).toHaveBeenCalledWith({
+      productName: 'detergente neutro',
+      categoryId: CATEGORY_IDS.ALIMENTACAO,
+    });
   });
 });
