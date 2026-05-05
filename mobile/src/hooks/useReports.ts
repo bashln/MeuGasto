@@ -43,12 +43,23 @@ export const useReports = (): UseReportsResult => {
   const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
   const [itemReport, setItemReport] = useState<UseReportsResult['itemReport']>(null);
 
-  const loadReport = useCallback(async () => {
+  const resolveSelectedItem = useCallback(
+    (items: Array<{ name: string }>, currentSelection: string) => {
+      if (items.length === 0) return '';
+      const hasCurrentSelection = items.some(item => item.name === currentSelection);
+      if (hasCurrentSelection) return currentSelection;
+      return items[0]?.name ?? '';
+    },
+    [],
+  );
+
+  const loadReportInternal = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     const startDate = `${selectedYear}-01-01`;
     const endDate = `${selectedYear}-12-31`;
+    let nextTopItems: Array<{ name: string; quantity: number; total: number }> = [];
 
     try {
       if (reportType === 'geral') {
@@ -59,6 +70,7 @@ export const useReports = (): UseReportsResult => {
         setItemReport(null);
       } else if (reportType === 'itens') {
         const data = await reportService.getTopItems(10, startDate, endDate);
+        nextTopItems = data;
         setTopItems(data);
       } else if (reportType === 'categorias') {
         const data = await reportService.getExpensesByCategory(startDate, endDate);
@@ -75,7 +87,13 @@ export const useReports = (): UseReportsResult => {
     } finally {
       setIsLoading(false);
     }
+
+    return { topItems: nextTopItems };
   }, [reportType, selectedYear]);
+
+  const loadReport = useCallback(async () => {
+    await loadReportInternal();
+  }, [loadReportInternal]);
 
   const loadItemReport = useCallback(async (itemName: string) => {
     const startDate = `${selectedYear}-01-01`;
@@ -90,11 +108,16 @@ export const useReports = (): UseReportsResult => {
   }, [selectedYear]);
 
   const refresh = useCallback(async () => {
-    await loadReport();
-    if (selectedItem && reportType === 'itens') {
-      await loadItemReport(selectedItem);
+    const { topItems: refreshedTopItems } = await loadReportInternal();
+    if (reportType !== 'itens') return;
+
+    const nextSelectedItem = resolveSelectedItem(refreshedTopItems, selectedItem);
+    setSelectedItem(nextSelectedItem);
+
+    if (nextSelectedItem) {
+      await loadItemReport(nextSelectedItem);
     }
-  }, [loadReport, loadItemReport, selectedItem, reportType]);
+  }, [loadItemReport, loadReportInternal, reportType, resolveSelectedItem, selectedItem]);
 
   useEffect(() => {
     loadReport();
@@ -112,18 +135,9 @@ export const useReports = (): UseReportsResult => {
   useEffect(() => {
     if (reportType !== 'itens') return;
     setSelectedItem((prevSelectedItem) => {
-      if (topItems.length === 0) {
-        return prevSelectedItem ? '' : prevSelectedItem;
-      }
-
-      const hasSelectedItem = topItems.some(item => item.name === prevSelectedItem);
-      if (hasSelectedItem) {
-        return prevSelectedItem;
-      }
-
-      return topItems[0]?.name ?? '';
+      return resolveSelectedItem(topItems, prevSelectedItem);
     });
-  }, [reportType, topItems]);
+  }, [reportType, resolveSelectedItem, topItems]);
 
   return {
     isLoading,

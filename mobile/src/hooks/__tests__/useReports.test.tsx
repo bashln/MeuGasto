@@ -87,4 +87,29 @@ describe('useReports', () => {
 
     expect(mockReportService.getItemReport).toHaveBeenCalledWith('Feijão', expect.any(String), expect.any(String));
   });
+
+  it('não carrega item report no refresh quando topItems limpa a seleção', async () => {
+    let latest: HookState | null = null;
+
+    mockReportService.getTopItems
+      .mockResolvedValueOnce([{ name: 'Feijão', quantity: 2, total: 30 }])
+      .mockResolvedValueOnce([]);
+
+    await act(async () => {
+      TestRenderer.create(<HookHarness onRender={(value) => { latest = value; }} />);
+    });
+
+    await act(async () => {
+      latest!.setSelectedItem('Arroz');
+    });
+
+    mockReportService.getItemReport.mockClear();
+
+    await act(async () => {
+      await latest!.refresh();
+    });
+
+    expect(latest!.selectedItem).toBe('');
+    expect(mockReportService.getItemReport).not.toHaveBeenCalled();
+  });
 });
