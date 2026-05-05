@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:00:02.440Z",
-  "currentIteration": 9,
+  "updatedAt": "2026-05-05T23:03:31.104Z",
+  "currentIteration": 10,
   "maxIterations": 10,
-  "tasksCompleted": 9,
+  "tasksCompleted": 10,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -65,8 +65,8 @@
       {
         "id": "US-009",
         "title": "Adicionar UI de reclassificação de produtos",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-010",
@@ -184,6 +184,16 @@
       "durationMs": 278866,
       "startedAt": "2026-05-05T22:52:49.356Z",
       "endedAt": "2026-05-05T22:57:28.222Z"
+    },
+    {
+      "iteration": 10,
+      "status": "completed",
+      "taskId": "US-009",
+      "taskTitle": "Adicionar UI de reclassificação de produtos",
+      "taskCompleted": true,
+      "durationMs": 153175,
+      "startedAt": "2026-05-05T22:57:29.264Z",
+      "endedAt": "2026-05-05T23:00:02.439Z"
     }
   ],
   "skippedTaskIds": [],

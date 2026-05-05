@@ -9,6 +9,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { formatMoney } from '../utils';
 import { colors } from '../theme/colors';
+import { PRODUCT_CATEGORY_OPTIONS, CATEGORY_IDS } from '../services/productCategoryRules';
 
 type PurchasesScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Purchases'>;
@@ -18,6 +19,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
   const { purchases, isLoading, isLoadingMore, hasMore, page, error, fetchPurchases, loadMorePurchases, deletePurchase } = usePurchases();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | 'all'>('all');
   const [refreshing, setRefreshing] = useState(false);
 
   const PAGE_SIZE = 20;
@@ -98,11 +100,15 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
     const matchesSearch =
       purchase.supermarket?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       purchase.accessKey?.includes(searchQuery);
+
+    const matchesCategory = selectedCategoryId === 'all'
+      ? true
+      : (purchase.products || []).some(product => (product.categoryId ?? CATEGORY_IDS.OUTROS) === selectedCategoryId);
     
-    if (filterType === 'all') return matchesSearch;
-    if (filterType === 'manual') return matchesSearch && purchase.isManual;
-    if (filterType === 'nfce') return matchesSearch && !purchase.isManual;
-    return matchesSearch;
+    if (filterType === 'all') return matchesSearch && matchesCategory;
+    if (filterType === 'manual') return matchesSearch && matchesCategory && purchase.isManual;
+    if (filterType === 'nfce') return matchesSearch && matchesCategory && !purchase.isManual;
+    return matchesSearch && matchesCategory;
   });
 
   // Métricas
@@ -170,6 +176,31 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
         >
           <RNText style={[styles.filterText, filterType === 'manual' && styles.filterTextActive]}>Manual</RNText>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.categoryFiltersContainer}>
+        <TouchableOpacity
+          style={[styles.categoryFilterButton, selectedCategoryId === 'all' && styles.categoryFilterButtonActive]}
+          onPress={() => setSelectedCategoryId('all')}
+        >
+          <RNText style={[styles.categoryFilterText, selectedCategoryId === 'all' && styles.categoryFilterTextActive]}>
+            Todas categorias
+          </RNText>
+        </TouchableOpacity>
+        {PRODUCT_CATEGORY_OPTIONS.map((category) => (
+          <TouchableOpacity
+            key={`purchase-category-filter-${category.id}`}
+            style={[styles.categoryFilterButton, selectedCategoryId === category.id && styles.categoryFilterButtonActive]}
+            onPress={() => setSelectedCategoryId(category.id)}
+          >
+            <RNText
+              style={[styles.categoryFilterText, selectedCategoryId === category.id && styles.categoryFilterTextActive]}
+              numberOfLines={1}
+            >
+              {category.label}
+            </RNText>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Lista de Compras */}
@@ -279,6 +310,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
+  },
+  categoryFiltersContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  categoryFilterButton: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  categoryFilterButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  categoryFilterText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  categoryFilterTextActive: {
+    color: colors.primaryText,
   },
   filterButton: {
     flex: 1,

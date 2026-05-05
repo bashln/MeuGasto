@@ -3,6 +3,7 @@ jest.mock('../../services', () => ({
     getMonthlyExpenses: jest.fn(),
     getTopItems: jest.fn(),
     getExpensesBySupermarket: jest.fn(),
+    getExpensesByCategory: jest.fn(),
     getItemReport: jest.fn(),
   },
 }));
@@ -28,6 +29,7 @@ describe('useReports', () => {
     mockReportService.getMonthlyExpenses.mockResolvedValue([{ month: 1, total: 300 }]);
     mockReportService.getTopItems.mockResolvedValue([{ name: 'Feijão', quantity: 2, total: 30 }]);
     mockReportService.getExpensesBySupermarket.mockResolvedValue([{ supermarket: 'Mercado A', total: 300 }]);
+    mockReportService.getExpensesByCategory.mockResolvedValue([{ categoryId: 1, category: 'Alimentação', total: 300, percentage: 100 }]);
     mockReportService.getItemReport.mockResolvedValue({
       totalQuantity: 3,
       totalSpent: 45,
