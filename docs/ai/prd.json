@@ -51,12 +51,13 @@
         "npm run typecheck, npm run lint, npm test limpos"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivos afetados: PurchaseDetailScreen.tsx, componentes PurchaseCard/DraftCard. US-001 e US-002 são pré-requisitos.",
       "dependsOn": [
         "US-001",
         "US-002"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-004",
@@ -246,6 +247,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T22:40:14.287Z"
+    "updatedAt": "2026-05-05T22:42:29.241Z"
   }
 }

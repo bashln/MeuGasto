@@ -2,7 +2,13 @@ describe('supabaseClient configuration', () => {
   const originalUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const originalKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-  const loadModule = async () => import('../supabaseClient');
+  const loadModule = () => {
+    let loadedModule: typeof import('../supabaseClient') | undefined;
+    jest.isolateModules(() => {
+      loadedModule = jest.requireActual('../supabaseClient') as typeof import('../supabaseClient');
+    });
+    return loadedModule!;
+  };
 
   afterEach(() => {
     if (originalUrl === undefined) {
@@ -21,7 +27,7 @@ describe('supabaseClient configuration', () => {
     jest.clearAllMocks();
   });
 
-  it('resolve configuracao a partir de process.env', async () => {
+  it('resolve configuracao a partir de process.env', () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://env.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-key';
 
@@ -37,7 +43,7 @@ describe('supabaseClient configuration', () => {
       },
     }));
 
-    const { getResolvedSupabaseConfig } = await loadModule();
+    const { getResolvedSupabaseConfig } = loadModule();
 
     expect(getResolvedSupabaseConfig()).toEqual({
       url: 'https://env.supabase.co',
@@ -47,7 +53,7 @@ describe('supabaseClient configuration', () => {
     });
   });
 
-  it('usa fallback via expo.extra quando process.env nao estiver disponivel', async () => {
+  it('usa fallback via expo.extra quando process.env nao estiver disponivel', () => {
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -63,7 +69,7 @@ describe('supabaseClient configuration', () => {
       },
     }));
 
-    const { getResolvedSupabaseConfig, isSupabaseConfigured } = await loadModule();
+    const { getResolvedSupabaseConfig, isSupabaseConfigured } = loadModule();
 
     expect(getResolvedSupabaseConfig()).toEqual({
       url: 'https://extra.supabase.co',
@@ -74,7 +80,7 @@ describe('supabaseClient configuration', () => {
     expect(isSupabaseConfigured()).toBe(true);
   });
 
-  it('rejeita URL invalida', async () => {
+  it('rejeita URL invalida', () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'http://bad-host';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-key';
@@ -84,7 +90,7 @@ describe('supabaseClient configuration', () => {
       default: { expoConfig: { extra: {} } },
     }));
 
-    const { getResolvedSupabaseConfig, isSupabaseConfigured } = await loadModule();
+    const { getResolvedSupabaseConfig, isSupabaseConfigured } = loadModule();
 
     expect(getResolvedSupabaseConfig()).toEqual({
       url: 'http://bad-host',
@@ -96,7 +102,7 @@ describe('supabaseClient configuration', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it('detecta URL ausente', async () => {
+  it('detecta URL ausente', () => {
     delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'env-key';
 
@@ -105,7 +111,7 @@ describe('supabaseClient configuration', () => {
       default: { expoConfig: { extra: {} } },
     }));
 
-    const { getResolvedSupabaseConfig } = await loadModule();
+    const { getResolvedSupabaseConfig } = loadModule();
 
     expect(getResolvedSupabaseConfig()).toEqual({
       url: null,
