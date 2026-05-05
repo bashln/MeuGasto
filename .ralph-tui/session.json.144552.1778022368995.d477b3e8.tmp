@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:03:31.104Z",
-  "currentIteration": 10,
+  "updatedAt": "2026-05-05T23:06:08.993Z",
+  "currentIteration": 11,
   "maxIterations": 10,
-  "tasksCompleted": 10,
+  "tasksCompleted": 11,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -71,8 +71,8 @@
       {
         "id": "US-010",
         "title": "Adicionar relatório por categoria no ReportsScreen",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-011",
@@ -194,6 +194,16 @@
       "durationMs": 153175,
       "startedAt": "2026-05-05T22:57:29.264Z",
       "endedAt": "2026-05-05T23:00:02.439Z"
+    },
+    {
+      "iteration": 11,
+      "status": "completed",
+      "taskId": "US-010",
+      "taskTitle": "Adicionar relatório por categoria no ReportsScreen",
+      "taskCompleted": true,
+      "durationMs": 207634,
+      "startedAt": "2026-05-05T23:00:03.469Z",
+      "endedAt": "2026-05-05T23:03:31.103Z"
     }
   ],
   "skippedTaskIds": [],

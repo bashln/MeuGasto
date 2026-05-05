@@ -112,4 +112,86 @@ describe('purchaseService', () => {
     expect(updateChain.update).toHaveBeenCalledWith({ category_id: 1 });
     expect(updateChain.eq).toHaveBeenCalledWith('id', 77);
   });
+
+  it('edita item de compra manual e recalcula total da compra', async () => {
+    const purchaseSelectChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 10, manual: true }, error: null }),
+    };
+    const itemUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+    const itemsListChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({
+        data: [
+          { quantity: 2, price: 5.5 },
+          { quantity: 1, price: 3 },
+        ],
+        error: null,
+      }),
+    };
+    const purchaseUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+
+    const fetchByIdChain = makeChain({
+      data: {
+        id: 10,
+        supermarket: { id: 1, name: 'Mercado' },
+        access_key: null,
+        date: '2026-02-01',
+        total_price: '14.00',
+        manual: true,
+        items: [{ id: 9, name: 'Arroz', quantity: 2, unit: 'UN', price: 5.5 }],
+        created_at: '2026-02-01T00:00:00.000Z',
+        updated_at: '2026-02-01T00:00:00.000Z',
+      },
+      error: null,
+    });
+
+    mockFrom
+      .mockReturnValueOnce(purchaseSelectChain)
+      .mockReturnValueOnce(itemUpdateChain)
+      .mockReturnValueOnce(itemsListChain)
+      .mockReturnValueOnce(purchaseUpdateChain)
+      .mockReturnValueOnce(fetchByIdChain);
+
+    await purchaseService.editItem(10, 9, {
+      name: 'Arroz integral',
+      quantity: 2,
+      price: 5.5,
+    });
+
+    expect(itemUpdateChain.update).toHaveBeenCalledWith({
+      name: 'Arroz integral',
+      quantity: 2,
+      price: 5.5,
+    });
+    expect(purchaseUpdateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total_price: 14,
+      })
+    );
+  });
+
+  it('bloqueia edicao de item em compra NFC-e', async () => {
+    const purchaseSelectChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 12, manual: false }, error: null }),
+    };
+    mockFrom.mockReturnValueOnce(purchaseSelectChain);
+
+    await expect(
+      purchaseService.editItem(12, 1, {
+        name: 'Produto',
+        quantity: 1,
+        price: 1,
+      })
+    ).rejects.toThrow(/somente leitura/i);
+  });
 });

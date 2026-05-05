@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { Text, Card, Chip, useTheme, Surface, Divider, IconButton, Button, Menu, Portal, Dialog, RadioButton } from 'react-native-paper';
+import { Text, Card, Chip, useTheme, Surface, Divider, IconButton, Button, Menu, Portal, Dialog, RadioButton, TextInput } from 'react-native-paper';
 import { purchaseService } from '../services';
 import { Purchase } from '../types';
 import { formatMoney, formatDate, compareItems, PriceComparisonResult } from '../utils';
@@ -30,6 +30,11 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   const [itemBeingReclassified, setItemBeingReclassified] = useState<Purchase['products'][number] | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number>(CATEGORY_IDS.OUTROS);
   const [isSavingReclassification, setIsSavingReclassification] = useState(false);
+  const [itemBeingEdited, setItemBeingEdited] = useState<Purchase['products'][number] | null>(null);
+  const [editItemName, setEditItemName] = useState('');
+  const [editItemQuantity, setEditItemQuantity] = useState('');
+  const [editItemPrice, setEditItemPrice] = useState('');
+  const [isSavingItemEdit, setIsSavingItemEdit] = useState(false);
 
   const loadPurchase = useCallback(async () => {
     try {
@@ -149,6 +154,61 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
     }
   };
 
+  const openItemEditModal = (item: Purchase['products'][number]) => {
+    if (!purchase?.isManual) {
+      return;
+    }
+    setItemBeingEdited(item);
+    setEditItemName(item.name);
+    setEditItemQuantity(String(item.quantity));
+    setEditItemPrice(String(item.price));
+  };
+
+  const closeItemEditModal = () => {
+    if (isSavingItemEdit) {
+      return;
+    }
+    setItemBeingEdited(null);
+  };
+
+  const handleSaveItemEdit = async () => {
+    if (!purchase || !itemBeingEdited) {
+      return;
+    }
+
+    const parsedQuantity = Number(editItemQuantity.replace(',', '.'));
+    const parsedPrice = Number(editItemPrice.replace(',', '.'));
+
+    if (!editItemName.trim()) {
+      Alert.alert('Editar item', 'Informe o nome do item.');
+      return;
+    }
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      Alert.alert('Editar item', 'Informe uma quantidade válida maior que zero.');
+      return;
+    }
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      Alert.alert('Editar item', 'Informe um preço unitário válido.');
+      return;
+    }
+
+    try {
+      setIsSavingItemEdit(true);
+      const updatedPurchase = await purchaseService.editItem(purchase.id, itemBeingEdited.id, {
+        name: editItemName.trim(),
+        quantity: parsedQuantity,
+        price: parsedPrice,
+      });
+      setPurchase(updatedPurchase);
+      setItemBeingEdited(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao editar item';
+      Alert.alert('Editar item', message);
+    } finally {
+      setIsSavingItemEdit(false);
+    }
+  };
+
   if (isLoading) {
     return <Loading fullScreen />;
   }
@@ -190,6 +250,11 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
           >
             {purchase.isManual ? 'Manual' : 'NFC-e'}
           </Chip>
+          {!purchase.isManual && (
+            <Chip mode="outlined" style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+              Somente leitura
+            </Chip>
+          )}
 
           <Divider style={styles.divider} />
 
@@ -228,7 +293,12 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
         <Card style={styles.itemsCard} mode="elevated">
           {products.map((item, index) => (
             <React.Fragment key={item.id || index}>
-              <View style={styles.itemRow}>
+              <TouchableOpacity
+                style={styles.itemRow}
+                onPress={() => openItemEditModal(item)}
+                disabled={!purchase.isManual}
+                activeOpacity={purchase.isManual ? 0.7 : 1}
+              >
                 <View style={styles.itemInfo}>
                   <Text variant="bodyLarge">
                     {item.quantity}x {item.name} {formatMoney(item.price)}
@@ -236,20 +306,26 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                   <Text variant="bodySmall" style={{ color: colors.mutedText }}>
                     Valor unitário
                   </Text>
-                  <Button
-                    mode="text"
-                    compact
-                    contentStyle={styles.reclassifyButtonContent}
-                    style={styles.reclassifyButton}
-                    onPress={() => openReclassificationModal(item)}
-                  >
-                    Reclassificar
-                  </Button>
+                  {purchase.isManual ? (
+                    <Button
+                      mode="text"
+                      compact
+                      contentStyle={styles.reclassifyButtonContent}
+                      style={styles.reclassifyButton}
+                      onPress={() => openReclassificationModal(item)}
+                    >
+                      Reclassificar
+                    </Button>
+                  ) : (
+                    <Text variant="bodySmall" style={styles.readOnlyHint}>
+                      Item não editável (NFC-e)
+                    </Text>
+                  )}
                 </View>
                 <Text variant="titleMedium" style={{ color: colors.primary }}>
                   {formatMoney(item.price * item.quantity)}
                 </Text>
-              </View>
+              </TouchableOpacity>
               {index < products.length - 1 && <Divider />}
             </React.Fragment>
           ))}
@@ -330,6 +406,39 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
       </ScrollView>
 
       <Portal>
+        <Dialog visible={!!itemBeingEdited} onDismiss={closeItemEditModal}>
+          <Dialog.Title>Editar item</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              label="Nome"
+              mode="outlined"
+              value={editItemName}
+              onChangeText={setEditItemName}
+              style={styles.dialogInput}
+            />
+            <TextInput
+              label="Quantidade"
+              mode="outlined"
+              keyboardType="decimal-pad"
+              value={editItemQuantity}
+              onChangeText={setEditItemQuantity}
+              style={styles.dialogInput}
+            />
+            <TextInput
+              label="Preço unitário"
+              mode="outlined"
+              keyboardType="decimal-pad"
+              value={editItemPrice}
+              onChangeText={setEditItemPrice}
+              style={styles.dialogInput}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={closeItemEditModal} disabled={isSavingItemEdit}>Cancelar</Button>
+            <Button onPress={handleSaveItemEdit} loading={isSavingItemEdit}>Salvar</Button>
+          </Dialog.Actions>
+        </Dialog>
+
         <Dialog visible={!!itemBeingReclassified} onDismiss={closeReclassificationModal}>
           <Dialog.Title>Reclassificar produto</Dialog.Title>
           <Dialog.Content>
@@ -419,6 +528,10 @@ const styles = StyleSheet.create({
   reclassifyButtonContent: {
     height: 28,
   },
+  readOnlyHint: {
+    marginTop: 8,
+    color: colors.mutedText,
+  },
   comparisonSurface: {
     marginTop: 16,
     borderRadius: 12,
@@ -443,6 +556,9 @@ const styles = StyleSheet.create({
   dialogDescription: {
     marginBottom: 10,
     color: colors.mutedText,
+  },
+  dialogInput: {
+    marginBottom: 10,
   },
   categoryOptionRow: {
     flexDirection: 'row',
