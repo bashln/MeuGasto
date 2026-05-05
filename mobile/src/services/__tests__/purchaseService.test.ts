@@ -73,4 +73,28 @@ describe('purchaseService', () => {
       })
     ).rejects.toThrow(/N[aã]o foi poss[ií]vel criar a compra manual/i);
   });
+
+  it('inclui category_id nos itens ao criar compra manual', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    await expect(
+      purchaseService.createManualPurchase({
+        date: '2026-02-02',
+        totalPrice: 20,
+        items: [{ name: 'Detergente Neutro', quantity: 1, unit: 'UN', price: 5 }],
+      })
+    ).rejects.toThrow();
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_purchase_with_items',
+      expect.objectContaining({
+        p_items: [
+          expect.objectContaining({
+            name: 'Detergente Neutro',
+            category_id: expect.any(Number),
+          }),
+        ],
+      })
+    );
+  });
 });

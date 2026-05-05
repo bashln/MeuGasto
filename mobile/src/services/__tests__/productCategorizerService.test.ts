@@ -1,0 +1,62 @@
+import { CATEGORY_IDS, DEFAULT_PRODUCT_CATEGORY_RULES } from '../productCategoryRules';
+import { ProductCategorizerService } from '../productCategorizerService';
+
+describe('ProductCategorizerService', () => {
+  const service = new ProductCategorizerService({
+    rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+    fallbackCategoryId: CATEGORY_IDS.OUTROS,
+  });
+
+  it('possui dataset inicial com 50+ regras configuraveis', () => {
+    expect(DEFAULT_PRODUCT_CATEGORY_RULES.length).toBeGreaterThanOrEqual(50);
+  });
+
+  it('retorna fallback Outros para item nao categorizado', () => {
+    expect(service.categorizeProduct('Cabo USB-C 2m')).toBe(CATEGORY_IDS.OUTROS);
+  });
+
+  it('atinge cobertura de categorizacao >= 80% em dataset de validacao', () => {
+    const dataset = [
+      { name: 'Arroz Tipo 1', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Feijao Preto', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Macarrao Espaguete', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Azeite Extra Virgem', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Biscoito Recheado', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Pipoca Microondas', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Cuscuz Flocao', expected: CATEGORY_IDS.ALIMENTACAO },
+      { name: 'Refrigerante Cola 2L', expected: CATEGORY_IDS.BEBIDAS },
+      { name: 'Agua Mineral sem gas', expected: CATEGORY_IDS.BEBIDAS },
+      { name: 'Suco de Uva Integral', expected: CATEGORY_IDS.BEBIDAS },
+      { name: 'Cerveja Pilsen', expected: CATEGORY_IDS.BEBIDAS },
+      { name: 'Cafe Torrado e Moido', expected: CATEGORY_IDS.BEBIDAS },
+      { name: 'Detergente Neutro', expected: CATEGORY_IDS.LIMPEZA },
+      { name: 'Sabao em po 1kg', expected: CATEGORY_IDS.LIMPEZA },
+      { name: 'Agua sanitaria', expected: CATEGORY_IDS.LIMPEZA },
+      { name: 'Limpador multiuso', expected: CATEGORY_IDS.LIMPEZA },
+      { name: 'Papel higienico folha dupla', expected: CATEGORY_IDS.HIGIENE },
+      { name: 'Shampoo Anticaspa', expected: CATEGORY_IDS.HIGIENE },
+      { name: 'Creme dental menta', expected: CATEGORY_IDS.HIGIENE },
+      { name: 'Desodorante aerosol', expected: CATEGORY_IDS.HIGIENE },
+      { name: 'Pao frances', expected: CATEGORY_IDS.PADARIA },
+      { name: 'Pao de queijo', expected: CATEGORY_IDS.PADARIA },
+      { name: 'Bolo de cenoura', expected: CATEGORY_IDS.PADARIA },
+      { name: 'Banana prata', expected: CATEGORY_IDS.HORTIFRUTI },
+      { name: 'Tomate italiano', expected: CATEGORY_IDS.HORTIFRUTI },
+      { name: 'Alface crespa', expected: CATEGORY_IDS.HORTIFRUTI },
+      { name: 'Peito de frango congelado', expected: CATEGORY_IDS.CARNES_E_FRIOS },
+      { name: 'Carne bovina acem', expected: CATEGORY_IDS.CARNES_E_FRIOS },
+      { name: 'Presunto fatiado', expected: CATEGORY_IDS.CARNES_E_FRIOS },
+      { name: 'Iogurte natural', expected: CATEGORY_IDS.LATICINIOS },
+      { name: 'Leite integral 1L', expected: CATEGORY_IDS.LATICINIOS },
+      { name: 'Requeijao cremoso', expected: CATEGORY_IDS.LATICINIOS },
+      { name: 'Pilha alcalina AA', expected: CATEGORY_IDS.OUTROS },
+      { name: 'Cabo HDMI 2m', expected: CATEGORY_IDS.OUTROS },
+      { name: 'Lapis HB', expected: CATEGORY_IDS.OUTROS },
+    ];
+
+    const hits = dataset.filter((item) => service.categorizeProduct(item.name) === item.expected).length;
+    const coverage = hits / dataset.length;
+
+    expect(coverage).toBeGreaterThanOrEqual(0.8);
+  });
+});

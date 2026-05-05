@@ -1,9 +1,14 @@
-jest.mock('../../lib/supabaseClient', () => ({
-  supabase: {
+jest.mock('../../lib/supabaseClient', () => {
+  const mockClient = {
     from: jest.fn(),
     rpc: jest.fn(),
-  },
-}));
+  };
+  return {
+    supabase: mockClient,
+    getSupabaseClient: jest.fn().mockReturnValue(mockClient),
+    isSupabaseConfigured: jest.fn().mockReturnValue(true),
+  };
+});
 
 jest.mock('../authService', () => ({
   getCurrentUserId: jest.fn(),
@@ -15,8 +20,13 @@ import {
   extractAccessKeyFromQRCode,
   hashAccessKey,
   isAllowedNfceUrl,
+  nfceService,
   parseQrInput,
 } from '../nfceService';
+import { supabase } from '../../lib/supabaseClient';
+
+const mockFrom = supabase!.from as jest.Mock;
+const mockRpc = supabase!.rpc as jest.Mock;
 
 describe('nfceService QR parsing', () => {
   it('extrai parametro p de URL completa', () => {
@@ -81,5 +91,48 @@ describe('nfceService access key hashing', () => {
       'e2a7bf2062ac05f46705ad51fa5c47d23f466241cadb69f3d1910a5020734d0a'
     );
     expect(JSON.stringify(payload)).not.toContain(accessKey);
+  });
+});
+
+describe('nfceService purchase creation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('popula category_id nos itens ao criar compra por NFC-e', async () => {
+    const chain = {
+      select: jest.fn().mockReturnThis(),
+      like: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 11 }, error: null }),
+    };
+    mockFrom.mockReturnValue(chain);
+    mockRpc.mockResolvedValue({ data: [{ purchase_id: 91 }], error: null });
+
+    const result = await nfceService.createPurchaseFromScrapedData(
+      {
+        total: 14.9,
+        emittedAt: '03/05/2026 10:32:00',
+        cnpj: '12345678000195',
+        storeName: 'Mercado Teste',
+        city: 'Curitiba',
+        state: 'PR',
+        items: [{ name: 'Shampoo Anticaspa', quantity: 1, unit: 'UN', unityPrice: 14.9 }],
+      },
+      '43180611111111111111111111111111111111111111'
+    );
+
+    expect(result.purchaseId).toBe(91);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_purchase_with_items',
+      expect.objectContaining({
+        p_items: [
+          expect.objectContaining({
+            name: 'Shampoo Anticaspa',
+            category_id: expect.any(Number),
+          }),
+        ],
+      })
+    );
   });
 });
