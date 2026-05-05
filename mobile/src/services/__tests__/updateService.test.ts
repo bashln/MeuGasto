@@ -9,11 +9,16 @@ import * as SecureStore from 'expo-secure-store';
 
 const mockGetItemAsync = SecureStore.getItemAsync as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
+const originalFetch = global.fetch;
 
 describe('updateService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   describe('compareVersions', () => {

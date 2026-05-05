@@ -1,262 +1,263 @@
 {
-  "name": "MeuGasto - Estabilização e Fundação para Novas Features",
-  "description": "PRD focado em destravar a pipeline de qualidade, corrigir bugs críticos, implementar segurança pendente (SEC-002) e estabelecer base sólida para as próximas features (categorização, alertas, relatórios).",
+  "name": "MeuGasto - Correções pós-revisão e endurecimento de qualidade",
+  "description": "PRD para corrigir todos os 15 achados da revisão pós-ralph-tui, incluindo riscos altos (vazamento de mock fetch, CI sem push trigger), médios (quality gate do release, null guards, race conditions, asserções frágeis) e baixos (UI edge cases, STATE_URLS, reclassification persistence), além de expandir cobertura de testes onde está baixa.",
   "branchName": "dev",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Corrigir testes quebrados do secureSessionStorage",
-      "description": "Como desenvolvedor, quero que os 2 testes falhando em secureSessionStorage.test.ts passem, para que a pipeline de qualidade seja confiável.",
+      "title": "Corrigir vazamento de mock do global.fetch em updateService.test.ts",
+      "description": "Como desenvolvedor, quero que o mock do global.fetch seja restaurado após os testes do updateService, para que os testes seguintes no mesmo worker (CI --runInBand) não recebam um fetch mockado.",
       "acceptanceCriteria": [
-        "Teste 'propaga erro explicito ao falhar leitura' alinhado com comportamento real de fallback in-memory",
-        "Teste 'limpa chave de sessao do supabase' não vaza estado entre execuções (resetar useInMemory)",
-        "npm test passa 121/121 testes",
-        "npm run typecheck limpo",
-        "npm run lint limpo"
+        "Adicionar variável originalFetch = global.fetch antes do beforeEach",
+        "Adicionar afterEach restaurando global.fetch = originalFetch",
+        "npm test -- --runInBand passa sem vazamento de mock entre suites",
+        "npm run lint && npm run typecheck limpos"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Arquivos: src/lib/secureSessionStorage.ts, src/lib/__tests__/secureSessionStorage.test.ts",
+      "notes": "Arquivo: mobile/src/services/__tests__/updateService.test.ts. Risco alto: polui global.fetch para todos os testes no CI.",
       "dependsOn": [],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-002",
-      "title": "Corrigir erros de lint no projeto",
-      "description": "Como desenvolvedor, quero zero erros e warnings de lint, para que o CI seja confiável e padrões de código sejam consistentes.",
+      "title": "Adicionar trigger push ao workflow quality.yml",
+      "description": "Como desenvolvedor, quero que o CI seja executado também em pushes diretos para dev/main, não apenas em PRs, para que nenhum commit quebre a pipeline.",
       "acceptanceCriteria": [
-        "Substituir require() por import em src/lib/__tests__/supabaseClient.test.ts",
-        "Escapar aspas duplas em src/screens/PriceComparatorScreen.tsx (linhas 96:55, 96:70)",
-        "Remover variável não utilizada createInMemoryStorage em src/lib/secureSessionStorage.ts",
-        "Remover variável não utilizada mockSetItemAsync em src/services/__tests__/updateService.test.ts",
-        "npm run lint retorna 0 erros e 0 warnings"
+        "Adicionar on.push.branches: [dev, main] ao quality.yml",
+        "Manter on.pull_request existente",
+        "Workflow executa em push para dev e main",
+        "Workflow executa em PR para dev e main"
       ],
       "priority": 1,
-      "passes": true,
-      "notes": "3 erros, 2 warnings atualmente. US-001 é pré-requisito para garantir pipeline consistente.",
-      "dependsOn": [
-        "US-001"
-      ],
-      "completionNotes": "Completed by agent"
+      "passes": false,
+      "notes": "Arquivo: .github/workflows/quality.yml. Risco alto: pushes diretos atualmente bypassam CI.",
+      "dependsOn": []
     },
     {
       "id": "US-003",
-      "title": "Corrigir exibição de quantidade de itens (BUG-001)",
-      "description": "Como usuário, quero ver a quantidade correta de cada item nas minhas compras (ex: '2x Pão R$2,00' ao invés de '1x Pão R$4,00').",
+      "title": "Adicionar quality gate ao workflow release.yml",
+      "description": "Como desenvolvedor, quero que lint, test e typecheck sejam executados antes do build de release, para que nenhum APK quebrado seja publicado.",
       "acceptanceCriteria": [
-        "Item com quantity > 1 exibe 'Nx' com valor unitário (ex: '2x Pão R$2,00')",
-        "Item com quantity === 1 exibe '1x' com valor unitário (ex: '1x Leite R$5,00')",
-        "Valor total do item (quantity * unitPrice) exibido corretamente no subtotal",
-        "Cálculo existente em PurchaseContext/useDashboard não regride",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Adicionar steps de npm run lint, npm test -- --runInBand, npm run typecheck antes do build no release.yml",
+        "Se quality gate falhar, release não é construído",
+        "Adicionar concurrency settings para cancelar execuções duplicadas"
       ],
-      "priority": 1,
-      "passes": true,
-      "notes": "Arquivos afetados: PurchaseDetailScreen.tsx, componentes PurchaseCard/DraftCard. US-001 e US-002 são pré-requisitos.",
+      "priority": 2,
+      "passes": false,
+      "notes": "Arquivo: .github/workflows/release.yml. Risco médio: release pode gerar APK quebrado.",
       "dependsOn": [
-        "US-001",
         "US-002"
-      ],
-      "completionNotes": "Completed by agent"
+      ]
     },
     {
       "id": "US-004",
-      "title": "Corrigir erros de TypeScript nos testes unitários",
-      "description": "Como desenvolvedor, quero que os testes unitários compilem sem erros de TypeScript, especialmente com mocks do Supabase.",
+      "title": "Adicionar null guard em getPurchaseById após single()",
+      "description": "Como desenvolvedor, quero que getPurchaseById lance erro se o retorno de .single() for null, para evitar TypeError ao acessar propriedades de null.",
       "acceptanceCriteria": [
-        "Todos os arquivos .test.ts/.test.tsx compilam sem erros de tipo",
-        "Erros com supabase null/mock resolvidos",
-        "npm test executa sem erros de compilação",
-        "npm run typecheck, npm run lint limpos"
+        "Adicionar guarda if (!purchase) throw new Error('Compra não encontrada') após single()",
+        "Teste para cenário de compra inexistente retorna erro apropriado",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
-      "priority": 1,
-      "passes": true,
-      "notes": "Erros conhecidos com null handling do supabase client mock.",
-      "dependsOn": [
-        "US-001"
-      ],
-      "completionNotes": "Completed by agent"
+      "priority": 2,
+      "passes": false,
+      "notes": "Arquivo: mobile/src/services/purchaseService.ts:160. Risco médio: se .single() retornar null, crash.",
+      "dependsOn": []
     },
     {
       "id": "US-005",
-      "title": "Proteger chaves de acesso NFC-e com hash SHA-256 (SEC-002)",
-      "description": "Como usuário, quero que as chaves de acesso NFC-e sejam protegidas antes do envio ao scraper externo, para que meus dados fiscais não sejam expostos.",
+      "title": "Verificar e corrigir filtro de usuário na RPC report_expenses_by_supermarket",
+      "description": "Como desenvolvedor, quero que getExpensesBySupermarket filtre por userId no lado do servidor, para que não haja vazamento de dados entre usuários.",
       "acceptanceCriteria": [
-        "Chave de acesso hasheada com SHA-256 antes de enviar ao scraper externo",
-        "Hash implementado em nfceService.ts como função hashAccessKey()",
-        "Scraper externo recebe hash, não a chave original",
-        "Exibição local da chave original preservada para o usuário",
-        "Testes do nfceService.ts passam com fluxo de hash",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Verificar definição da RPC report_expenses_by_supermarket no banco",
+        "Adicionar WHERE user_id = auth.uid() se ausente na RPC",
+        "Se não houver acesso ao banco, adicionar filtro explícito no service antes de chamar a RPC",
+        "Testes passam com e sem userId",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
-      "priority": 1,
-      "passes": true,
-      "notes": "SEC-002 do security audit. Pendente desde v1.0.4. Impacto mitigado por SEC-003/SEC-004 já implementados.",
-      "dependsOn": [
-        "US-001",
-        "US-002"
-      ],
-      "completionNotes": "Completed by agent"
+      "priority": 2,
+      "passes": false,
+      "notes": "Arquivo: mobile/src/services/reportService.ts. Risco médio: potencial vazamento de dados entre usuários.",
+      "dependsOn": []
     },
     {
       "id": "US-006",
-      "title": "Criar workflow de qualidade no CI/CD",
-      "description": "Como desenvolvedor, quero que lint, test e typecheck sejam executados automaticamente em todo PR, para que problemas sejam detectados antes do merge.",
+      "title": "Corrigir race condition em useReports.refresh com selectedItem",
+      "description": "Como desenvolvedor, quero que refresh em useReports espere o estado selectedItem sincronizar antes de chamar loadItemReport, para evitar carga com item desatualizado.",
       "acceptanceCriteria": [
-        "GitHub Actions workflow quality.yml criado",
-        "Workflow executa npm run lint, npm test, npm run typecheck",
-        "Workflow bloqueia PR se qualquer step falhar",
-        "Workflow executa em PRs para dev e main",
-        "Workflow usa cache de node_modules para performance"
+        "Refatorar refresh para garantir que selectedItem esteja sincronizado antes de loadItemReport",
+        "Se selectedItem foi limpo pelo efeito de topItems, não chamar loadItemReport com string vazia",
+        "Testes existentes de useReports continuam passando",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": ".github/workflows/quality.yml. Depende da pipeline local estar verde primeiro.",
-      "dependsOn": [
-        "US-001",
-        "US-002",
-        "US-004"
-      ],
-      "completionNotes": "Completed by agent"
+      "passes": false,
+      "notes": "Arquivo: mobile/src/hooks/useReports.ts:92. Risco médio: loadItemReport pode ser chamado com selectedItem desatualizado.",
+      "dependsOn": []
     },
     {
       "id": "US-007",
-      "title": "Expandir cobertura de testes unitários",
-      "description": "Como desenvolvedor, quero testes para hooks, contextos e telas críticas, para que eu tenha confiança em refatorações.",
+      "title": "Endurecer asserções do formatMoney.test.ts",
+      "description": "Como desenvolvedor, quero que as asserções de formatMoney usem .toBe() com string exata ao invés de .toMatch() com regex permissivo, para que regressões de formatação sejam detectadas.",
       "acceptanceCriteria": [
-        "Testes para hooks: useDashboard, useReports, useUpdateCheck",
-        "Testes para telas críticas: DashboardScreen, PurchasesScreen",
-        "Expansão de testes de contexto: PurchaseContext, DraftContext",
-        "Cobertura geral >= 60% configurada no Jest",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Substituir .toMatch() por .toBe() com string exata em todos os casos de formatMoney",
+        "Remover regex que aceita formato US (1,234.56) como válido",
+        "Teste de valor negativo verifica sinal negativo explícito",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "Seguir padrão existente em context/__tests__/AuthContext.test.tsx e screens/__tests__/PriceComparatorScreen.test.tsx.",
-      "dependsOn": [
-        "US-004"
-      ],
-      "completionNotes": "Completed by agent"
+      "passes": false,
+      "notes": "Arquivo: mobile/src/utils/__tests__/formatMoney.test.ts. Risco médio: aceita formato incorreto como válido.",
+      "dependsOn": []
     },
     {
       "id": "US-008",
-      "title": "Criar módulo de categorização automática de produtos",
-      "description": "Como usuário, quero que produtos sejam categorizados automaticamente ao registrar uma compra, para que meus relatórios sejam segmentados por tipo de produto.",
+      "title": "Persistir reclassificações aprendidas do categorizador",
+      "description": "Como usuário, quero que as reclassificações de produtos que eu fizer sejam preservadas entre sessões, para que eu não precise reclassificar os mesmos produtos toda vez que abrir o app.",
       "acceptanceCriteria": [
-        "ProductCategorizerService implementado com regras regex configuráveis",
-        "Dataset inicial de 50+ regras para categorias comuns (alimentação, limpeza, higiene, bebidas, etc.)",
-        "Fallback 'Outros' para itens não categorizados",
-        "Campo category_id populado em items no momento da criação da compra",
-        "Cobertura de categorização >= 80% validada com dataset de teste",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Criar tabela ou usar AsyncStorage para persistir learnedReclassifications",
+        "ProductCategorizerService carrega classificações salvas ao inicializar",
+        "learnReclassification persiste a classificação no storage",
+        "Reclassificações sobrevivem a restart do app",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
-      "priority": 2,
-      "passes": true,
-      "notes": "Módulo puro (sem dependências externas), ideal para testes determinísticos.",
+      "priority": 3,
+      "passes": false,
+      "notes": "Arquivo: mobile/src/services/productCategorizerService.ts. Atualmente as reclassificações são em memória apenas.",
       "dependsOn": [
-        "US-001",
-        "US-002",
         "US-004"
-      ],
-      "completionNotes": "Completed by agent"
+      ]
     },
     {
       "id": "US-009",
-      "title": "Adicionar UI de reclassificação de produtos",
-      "description": "Como usuário, quero poder reclassificar um produto caso a categorização automática esteja errada, para que meus relatórios sejam precisos.",
+      "title": "Adicionar matching case-insensitive em getItemReport",
+      "description": "Como usuário, quero que a busca por nome de produto no relatório de itens seja case-insensitive, para que variações de capitalização não impeçam o match.",
       "acceptanceCriteria": [
-        "Botão 'Reclassificar' no item do purchase detail",
-        "Picker/modal com categorias disponíveis",
-        "Reclassificação persiste no banco",
-        "ProductCategorizerService.learnReclassification() chamado ao reclassificar",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "getItemReport usa .ilike ao invés de .eq para name, ou normaliza para lowercase antes do match",
+        "Teste com 'ARROZ' vs 'arroz' retorna o mesmo resultado",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "",
+      "passes": false,
+      "notes": "Arquivo: mobile/src/services/reportService.ts:293. Risco baixo: nomes podem variar em caixa/acentos entre NFC-es.",
       "dependsOn": [
-        "US-008"
-      ],
-      "completionNotes": "Completed by agent"
+        "US-005"
+      ]
     },
     {
       "id": "US-010",
-      "title": "Adicionar relatório por categoria no ReportsScreen",
-      "description": "Como usuário, quero ver meus gastos segmentados por categoria de produto, para que eu entenda para onde meu dinheiro está indo.",
+      "title": "Corrigir buildDateRange para usar undefined check explícito",
+      "description": "Como desenvolvedor, quero que buildDateRange use comparação explícita !== undefined em vez de truthy check, para que month=0 (Janeiro) não seja tratado como ausente.",
       "acceptanceCriteria": [
-        "Novo gráfico (pizza ou barras) no ReportsScreen mostrando gastos por categoria",
-        "Filtro por categoria disponível na listagem de compras",
-        "Top categorias com maior gasto exibido com valores absolutos e percentuais",
-        "Exportação CSV inclui coluna de categoria",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Substituir if (month && year) por if (month !== undefined && year !== undefined)",
+        "Teste com month=0 retorna range correto para Janeiro",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "Reaproveitar lógica existente de ReportService e report RPCs do Supabase.",
+      "passes": false,
+      "notes": "Arquivo: mobile/src/services/reportService.ts. Risco baixo: meses são 1-12 no código atual, mas defensivo.",
       "dependsOn": [
-        "US-008"
-      ],
-      "completionNotes": "Completed by agent"
+        "US-005"
+      ]
     },
     {
       "id": "US-011",
-      "title": "Adicionar edição individual de itens em compras manuais",
-      "description": "Como usuário, quero editar itens individuais dentro de uma compra manual, para que eu possa corrigir erros sem recriar a compra inteira.",
+      "title": "Corrigir key={item.id || index} para evitar falsy id=0",
+      "description": "Como desenvolvedor, quero que a key dos itens em PurchaseDetailScreen use item.id ?? index ao invés de item.id || index, para que id=0 não seja tratado como falsy.",
       "acceptanceCriteria": [
-        "Cada item em compra manual é editável (nome, quantidade, preço unitário)",
-        "Toque no item abre modal de edição com campos preenchidos",
-        "Salvar atualiza o item no banco e recalcula total da compra",
-        "Compras NFC-e permanecem read-only com indicador visual",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Substituir key={item.id || index} por key={item.id ?? index}",
+        "React reconciliation não é afetada",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "PurchaseService.editItem() + modificação em PurchaseDetailScreen.",
-      "dependsOn": [
-        "US-004"
-      ],
-      "completionNotes": "Completed by agent"
+      "passes": false,
+      "notes": "Arquivo: mobile/src/screens/PurchaseDetailScreen.tsx:326. Risco baixo: IDs SQL começam em 1, mas defensivo.",
+      "dependsOn": []
     },
     {
       "id": "US-012",
-      "title": "Adicionar remoção de itens em compras manuais",
-      "description": "Como usuário, quero remover itens de uma compra manual existente, para que eu possa ajustar minhas compras após o registro.",
+      "title": "Corrigir Math.min/Max de array vazio em ReportsScreen",
+      "description": "Como desenvolvedor, quero que a comparação de preços em ReportsScreen trate array vazio antes de chamar Math.min/Max, para evitar Infinity no formatMoney.",
       "acceptanceCriteria": [
-        "Ícone de lixeira ou swipe-to-delete em item de compra manual (com confirmação)",
-        "Remover item recalcula total da compra",
-        "Compras NFC-e não permitem remover itens",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Adicionar guarda if (comparisonPrices.length === 0) antes do Math.min/Max",
+        "Labels de status (Melhor preço/Mais caro) não usam Infinity como referência",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "PurchaseService.removeItem() + confirmação modal.",
-      "dependsOn": [
-        "US-011"
-      ],
-      "completionNotes": "Completed by agent"
+      "passes": false,
+      "notes": "Arquivo: mobile/src/screens/ReportsScreen.tsx:105-109. Risco baixo: zero prices são raros.",
+      "dependsOn": []
     },
     {
       "id": "US-013",
-      "title": "Configurar auto-update in-app via GitHub Releases",
-      "description": "Como usuário, quero ser notificado automaticamente quando uma nova versão do app estiver disponível, para que eu mantenha o app atualizado sem verificar manualmente.",
+      "title": "Validar e corrigir duplicatas em STATE_URLS do nfceService",
+      "description": "Como desenvolvedor, quero que o mapeamento STATE_URLS no nfceService seja validado contra o mapeamento oficial da SEFAZ, para que URLs de consulta NFC-e estejam corretas.",
       "acceptanceCriteria": [
-        "Verificação in-app via GitHub Releases API com cache de 24h",
-        "Dialog não-bloqueante para update opcional",
-        "Update obrigatório suportado via minVersion no release body",
-        "Download do APK via Linking.openURL direto para asset .apk",
-        "npm run typecheck, npm run lint, npm test limpos"
+        "Verificar se entradas duplicadas (14/29 → SE, 22/33 → RJ) estão corretas conforme mapeamento oficial",
+        "Se incorretas, atualizar para URLs corretas ou remover duplicatas",
+        "Adicionar comentário com fonte do mapeamento oficial",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
-      "priority": 1,
-      "passes": true,
-      "notes": "Feature já implementada em v1.3.0. Verificar se está operacional e testar integração.",
+      "priority": 3,
+      "passes": false,
+      "notes": "Arquivo: mobile/src/services/nfceService.ts. Risco baixo: pode ser intencional (múltiplos códigos de estado).",
+      "dependsOn": []
+    },
+    {
+      "id": "US-014",
+      "title": "Remover onPress inútil em itens de compra não-manual",
+      "description": "Como usuário, quero que itens de compras NFC-e (não-manuais) não pareçam clicáveis, para que eu não tente editar algo que é read-only.",
+      "acceptanceCriteria": [
+        "Conditional onPress: só adicionar onPress se purchase.isManual for true",
+        "TouchableOpacity de itens não-manuais não tem onPress (ou tem disabled=true com estilo visual diferente)",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Arquivo: mobile/src/screens/PurchaseDetailScreen.tsx:325-371. Risco baixo: usabilidade.",
       "dependsOn": [
-        "US-001",
-        "US-002"
+        "US-011"
+      ]
+    },
+    {
+      "id": "US-015",
+      "title": "Adicionar --coverage ao CI e verificar thresholds",
+      "description": "Como desenvolvedor, quero que o CI execute a verificação de cobertura e falhe se os thresholds mínimos (60%) não forem atingidos, para que a qualidade não regrida.",
+      "acceptanceCriteria": [
+        "Adicionar npm test -- --runInBand --coverage ao CI quality.yml",
+        "Thresholds de 60% em branches, functions, lines, statements configurados no jest.config.js (já existente)",
+        "CI falha se cobertura estiver abaixo do threshold",
+        "npm run lint && npm run typecheck limpos"
       ],
-      "completionNotes": "Completed by agent"
+      "priority": 2,
+      "passes": false,
+      "notes": "Arquivo: .github/workflows/quality.yml + jest.config.js. Thresholds já existem, CI não executa --coverage.",
+      "dependsOn": [
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-016",
+      "title": "Expandir cobertura de testes onde está baixa",
+      "description": "Como desenvolvedor, quero expandir a cobertura de testes nos serviços com cobertura parcial (supermarketService, reportService, nfceService), para que o threshold de 60% seja sustentável.",
+      "acceptanceCriteria": [
+        "supermarketService.test.ts: adicionar testes para getSupermarkets, getSupermarketById, createSupermarket, deleteSupermarket (mínimo 6/7 métodos cobertos)",
+        "reportService.test.ts: adicionar testes para getDashboardStats, getMonthlyExpenses, getTopItems (mínimo 6/7 métodos cobertos)",
+        "nfceService.test.ts: adicionar testes para createPurchaseFromScrapedData paths (supermarket lookup, criação de supermercado)",
+        "Todos os testes existentes continuam passando",
+        "Cobertura global >= 60% é mantida",
+        "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "Arquivos: mobile/src/services/__tests__/supermarketService.test.ts, reportService.test.ts, nfceService.test.ts. Seguir padrão de mock chain dos testes existentes.",
+      "dependsOn": [
+        "US-007",
+        "US-015"
+      ]
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:08:12.306Z"
+    "updatedAt": "2026-05-05T23:18:55.329Z"
   }
 }
