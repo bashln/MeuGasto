@@ -323,7 +323,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
 
         <Card style={styles.itemsCard} mode="elevated">
           {products.map((item, index) => (
-            <React.Fragment key={item.id || index}>
+            <React.Fragment key={item.id ?? index}>
               <TouchableOpacity
                 style={styles.itemRow}
                 onPress={() => openItemEditModal(item)}
