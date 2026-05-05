@@ -27,6 +27,7 @@ export const ReportsScreen: React.FC = () => {
     selectedItem,
     monthlyData,
     supermarketData,
+    categoryData,
     topItems,
     itemReport,
     setReportType,
@@ -65,6 +66,11 @@ export const ReportsScreen: React.FC = () => {
       csvString = [
         toCsvRow(['Supermercado', 'Total']),
         ...supermarketData.map(s => toCsvRow([s.supermarket, s.total.toFixed(2)])),
+      ].join('\n');
+    } else if (reportType === 'categorias') {
+      csvString = [
+        toCsvRow(['Categoria', 'Total', 'Percentual']),
+        ...categoryData.map(row => toCsvRow([row.category, row.total.toFixed(2), `${row.percentage.toFixed(2)}%`])),
       ].join('\n');
     }
 
@@ -358,6 +364,54 @@ export const ReportsScreen: React.FC = () => {
     );
   };
 
+  const renderCategoriasView = () => {
+    const sorted = [...categoryData].sort((a, b) => b.total - a.total);
+    const maxTotal = sorted.length > 0 ? sorted[0].total : 0;
+    const top5 = sorted.slice(0, 5);
+
+    return (
+      <>
+        <View style={styles.chartCard}>
+          <RNText style={styles.chartTitle}>Gastos por Categoria</RNText>
+          {sorted.length === 0 ? (
+            <View style={styles.emptyComparisonRow}>
+              <RNText style={styles.emptyComparisonText}>Nenhum dado de categoria no período.</RNText>
+            </View>
+          ) : (
+            sorted.map((row) => {
+              const widthPercent = maxTotal > 0 ? Math.min((row.total / maxTotal) * 100, 100) : 0;
+              return (
+                <View key={row.categoryId} style={styles.categoryBarRow}>
+                  <View style={styles.categoryBarHeader}>
+                    <RNText style={styles.categoryName}>{row.category}</RNText>
+                    <RNText style={styles.categoryValues}>{formatMoney(row.total)} • {row.percentage.toFixed(1)}%</RNText>
+                  </View>
+                  <View style={styles.categoryBarTrack}>
+                    <View style={[styles.categoryBarFill, { width: `${widthPercent}%` }]} />
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        <View style={styles.summaryCard}>
+          <RNText style={styles.summaryTitle}>Top Categorias</RNText>
+          {top5.length === 0 ? (
+            <RNText style={styles.emptyComparisonText}>Sem categorias para destacar.</RNText>
+          ) : (
+            top5.map((row, index) => (
+              <View key={`top-category-${row.categoryId}`} style={styles.summaryRow}>
+                <RNText style={styles.summaryLabel}>{index + 1}. {row.category}</RNText>
+                <RNText style={styles.summaryValue}>{formatMoney(row.total)} ({row.percentage.toFixed(1)}%)</RNText>
+              </View>
+            ))
+          )}
+        </View>
+      </>
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -395,6 +449,14 @@ export const ReportsScreen: React.FC = () => {
               Mercados
             </RNText>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.segmentButton, reportType === 'categorias' && styles.segmentButtonActive]}
+            onPress={() => setReportType('categorias')}
+          >
+            <RNText style={[styles.segmentText, reportType === 'categorias' && styles.segmentTextActive]}>
+              Categorias
+            </RNText>
+          </TouchableOpacity>
         </View>
 
         {/* Seletor de Ano */}
@@ -424,6 +486,7 @@ export const ReportsScreen: React.FC = () => {
         {reportType === 'geral' && renderGeralView()}
         {reportType === 'itens' && renderItensView()}
         {reportType === 'mercados' && renderMercadosView()}
+        {reportType === 'categorias' && renderCategoriasView()}
 
         {/* Exportação */}
         <View style={styles.exportCard}>
@@ -907,5 +970,35 @@ const styles = StyleSheet.create({
   },
   pickerItemTotalSelected: {
     color: colors.primaryText,
+  },
+  categoryBarRow: {
+    marginBottom: 12,
+  },
+  categoryBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    gap: 8,
+  },
+  categoryName: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+    flex: 1,
+  },
+  categoryValues: {
+    fontSize: 12,
+    color: colors.mutedText,
+  },
+  categoryBarTrack: {
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  categoryBarFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 4,
   },
 });

@@ -4,11 +4,12 @@ import { reportService } from '../services';
 interface UseReportsResult {
   isLoading: boolean;
   error: string | null;
-  reportType: 'geral' | 'itens' | 'mercados';
+  reportType: 'geral' | 'itens' | 'mercados' | 'categorias';
   selectedYear: number;
   selectedItem: string;
   monthlyData: Array<{ month: number; total: number }>;
   supermarketData: Array<{ supermarket: string; total: number }>;
+  categoryData: Array<{ categoryId: number; category: string; total: number; percentage: number }>;
   topItems: Array<{ name: string; quantity: number; total: number }>;
   itemReport: {
     totalQuantity: number;
@@ -22,7 +23,7 @@ interface UseReportsResult {
       averagePrice: number;
     }>;
   } | null;
-  setReportType: (type: 'geral' | 'itens' | 'mercados') => void;
+  setReportType: (type: 'geral' | 'itens' | 'mercados' | 'categorias') => void;
   setSelectedYear: (year: number) => void;
   setSelectedItem: (item: string) => void;
   loadReport: () => Promise<void>;
@@ -31,13 +32,14 @@ interface UseReportsResult {
 }
 
 export const useReports = (): UseReportsResult => {
-  const [reportType, setReportType] = useState<'geral' | 'itens' | 'mercados'>('itens');
+  const [reportType, setReportType] = useState<'geral' | 'itens' | 'mercados' | 'categorias'>('itens');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedItem, setSelectedItem] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monthlyData, setMonthlyData] = useState<Array<{ month: number; total: number }>>([]);
   const [supermarketData, setSupermarketData] = useState<Array<{ supermarket: string; total: number }>>([]);
+  const [categoryData, setCategoryData] = useState<Array<{ categoryId: number; category: string; total: number; percentage: number }>>([]);
   const [topItems, setTopItems] = useState<Array<{ name: string; quantity: number; total: number }>>([]);
   const [itemReport, setItemReport] = useState<UseReportsResult['itemReport']>(null);
 
@@ -53,10 +55,16 @@ export const useReports = (): UseReportsResult => {
         const data = await reportService.getMonthlyExpenses(selectedYear);
         setMonthlyData(data);
         setTopItems([]);
+        setCategoryData([]);
         setItemReport(null);
       } else if (reportType === 'itens') {
         const data = await reportService.getTopItems(10, startDate, endDate);
         setTopItems(data);
+      } else if (reportType === 'categorias') {
+        const data = await reportService.getExpensesByCategory(startDate, endDate);
+        setCategoryData(data);
+        setTopItems([]);
+        setItemReport(null);
       }
 
       const superData = await reportService.getExpensesBySupermarket(startDate, endDate);
@@ -125,6 +133,7 @@ export const useReports = (): UseReportsResult => {
     selectedItem,
     monthlyData,
     supermarketData,
+    categoryData,
     topItems,
     itemReport,
     setReportType,

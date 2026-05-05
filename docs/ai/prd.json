@@ -191,11 +191,12 @@
         "npm run typecheck, npm run lint, npm test limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Reaproveitar lógica existente de ReportService e report RPCs do Supabase.",
       "dependsOn": [
         "US-008"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-011",
@@ -254,6 +255,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:00:02.440Z"
+    "updatedAt": "2026-05-05T23:03:31.104Z"
   }
 }

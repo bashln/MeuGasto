@@ -45,4 +45,38 @@ describe('reportService', () => {
     });
     expect(mockFrom).not.toHaveBeenCalled();
   });
+
+  it('agrega gastos por categoria com percentual', async () => {
+    const purchaseQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockResolvedValue({
+        data: [{ id: 10 }, { id: 20 }],
+        error: null,
+      }),
+    };
+
+    const itemsQuery = {
+      select: jest.fn().mockReturnThis(),
+      in: jest.fn().mockResolvedValue({
+        data: [
+          { category_id: 1, quantity: '2', price: '5' },
+          { category_id: 2, quantity: '1', price: '10' },
+        ],
+        error: null,
+      }),
+    };
+
+    mockFrom
+      .mockReturnValueOnce(purchaseQuery)
+      .mockReturnValueOnce(itemsQuery);
+
+    const result = await reportService.getExpensesByCategory('2026-01-01', '2026-12-31');
+
+    expect(result).toEqual([
+      { categoryId: 1, category: 'Alimentação', total: 10, percentage: 50 },
+      { categoryId: 2, category: 'Bebidas', total: 10, percentage: 50 },
+    ]);
+  });
 });
