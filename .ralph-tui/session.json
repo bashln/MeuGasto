@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T22:42:30.272Z",
-  "currentIteration": 3,
+  "updatedAt": "2026-05-05T22:43:11.887Z",
+  "currentIteration": 4,
   "maxIterations": 10,
-  "tasksCompleted": 3,
+  "tasksCompleted": 4,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -35,8 +35,8 @@
       {
         "id": "US-004",
         "title": "Corrigir erros de TypeScript nos testes unitários",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-005",
@@ -124,12 +124,22 @@
       "durationMs": 133926,
       "startedAt": "2026-05-05T22:40:15.314Z",
       "endedAt": "2026-05-05T22:42:29.240Z"
+    },
+    {
+      "iteration": 4,
+      "status": "completed",
+      "taskId": "US-004",
+      "taskTitle": "Corrigir erros de TypeScript nos testes unitários",
+      "taskCompleted": true,
+      "durationMs": 40584,
+      "startedAt": "2026-05-05T22:42:30.268Z",
+      "endedAt": "2026-05-05T22:43:10.852Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
   "activeTaskIds": [
-    "US-004"
+    "US-005"
   ],
   "subagentPanelVisible": true
 }

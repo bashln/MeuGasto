@@ -11,6 +11,31 @@ const getClient = (): SupabaseClient => {
   return client;
 };
 
+export const hashAccessKey = async (accessKey: string): Promise<string> => {
+  const sanitizedAccessKey = validateAccessKey(accessKey);
+  const subtle = globalThis.crypto?.subtle;
+
+  if (!subtle) {
+    throw new Error('SHA-256 indisponivel no ambiente atual');
+  }
+
+  const input = new TextEncoder().encode(sanitizedAccessKey);
+  const digest = await subtle.digest('SHA-256', input);
+  return Array.from(new Uint8Array(digest))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+export const buildExternalScraperPayload = async (
+  nfceUrl: string,
+  accessKey: string
+): Promise<{ nfceUrl: string; accessKeyHash: string }> => {
+  return {
+    nfceUrl,
+    accessKeyHash: await hashAccessKey(accessKey),
+  };
+};
+
 
 export const extractAccessKeyFromQRCode = (qrCodeData: string): string => {
   const pValue = parseQrInput(qrCodeData);

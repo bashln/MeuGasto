@@ -10,8 +10,10 @@ jest.mock('../authService', () => ({
 }));
 
 import {
+  buildExternalScraperPayload,
   buildNFCeUrl,
   extractAccessKeyFromQRCode,
+  hashAccessKey,
   isAllowedNfceUrl,
   parseQrInput,
 } from '../nfceService';
@@ -59,5 +61,25 @@ describe('nfceService URL and allowlist', () => {
         requireExpectedPath: true,
       })
     ).toBe(false);
+  });
+});
+
+describe('nfceService access key hashing', () => {
+  const accessKey = '43180611111111111111111111111111111111111111';
+
+  it('gera hash SHA-256 da chave de acesso', async () => {
+    await expect(hashAccessKey(accessKey)).resolves.toBe(
+      'e2a7bf2062ac05f46705ad51fa5c47d23f466241cadb69f3d1910a5020734d0a'
+    );
+  });
+
+  it('monta payload do scraper externo com hash sem expor chave original', async () => {
+    const payload = await buildExternalScraperPayload('https://www.sefaz.rs.gov.br/nfce', accessKey);
+
+    expect(payload.nfceUrl).toBe('https://www.sefaz.rs.gov.br/nfce');
+    expect(payload.accessKeyHash).toBe(
+      'e2a7bf2062ac05f46705ad51fa5c47d23f466241cadb69f3d1910a5020734d0a'
+    );
+    expect(JSON.stringify(payload)).not.toContain(accessKey);
   });
 });
