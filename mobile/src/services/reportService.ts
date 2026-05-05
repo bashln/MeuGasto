@@ -111,6 +111,11 @@ export const reportService = {
     startDate?: string,
     endDate?: string
   ): Promise<Array<{ supermarket: string; total: number }>> {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return [];
+    }
+
     const supabase = getClient();
 
     const { data, error } = await supabase.rpc('report_expenses_by_supermarket', {

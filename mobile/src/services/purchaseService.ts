@@ -156,6 +156,9 @@ export const purchaseService = {
     if (error) {
       throw new Error(error.message);
     }
+    if (!purchase) {
+      throw new Error('Compra não encontrada');
+    }
 
     return {
       id: purchase.id,

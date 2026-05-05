@@ -62,9 +62,10 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/services/purchaseService.ts:160. Risco médio: se .single() retornar null, crash.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-005",
@@ -78,9 +79,10 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/services/reportService.ts. Risco médio: potencial vazamento de dados entre usuários.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-006",
@@ -260,6 +262,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:21:04.972Z"
+    "updatedAt": "2026-05-05T23:23:35.418Z"
   }
 }
