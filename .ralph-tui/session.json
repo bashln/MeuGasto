@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:36:44.071Z",
-  "currentIteration": 26,
+  "updatedAt": "2026-05-05T23:44:26.170Z",
+  "currentIteration": 29,
   "maxIterations": 10,
-  "tasksCompleted": 26,
+  "tasksCompleted": 29,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -354,12 +354,40 @@
       "durationMs": 68861,
       "startedAt": "2026-05-05T23:35:34.167Z",
       "endedAt": "2026-05-05T23:36:43.028Z"
+    },
+    {
+      "iteration": 27,
+      "status": "completed",
+      "taskId": "US-013",
+      "taskTitle": "Validar e corrigir duplicatas em STATE_URLS do nfceService",
+      "taskCompleted": true,
+      "durationMs": 151808,
+      "startedAt": "2026-05-05T23:36:44.066Z",
+      "endedAt": "2026-05-05T23:39:15.874Z"
+    },
+    {
+      "iteration": 28,
+      "status": "completed",
+      "taskId": "US-014",
+      "taskTitle": "Remover onPress inútil em itens de compra não-manual",
+      "taskCompleted": true,
+      "durationMs": 74873,
+      "startedAt": "2026-05-05T23:39:16.905Z",
+      "endedAt": "2026-05-05T23:40:31.778Z"
+    },
+    {
+      "iteration": 29,
+      "status": "completed",
+      "taskId": "US-016",
+      "taskTitle": "Expandir cobertura de testes onde está baixa",
+      "taskCompleted": true,
+      "durationMs": 233327,
+      "startedAt": "2026-05-05T23:40:32.802Z",
+      "endedAt": "2026-05-05T23:44:26.129Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
-  "activeTaskIds": [
-    "US-013"
-  ],
+  "activeTaskIds": [],
   "subagentPanelVisible": true
 }

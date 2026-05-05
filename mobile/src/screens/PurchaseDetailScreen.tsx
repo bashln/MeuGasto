@@ -325,8 +325,8 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
           {products.map((item, index) => (
             <React.Fragment key={item.id ?? index}>
               <TouchableOpacity
-                style={styles.itemRow}
-                onPress={() => openItemEditModal(item)}
+                style={[styles.itemRow, !purchase.isManual && styles.itemRowReadOnly]}
+                onPress={purchase.isManual ? () => openItemEditModal(item) : undefined}
                 disabled={!purchase.isManual}
                 activeOpacity={purchase.isManual ? 0.7 : 1}
               >
@@ -558,6 +558,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+  },
+  itemRowReadOnly: {
+    opacity: 0.75,
   },
   itemInfo: {
     flex: 1,

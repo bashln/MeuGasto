@@ -225,11 +225,12 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/screens/PurchaseDetailScreen.tsx:325-371. Risco baixo: usabilidade.",
       "dependsOn": [
         "US-011"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-015",
@@ -262,15 +263,16 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivos: mobile/src/services/__tests__/supermarketService.test.ts, reportService.test.ts, nfceService.test.ts. Seguir padrão de mock chain dos testes existentes.",
       "dependsOn": [
         "US-007",
         "US-015"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:39:15.874Z"
+    "updatedAt": "2026-05-05T23:44:26.130Z"
   }
 }
