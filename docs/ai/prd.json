@@ -32,11 +32,12 @@
         "npm run lint retorna 0 erros e 0 warnings"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "3 erros, 2 warnings atualmente. US-001 é pré-requisito para garantir pipeline consistente.",
       "dependsOn": [
         "US-001"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-003",
@@ -245,6 +246,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T22:39:11.034Z"
+    "updatedAt": "2026-05-05T22:40:14.287Z"
   }
 }
