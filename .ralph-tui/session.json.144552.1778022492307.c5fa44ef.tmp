@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:06:08.993Z",
-  "currentIteration": 11,
+  "updatedAt": "2026-05-05T23:08:12.306Z",
+  "currentIteration": 12,
   "maxIterations": 10,
-  "tasksCompleted": 11,
+  "tasksCompleted": 12,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -77,8 +77,8 @@
       {
         "id": "US-011",
         "title": "Adicionar edição individual de itens em compras manuais",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-012",
@@ -204,6 +204,16 @@
       "durationMs": 207634,
       "startedAt": "2026-05-05T23:00:03.469Z",
       "endedAt": "2026-05-05T23:03:31.103Z"
+    },
+    {
+      "iteration": 12,
+      "status": "completed",
+      "taskId": "US-011",
+      "taskTitle": "Adicionar edição individual de itens em compras manuais",
+      "taskCompleted": true,
+      "durationMs": 156861,
+      "startedAt": "2026-05-05T23:03:32.132Z",
+      "endedAt": "2026-05-05T23:06:08.993Z"
     }
   ],
   "skippedTaskIds": [],

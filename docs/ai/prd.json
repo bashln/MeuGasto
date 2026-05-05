@@ -228,11 +228,12 @@
         "npm run typecheck, npm run lint, npm test limpos"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "PurchaseService.removeItem() + confirmação modal.",
       "dependsOn": [
         "US-011"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-013",
@@ -256,6 +257,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:06:08.993Z"
+    "updatedAt": "2026-05-05T23:08:12.306Z"
   }
 }

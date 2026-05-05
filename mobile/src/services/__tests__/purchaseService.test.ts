@@ -194,4 +194,73 @@ describe('purchaseService', () => {
       })
     ).rejects.toThrow(/somente leitura/i);
   });
+
+  it('remove item de compra manual e recalcula total da compra', async () => {
+    const purchaseSelectChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 10, manual: true }, error: null }),
+    };
+    const itemDeleteChain = {
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+    const itemsListChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue({
+        data: [
+          { quantity: 1, price: 8 },
+          { quantity: 2, price: 3.5 },
+        ],
+        error: null,
+      }),
+    };
+    const purchaseUpdateChain = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+    };
+    const fetchByIdChain = makeChain({
+      data: {
+        id: 10,
+        supermarket: { id: 1, name: 'Mercado' },
+        access_key: null,
+        date: '2026-02-01',
+        total_price: '15.00',
+        manual: true,
+        items: [{ id: 2, name: 'Feijao', quantity: 1, unit: 'UN', price: 8 }],
+        created_at: '2026-02-01T00:00:00.000Z',
+        updated_at: '2026-02-01T00:00:00.000Z',
+      },
+      error: null,
+    });
+
+    mockFrom
+      .mockReturnValueOnce(purchaseSelectChain)
+      .mockReturnValueOnce(itemDeleteChain)
+      .mockReturnValueOnce(itemsListChain)
+      .mockReturnValueOnce(purchaseUpdateChain)
+      .mockReturnValueOnce(fetchByIdChain);
+
+    await purchaseService.removeItem(10, 9);
+
+    expect(itemDeleteChain.delete).toHaveBeenCalled();
+    expect(purchaseUpdateChain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total_price: 15,
+      })
+    );
+  });
+
+  it('bloqueia remocao de item em compra NFC-e', async () => {
+    const purchaseSelectChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 12, manual: false }, error: null }),
+    };
+    mockFrom.mockReturnValueOnce(purchaseSelectChain);
+
+    await expect(
+      purchaseService.removeItem(12, 1)
+    ).rejects.toThrow(/somente leitura/i);
+  });
 });

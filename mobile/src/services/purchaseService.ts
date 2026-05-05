@@ -37,6 +37,12 @@ type EditItemPayload = {
   price: number;
 };
 
+const recalculateItemsTotal = (items: Array<{ quantity: number | string; price: number | string }>): number => {
+  return items.reduce((acc: number, item) => {
+    return acc + (Number(item.quantity) || 0) * (Number(item.price) || 0);
+  }, 0);
+};
+
 const mapPurchaseItems = (items: unknown): Purchase['products'] => {
   const safeItems = Array.isArray(items) ? items : [];
 
@@ -323,9 +329,62 @@ export const purchaseService = {
       throw new Error(itemsError.message);
     }
 
-    const recalculatedTotal = (items ?? []).reduce((acc: number, item: { quantity: number | string; price: number | string }) => {
-      return acc + (Number(item.quantity) || 0) * (Number(item.price) || 0);
-    }, 0);
+    const recalculatedTotal = recalculateItemsTotal(items ?? []);
+
+    const { error: purchaseUpdateError } = await supabase
+      .from('purchases')
+      .update({
+        total_price: Number(recalculatedTotal.toFixed(2)),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', purchaseId)
+      .eq('user_id', userId);
+
+    if (purchaseUpdateError) {
+      throw new Error(purchaseUpdateError.message);
+    }
+
+    return this.getPurchaseById(purchaseId);
+  },
+
+  async removeItem(purchaseId: number, itemId: number): Promise<Purchase> {
+    const userId = await getCurrentUserId();
+    const supabase = getClient();
+
+    const { data: purchase, error: purchaseError } = await supabase
+      .from('purchases')
+      .select('id, manual')
+      .eq('id', purchaseId)
+      .eq('user_id', userId)
+      .single();
+
+    if (purchaseError) {
+      throw new Error(purchaseError.message);
+    }
+    if (!purchase?.manual) {
+      throw new Error('Compras NFC-e são somente leitura');
+    }
+
+    const { error: deleteError } = await supabase
+      .from('items')
+      .delete()
+      .eq('id', itemId)
+      .eq('purchase_id', purchaseId);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+
+    const { data: items, error: itemsError } = await supabase
+      .from('items')
+      .select('quantity, price')
+      .eq('purchase_id', purchaseId);
+
+    if (itemsError) {
+      throw new Error(itemsError.message);
+    }
+
+    const recalculatedTotal = recalculateItemsTotal(items ?? []);
 
     const { error: purchaseUpdateError } = await supabase
       .from('purchases')

@@ -35,6 +35,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   const [editItemQuantity, setEditItemQuantity] = useState('');
   const [editItemPrice, setEditItemPrice] = useState('');
   const [isSavingItemEdit, setIsSavingItemEdit] = useState(false);
+  const [isRemovingItemId, setIsRemovingItemId] = useState<number | null>(null);
 
   const loadPurchase = useCallback(async () => {
     try {
@@ -209,6 +210,36 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
     }
   };
 
+  const handleRemoveItem = (item: Purchase['products'][number]) => {
+    if (!purchase?.isManual) {
+      return;
+    }
+
+    Alert.alert(
+      'Remover item',
+      `Deseja remover "${item.name}" desta compra?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsRemovingItemId(item.id);
+              const updatedPurchase = await purchaseService.removeItem(purchase.id, item.id);
+              setPurchase(updatedPurchase);
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'Erro ao remover item';
+              Alert.alert('Remover item', message);
+            } finally {
+              setIsRemovingItemId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return <Loading fullScreen />;
   }
@@ -322,9 +353,21 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                     </Text>
                   )}
                 </View>
-                <Text variant="titleMedium" style={{ color: colors.primary }}>
-                  {formatMoney(item.price * item.quantity)}
-                </Text>
+                <View style={styles.itemActions}>
+                  <Text variant="titleMedium" style={{ color: colors.primary }}>
+                    {formatMoney(item.price * item.quantity)}
+                  </Text>
+                  {purchase.isManual && (
+                    <IconButton
+                      icon="delete-outline"
+                      iconColor={theme.colors.error}
+                      size={20}
+                      style={styles.deleteItemButton}
+                      disabled={isRemovingItemId === item.id}
+                      onPress={() => handleRemoveItem(item)}
+                    />
+                  )}
+                </View>
               </TouchableOpacity>
               {index < products.length - 1 && <Divider />}
             </React.Fragment>
@@ -519,6 +562,14 @@ const styles = StyleSheet.create({
   itemInfo: {
     flex: 1,
     marginRight: 16,
+  },
+  itemActions: {
+    alignItems: 'flex-end',
+  },
+  deleteItemButton: {
+    marginTop: 4,
+    marginRight: -8,
+    marginBottom: -8,
   },
   reclassifyButton: {
     alignSelf: 'flex-start',
