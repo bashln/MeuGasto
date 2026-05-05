@@ -30,9 +30,10 @@
         "Workflow executa em PR para dev e main"
       ],
       "priority": 1,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: .github/workflows/quality.yml. Risco alto: pushes diretos atualmente bypassam CI.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-003",
@@ -44,11 +45,12 @@
         "Adicionar concurrency settings para cancelar execuções duplicadas"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: .github/workflows/release.yml. Risco médio: release pode gerar APK quebrado.",
       "dependsOn": [
         "US-002"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-004",
@@ -258,6 +260,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:18:55.329Z"
+    "updatedAt": "2026-05-05T23:21:04.972Z"
   }
 }
