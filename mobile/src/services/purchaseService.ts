@@ -245,4 +245,19 @@ export const purchaseService = {
       throw new Error(error.message);
     }
   },
+
+  async reclassifyPurchaseItem(itemId: number, productName: string, categoryId: number): Promise<void> {
+    const supabase = getClient();
+
+    const { error } = await supabase
+      .from('items')
+      .update({ category_id: categoryId })
+      .eq('id', itemId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    productCategorizer.learnReclassification(productName, categoryId);
+  },
 };

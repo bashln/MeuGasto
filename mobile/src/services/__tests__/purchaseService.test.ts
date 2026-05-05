@@ -97,4 +97,19 @@ describe('purchaseService', () => {
       })
     );
   });
+
+  it('persiste reclassificacao e dispara aprendizado no categorizador', async () => {
+    const chain = makeChain({ error: null });
+    const updateChain = {
+      ...chain,
+      eq: jest.fn().mockResolvedValue({ error: null }),
+    };
+    mockFrom.mockReturnValue(updateChain);
+
+    await purchaseService.reclassifyPurchaseItem(77, 'Detergente Neutro', 1);
+
+    expect(mockFrom).toHaveBeenCalledWith('items');
+    expect(updateChain.update).toHaveBeenCalledWith({ category_id: 1 });
+    expect(updateChain.eq).toHaveBeenCalledWith('id', 77);
+  });
 });

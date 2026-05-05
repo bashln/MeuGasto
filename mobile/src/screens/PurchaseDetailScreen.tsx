@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { Text, Card, Chip, useTheme, Surface, Divider, IconButton, Button, Menu } from 'react-native-paper';
+import { Text, Card, Chip, useTheme, Surface, Divider, IconButton, Button, Menu, Portal, Dialog, RadioButton } from 'react-native-paper';
 import { purchaseService } from '../services';
 import { Purchase } from '../types';
 import { formatMoney, formatDate, compareItems, PriceComparisonResult } from '../utils';
@@ -9,6 +9,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { CATEGORY_IDS, PRODUCT_CATEGORY_OPTIONS } from '../services/productCategoryRules';
 
 type PurchaseDetailScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'PurchaseDetail'>;
@@ -26,6 +27,9 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   const [secondItemIndex, setSecondItemIndex] = useState(1);
   const [firstItemMenuVisible, setFirstItemMenuVisible] = useState(false);
   const [secondItemMenuVisible, setSecondItemMenuVisible] = useState(false);
+  const [itemBeingReclassified, setItemBeingReclassified] = useState<Purchase['products'][number] | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(CATEGORY_IDS.OUTROS);
+  const [isSavingReclassification, setIsSavingReclassification] = useState(false);
 
   const loadPurchase = useCallback(async () => {
     try {
@@ -96,6 +100,52 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao comparar itens';
       Alert.alert('Comparação', message);
+    }
+  };
+
+  const openReclassificationModal = (item: Purchase['products'][number]) => {
+    setItemBeingReclassified(item);
+    setSelectedCategoryId(item.categoryId ?? CATEGORY_IDS.OUTROS);
+  };
+
+  const closeReclassificationModal = () => {
+    if (isSavingReclassification) {
+      return;
+    }
+
+    setItemBeingReclassified(null);
+  };
+
+  const handleConfirmReclassification = async () => {
+    if (!itemBeingReclassified) {
+      return;
+    }
+
+    try {
+      setIsSavingReclassification(true);
+      await purchaseService.reclassifyPurchaseItem(itemBeingReclassified.id, itemBeingReclassified.name, selectedCategoryId);
+
+      setPurchase((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          products: (current.products ?? []).map((product) =>
+            product.id === itemBeingReclassified.id
+              ? { ...product, categoryId: selectedCategoryId }
+              : product
+          ),
+        };
+      });
+
+      setItemBeingReclassified(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao reclassificar item';
+      Alert.alert('Reclassificação', message);
+    } finally {
+      setIsSavingReclassification(false);
     }
   };
 
@@ -186,6 +236,15 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                   <Text variant="bodySmall" style={{ color: colors.mutedText }}>
                     Valor unitário
                   </Text>
+                  <Button
+                    mode="text"
+                    compact
+                    contentStyle={styles.reclassifyButtonContent}
+                    style={styles.reclassifyButton}
+                    onPress={() => openReclassificationModal(item)}
+                  >
+                    Reclassificar
+                  </Button>
                 </View>
                 <Text variant="titleMedium" style={{ color: colors.primary }}>
                   {formatMoney(item.price * item.quantity)}
@@ -269,6 +328,38 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
           </Surface>
         )}
       </ScrollView>
+
+      <Portal>
+        <Dialog visible={!!itemBeingReclassified} onDismiss={closeReclassificationModal}>
+          <Dialog.Title>Reclassificar produto</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.dialogDescription}>
+              {itemBeingReclassified?.name}
+            </Text>
+            <RadioButton.Group
+              onValueChange={(value) => setSelectedCategoryId(Number(value))}
+              value={String(selectedCategoryId)}
+            >
+              {PRODUCT_CATEGORY_OPTIONS.map((category) => (
+                <TouchableOpacity
+                  key={`category-option-${category.id}`}
+                  style={styles.categoryOptionRow}
+                  onPress={() => setSelectedCategoryId(category.id)}
+                >
+                  <RadioButton value={String(category.id)} />
+                  <Text variant="bodyMedium">{category.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </RadioButton.Group>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={closeReclassificationModal} disabled={isSavingReclassification}>Cancelar</Button>
+            <Button onPress={handleConfirmReclassification} loading={isSavingReclassification}>
+              Salvar
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 };
@@ -320,6 +411,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
+  reclassifyButton: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginLeft: -8,
+  },
+  reclassifyButtonContent: {
+    height: 28,
+  },
   comparisonSurface: {
     marginTop: 16,
     borderRadius: 12,
@@ -340,5 +439,13 @@ const styles = StyleSheet.create({
   },
   compareButton: {
     marginTop: 2,
+  },
+  dialogDescription: {
+    marginBottom: 10,
+    color: colors.mutedText,
+  },
+  categoryOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
