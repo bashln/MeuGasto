@@ -131,11 +131,12 @@
         "npm run typecheck, npm run lint, npm test limpos"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Seguir padrão existente em context/__tests__/AuthContext.test.tsx e screens/__tests__/PriceComparatorScreen.test.tsx.",
       "dependsOn": [
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-008",
@@ -251,6 +252,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T22:47:21.441Z"
+    "updatedAt": "2026-05-05T22:52:48.328Z"
   }
 }

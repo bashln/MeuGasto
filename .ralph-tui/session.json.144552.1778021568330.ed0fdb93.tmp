@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T22:47:21.441Z",
-  "currentIteration": 6,
+  "updatedAt": "2026-05-05T22:52:48.328Z",
+  "currentIteration": 7,
   "maxIterations": 10,
-  "tasksCompleted": 6,
+  "tasksCompleted": 7,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -47,8 +47,8 @@
       {
         "id": "US-006",
         "title": "Criar workflow de qualidade no CI/CD",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-007",
@@ -154,6 +154,16 @@
       "durationMs": 55374,
       "startedAt": "2026-05-05T22:45:11.170Z",
       "endedAt": "2026-05-05T22:46:06.544Z"
+    },
+    {
+      "iteration": 7,
+      "status": "completed",
+      "taskId": "US-006",
+      "taskTitle": "Criar workflow de qualidade no CI/CD",
+      "taskCompleted": true,
+      "durationMs": 73866,
+      "startedAt": "2026-05-05T22:46:07.575Z",
+      "endedAt": "2026-05-05T22:47:21.441Z"
     }
   ],
   "skippedTaskIds": [],
