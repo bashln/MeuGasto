@@ -74,6 +74,13 @@ describe('purchaseService', () => {
     ).rejects.toThrow(/N[aã]o foi poss[ií]vel criar a compra manual/i);
   });
 
+  it('lanca erro quando compra nao e encontrada em getPurchaseById', async () => {
+    const chain = makeChain({ data: null, error: null });
+    mockFrom.mockReturnValue(chain);
+
+    await expect(purchaseService.getPurchaseById(999)).rejects.toThrow('Compra não encontrada');
+  });
+
   it('inclui category_id nos itens ao criar compra manual', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
 

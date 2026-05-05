@@ -13,13 +13,16 @@ jest.mock('../authService', () => ({
 
 import { reportService } from '../reportService';
 import { supabase } from '../../lib/supabaseClient';
+import { getCurrentUserId } from '../authService';
 
 const mockFrom = supabase!.from as jest.Mock;
 const mockRpc = supabase!.rpc as jest.Mock;
+const mockGetCurrentUserId = getCurrentUserId as jest.Mock;
 
 describe('reportService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetCurrentUserId.mockResolvedValue('user-1');
   });
 
   it('converte totais retornados do RPC de supermercado', async () => {
@@ -31,6 +34,15 @@ describe('reportService', () => {
     const result = await reportService.getExpensesBySupermarket();
 
     expect(result).toEqual([{ supermarket: 'Mercado A', total: 33.7 }]);
+  });
+
+  it('retorna vazio e nao chama RPC quando nao ha userId', async () => {
+    mockGetCurrentUserId.mockResolvedValue(null);
+
+    const result = await reportService.getExpensesBySupermarket();
+
+    expect(result).toEqual([]);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('retorna relatorio vazio quando itemName nao e informado', async () => {

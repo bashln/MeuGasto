@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:21:04.972Z",
-  "currentIteration": 15,
+  "updatedAt": "2026-05-05T23:23:35.418Z",
+  "currentIteration": 17,
   "maxIterations": 10,
-  "tasksCompleted": 15,
+  "tasksCompleted": 17,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -244,6 +244,26 @@
       "durationMs": 64357,
       "startedAt": "2026-05-05T23:18:56.375Z",
       "endedAt": "2026-05-05T23:20:00.732Z"
+    },
+    {
+      "iteration": 16,
+      "status": "completed",
+      "taskId": "US-003",
+      "taskTitle": "Adicionar quality gate ao workflow release.yml",
+      "taskCompleted": true,
+      "durationMs": 63206,
+      "startedAt": "2026-05-05T23:20:01.766Z",
+      "endedAt": "2026-05-05T23:21:04.972Z"
+    },
+    {
+      "iteration": 17,
+      "status": "completed",
+      "taskId": "US-004",
+      "taskTitle": "Adicionar null guard em getPurchaseById após single()",
+      "taskCompleted": true,
+      "durationMs": 66581,
+      "startedAt": "2026-05-05T23:21:06.005Z",
+      "endedAt": "2026-05-05T23:22:12.586Z"
     }
   ],
   "skippedTaskIds": [],
