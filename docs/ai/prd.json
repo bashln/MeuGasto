@@ -95,9 +95,10 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/hooks/useReports.ts:92. Risco médio: loadItemReport pode ser chamado com selectedItem desatualizado.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-007",
@@ -110,9 +111,10 @@
         "npm run lint && npm test -- --runInBand && npm run typecheck limpos"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "Arquivo: mobile/src/utils/__tests__/formatMoney.test.ts. Risco médio: aceita formato incorreto como válido.",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-008",
@@ -262,6 +264,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-05-05T23:23:35.418Z"
+    "updatedAt": "2026-05-05T23:26:24.300Z"
   }
 }

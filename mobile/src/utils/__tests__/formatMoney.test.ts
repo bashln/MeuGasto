@@ -2,24 +2,24 @@ import { formatMoney, formatMoneyInput, parseMoney } from '../formatMoney';
 
 describe('formatMoney', () => {
   it('formata valor positivo com duas casas decimais', () => {
-    expect(formatMoney(10.5)).toMatch(/10,50/);
+    expect(formatMoney(10.5)).toBe('R$\u00a010,50');
   });
 
   it('formata zero', () => {
-    expect(formatMoney(0)).toMatch(/0,00/);
+    expect(formatMoney(0)).toBe('R$\u00a00,00');
   });
 
   it('formata valor negativo', () => {
-    expect(formatMoney(-5.99)).toMatch(/5,99/);
+    expect(formatMoney(-5.99)).toBe('-R$\u00a05,99');
   });
 
   it('inclui símbolo de moeda BRL', () => {
     const result = formatMoney(1);
-    expect(result).toMatch(/R\$|BRL/);
+    expect(result).toBe('R$\u00a01,00');
   });
 
   it('formata valor grande com separador de milhar', () => {
-    expect(formatMoney(1234.56)).toMatch(/1\.234,56|1,234\.56/);
+    expect(formatMoney(1234.56)).toBe('R$\u00a01.234,56');
   });
 });
 
