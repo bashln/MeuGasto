@@ -16,6 +16,32 @@ const getClient = (): SupabaseClient => {
 const productCategorizer = new ProductCategorizerService({
   rules: DEFAULT_PRODUCT_CATEGORY_RULES,
   fallbackCategoryId: CATEGORY_IDS.OUTROS,
+  persistence: {
+    load: async () => {
+      const userId = await getCurrentUserId().catch(() => null);
+      if (!userId) {
+        return [];
+      }
+
+      const supabase = getClient();
+      const { data, error } = await supabase
+        .from('learned_reclassifications')
+        .select('normalized_name, category_id')
+        .eq('user_id', userId);
+
+      if (error || !data) {
+        return [];
+      }
+
+      return data.map((entry: { normalized_name: string; category_id: number }) => ({
+        productName: entry.normalized_name,
+        categoryId: entry.category_id,
+      }));
+    },
+    save: async () => {
+      // Fluxo NFC-e só consome classificações aprendidas; persistência é feita na reclassificação manual.
+    },
+  },
 });
 
 export const hashAccessKey = async (accessKey: string): Promise<string> => {
@@ -281,6 +307,7 @@ export const nfceService = {
     total: number;
     itemCount: number;
   }> {
+    await productCategorizer.ready();
     const supabase = getClient();
     const userId = await getCurrentUserId();
     const sanitizedPayload: NFCeScrapedData = validateAndSanitizeNFCePayload(scrapedData);

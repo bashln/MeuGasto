@@ -8,6 +8,17 @@ export type ProductCategoryRule = {
 export type ProductCategorizerConfig = {
   rules: ProductCategoryRule[];
   fallbackCategoryId?: number;
+  persistence?: ProductCategorizerPersistence;
+};
+
+export type LearnedReclassification = {
+  productName: string;
+  categoryId: number;
+};
+
+export type ProductCategorizerPersistence = {
+  load: () => Promise<LearnedReclassification[]>;
+  save: (entry: LearnedReclassification) => Promise<void>;
 };
 
 const normalizeProductName = (value: string): string => {
@@ -21,11 +32,19 @@ const normalizeProductName = (value: string): string => {
 export class ProductCategorizerService {
   private readonly rules: ProductCategoryRule[];
   private readonly fallbackCategoryId: number;
+  private readonly persistence?: ProductCategorizerPersistence;
   private readonly learnedReclassifications = new Map<string, number>();
+  private readonly initializationPromise: Promise<void>;
 
   constructor(config: ProductCategorizerConfig) {
     this.rules = config.rules;
     this.fallbackCategoryId = config.fallbackCategoryId ?? DEFAULT_FALLBACK_CATEGORY_ID;
+    this.persistence = config.persistence;
+    this.initializationPromise = this.loadPersistedReclassifications();
+  }
+
+  async ready(): Promise<void> {
+    await this.initializationPromise;
   }
 
   categorizeProduct(productName: string): number {
@@ -44,12 +63,34 @@ export class ProductCategorizerService {
     return this.fallbackCategoryId;
   }
 
-  learnReclassification(productName: string, categoryId: number): void {
+  async learnReclassification(productName: string, categoryId: number): Promise<void> {
     const normalized = normalizeProductName(productName || '');
     if (!normalized) {
       return;
     }
 
     this.learnedReclassifications.set(normalized, categoryId);
+    if (this.persistence) {
+      await this.persistence.save({ productName: normalized, categoryId });
+    }
+  }
+
+  private async loadPersistedReclassifications(): Promise<void> {
+    if (!this.persistence) {
+      return;
+    }
+
+    try {
+      const learnedEntries = await this.persistence.load();
+      for (const entry of learnedEntries) {
+        const normalized = normalizeProductName(entry.productName || '');
+        if (!normalized) {
+          continue;
+        }
+        this.learnedReclassifications.set(normalized, entry.categoryId);
+      }
+    } catch {
+      // Fallback silencioso: categorização continua com regras estáticas.
+    }
   }
 }

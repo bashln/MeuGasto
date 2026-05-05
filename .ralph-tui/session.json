@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T23:26:25.380Z",
-  "currentIteration": 20,
+  "updatedAt": "2026-05-05T23:27:35.152Z",
+  "currentIteration": 21,
   "maxIterations": 10,
-  "tasksCompleted": 20,
+  "tasksCompleted": 21,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -294,12 +294,22 @@
       "durationMs": 64492,
       "startedAt": "2026-05-05T23:25:19.807Z",
       "endedAt": "2026-05-05T23:26:24.299Z"
+    },
+    {
+      "iteration": 21,
+      "status": "completed",
+      "taskId": "US-015",
+      "taskTitle": "Adicionar --coverage ao CI e verificar thresholds",
+      "taskCompleted": true,
+      "durationMs": 68688,
+      "startedAt": "2026-05-05T23:26:25.371Z",
+      "endedAt": "2026-05-05T23:27:34.059Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
   "activeTaskIds": [
-    "US-015"
+    "US-008"
   ],
   "subagentPanelVisible": true
 }
