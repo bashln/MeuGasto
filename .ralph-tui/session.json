@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T22:39:12.070Z",
-  "currentIteration": 1,
+  "updatedAt": "2026-05-05T22:40:15.319Z",
+  "currentIteration": 2,
   "maxIterations": 10,
-  "tasksCompleted": 1,
+  "tasksCompleted": 2,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -23,8 +23,8 @@
       {
         "id": "US-002",
         "title": "Corrigir erros de lint no projeto",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-003",
@@ -104,12 +104,22 @@
       "durationMs": 175878,
       "startedAt": "2026-05-05T22:36:15.156Z",
       "endedAt": "2026-05-05T22:39:11.034Z"
+    },
+    {
+      "iteration": 2,
+      "status": "completed",
+      "taskId": "US-002",
+      "taskTitle": "Corrigir erros de lint no projeto",
+      "taskCompleted": true,
+      "durationMs": 62222,
+      "startedAt": "2026-05-05T22:39:12.065Z",
+      "endedAt": "2026-05-05T22:40:14.287Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
   "activeTaskIds": [
-    "US-002"
+    "US-003"
   ],
   "subagentPanelVisible": true
 }

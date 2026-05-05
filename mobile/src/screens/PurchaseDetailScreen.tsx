@@ -180,9 +180,11 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
             <React.Fragment key={item.id || index}>
               <View style={styles.itemRow}>
                 <View style={styles.itemInfo}>
-                  <Text variant="bodyLarge">{item.name}</Text>
+                  <Text variant="bodyLarge">
+                    {item.quantity}x {item.name} {formatMoney(item.price)}
+                  </Text>
                   <Text variant="bodySmall" style={{ color: colors.mutedText }}>
-                    {item.quantity} {item.unit} x {formatMoney(item.price)}
+                    Valor unitário
                   </Text>
                 </View>
                 <Text variant="titleMedium" style={{ color: colors.primary }}>
