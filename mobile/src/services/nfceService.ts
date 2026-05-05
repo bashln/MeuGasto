@@ -2,6 +2,8 @@ import { getSupabaseClient } from '../lib/supabaseClient';
 import { NFCeScrapedData, validateAccessKey, validateAndSanitizeNFCePayload } from '../lib/nfcePayloadValidation';
 import { getCurrentUserId } from './authService';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { DEFAULT_PRODUCT_CATEGORY_RULES, CATEGORY_IDS } from './productCategoryRules';
+import { ProductCategorizerService } from './productCategorizerService';
 
 const getClient = (): SupabaseClient => {
   const client = getSupabaseClient();
@@ -10,6 +12,11 @@ const getClient = (): SupabaseClient => {
   }
   return client;
 };
+
+const productCategorizer = new ProductCategorizerService({
+  rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+  fallbackCategoryId: CATEGORY_IDS.OUTROS,
+});
 
 export const hashAccessKey = async (accessKey: string): Promise<string> => {
   const sanitizedAccessKey = validateAccessKey(accessKey);
@@ -300,6 +307,7 @@ export const nfceService = {
     const itemsPayload = sanitizedPayload.items.map(item => ({
       name: item.name,
       code: '',
+      category_id: productCategorizer.categorizeProduct(item.name),
       quantity: item.quantity,
       unit: item.unit,
       price: item.unityPrice ?? item.totalPrice ?? 0,

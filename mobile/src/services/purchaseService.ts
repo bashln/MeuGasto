@@ -2,6 +2,8 @@ import { getSupabaseClient } from '../lib/supabaseClient';
 import { Purchase, PurchaseFilter, PageResponse } from '../types';
 import { getCurrentUserId } from './authService';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { DEFAULT_PRODUCT_CATEGORY_RULES, CATEGORY_IDS } from './productCategoryRules';
+import { ProductCategorizerService } from './productCategorizerService';
 
 const getClient = (): SupabaseClient => {
   const client = getSupabaseClient();
@@ -15,6 +17,7 @@ type PurchaseItemRow = {
   id: number;
   name: string;
   code?: string;
+  category_id?: number;
   quantity: number | string;
   unit: string;
   price: number | string;
@@ -34,11 +37,17 @@ const mapPurchaseItems = (items: unknown): Purchase['products'] => {
     id: item.id,
     name: item.name,
     code: item.code,
+    categoryId: item.category_id,
     quantity: Number(item.quantity) || 1,
     unit: item.unit,
     price: Number(item.price) || 0,
   }));
 };
+
+const productCategorizer = new ProductCategorizerService({
+  rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+  fallbackCategoryId: CATEGORY_IDS.OUTROS,
+});
 
 export const purchaseService = {
   async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
@@ -162,6 +171,7 @@ export const purchaseService = {
     const itemsPayload = (purchase.items ?? []).map(item => ({
         name: item.name,
         code: '',
+        category_id: productCategorizer.categorizeProduct(item.name),
         quantity: item.quantity,
         unit: item.unit,
         price: item.price,

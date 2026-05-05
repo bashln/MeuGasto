@@ -3,10 +3,10 @@
   "sessionId": "ac9b8007-912d-411a-b9da-8e6905cddcd6",
   "status": "running",
   "startedAt": "2026-05-05T22:36:09.971Z",
-  "updatedAt": "2026-05-05T22:47:22.474Z",
-  "currentIteration": 7,
+  "updatedAt": "2026-05-05T22:52:49.363Z",
+  "currentIteration": 8,
   "maxIterations": 10,
-  "tasksCompleted": 7,
+  "tasksCompleted": 8,
   "isPaused": false,
   "agentPlugin": "codex",
   "trackerState": {
@@ -53,8 +53,8 @@
       {
         "id": "US-007",
         "title": "Expandir cobertura de testes unitários",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-008",
@@ -164,12 +164,22 @@
       "durationMs": 73866,
       "startedAt": "2026-05-05T22:46:07.575Z",
       "endedAt": "2026-05-05T22:47:21.441Z"
+    },
+    {
+      "iteration": 8,
+      "status": "completed",
+      "taskId": "US-007",
+      "taskTitle": "Expandir cobertura de testes unitários",
+      "taskCompleted": true,
+      "durationMs": 325857,
+      "startedAt": "2026-05-05T22:47:22.470Z",
+      "endedAt": "2026-05-05T22:52:48.327Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/home/leonamduarte/coding/meuGastoAi",
   "activeTaskIds": [
-    "US-007"
+    "US-008"
   ],
   "subagentPanelVisible": true
 }
