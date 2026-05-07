@@ -99,10 +99,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file(MEUGASTO_STORE_FILE ?: 'debug.keystore')
-            storePassword MEUGASTO_STORE_PASSWORD ?: 'android'
-            keyAlias MEUGASTO_KEY_ALIAS ?: 'androiddebugkey'
-            keyPassword MEUGASTO_KEY_PASSWORD ?: 'android'
+            storeFile file(MEUGASTO_STORE_FILE)
+            storePassword MEUGASTO_STORE_PASSWORD
+            keyAlias MEUGASTO_KEY_ALIAS
+            keyPassword MEUGASTO_KEY_PASSWORD
         }
         debug {
             storeFile file('debug.keystore')
