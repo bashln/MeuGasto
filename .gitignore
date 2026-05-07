@@ -55,6 +55,13 @@ output-metadata.json
 .DS_Store
 Thumbs.db
 
+# AI agents & tooling
+.ralph-tui/
+docs/ai/
+
+# Coverage artifacts
+mobile/coverage/
+
 # Misc
 *.local
 *.suo
