@@ -115,27 +115,19 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   };
 
   const closeReclassificationModal = () => {
-    if (isSavingReclassification) {
-      return;
-    }
-
+    if (isSavingReclassification) return;
     setItemBeingReclassified(null);
   };
 
   const handleConfirmReclassification = async () => {
-    if (!itemBeingReclassified) {
-      return;
-    }
+    if (!itemBeingReclassified) return;
 
     try {
       setIsSavingReclassification(true);
       await purchaseService.reclassifyPurchaseItem(itemBeingReclassified.id, itemBeingReclassified.name, selectedCategoryId);
 
       setPurchase((current) => {
-        if (!current) {
-          return current;
-        }
-
+        if (!current) return current;
         return {
           ...current,
           products: (current.products ?? []).map((product) =>
@@ -156,9 +148,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   };
 
   const openItemEditModal = (item: Purchase['products'][number]) => {
-    if (!purchase?.isManual) {
-      return;
-    }
+    if (!purchase?.isManual) return;
     setItemBeingEdited(item);
     setEditItemName(item.name);
     setEditItemQuantity(String(item.quantity));
@@ -166,16 +156,12 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   };
 
   const closeItemEditModal = () => {
-    if (isSavingItemEdit) {
-      return;
-    }
+    if (isSavingItemEdit) return;
     setItemBeingEdited(null);
   };
 
   const handleSaveItemEdit = async () => {
-    if (!purchase || !itemBeingEdited) {
-      return;
-    }
+    if (!purchase || !itemBeingEdited) return;
 
     const parsedQuantity = Number(editItemQuantity.replace(',', '.'));
     const parsedPrice = Number(editItemPrice.replace(',', '.'));
@@ -211,9 +197,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
   };
 
   const handleRemoveItem = (item: Purchase['products'][number]) => {
-    if (!purchase?.isManual) {
-      return;
-    }
+    if (!purchase?.isManual) return;
 
     Alert.alert(
       'Remover item',
@@ -275,31 +259,19 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
             />
           </View>
 
-          <Chip
-            mode="flat"
-            style={{ alignSelf: 'flex-start', marginTop: 8 }}
-          >
+          <Chip mode="flat" style={{ alignSelf: 'flex-start', marginTop: 8 }}>
             {purchase.isManual ? 'Manual' : 'NFC-e'}
           </Chip>
-          {!purchase.isManual && (
-            <Chip mode="outlined" style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-              Somente leitura
-            </Chip>
-          )}
 
           <Divider style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              Data
-            </Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>Data</Text>
             <Text variant="bodyLarge">{formatDate(purchase.date)}</Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text variant="bodyMedium" style={{ color: colors.mutedText }}>
-              Total
-            </Text>
+            <Text variant="bodyMedium" style={{ color: colors.mutedText }}>Total</Text>
             <Text variant="headlineSmall" style={{ color: colors.primary }}>
               {formatMoney(purchase.totalPrice)}
             </Text>
@@ -307,78 +279,93 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
 
           {purchase.accessKey && (
             <View style={styles.detailRow}>
-              <Text variant="bodyMedium" style={{ color: colors.mutedText }}>
-                Chave de Acesso
-              </Text>
-              <Text variant="bodySmall" numberOfLines={2}>
-                {purchase.accessKey}
-              </Text>
+              <Text variant="bodyMedium" style={{ color: colors.mutedText }}>Chave de Acesso</Text>
+              <Text variant="bodySmall" numberOfLines={2}>{purchase.accessKey}</Text>
             </View>
           )}
         </Surface>
 
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          Itens ({purchase.products?.length ?? 0})
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Itens ({purchase.products?.length ?? 0})
+          </Text>
+          {!purchase.isManual && (
+            <Text variant="bodySmall" style={styles.readOnlyNote}>
+              Importada via NFC-e · somente leitura
+            </Text>
+          )}
+        </View>
 
         <Card style={styles.itemsCard} mode="elevated">
-          {products.map((item, index) => (
-            <React.Fragment key={item.id ?? index}>
-              <TouchableOpacity
-                style={[styles.itemRow, !purchase.isManual && styles.itemRowReadOnly]}
-                onPress={purchase.isManual ? () => openItemEditModal(item) : undefined}
-                disabled={!purchase.isManual}
-                activeOpacity={purchase.isManual ? 0.7 : 1}
-              >
-                <View style={styles.itemInfo}>
-                  <Text variant="bodyLarge">
-                    {item.quantity}x {item.name} {formatMoney(item.price)}
-                  </Text>
-                  <Text variant="bodySmall" style={{ color: colors.mutedText }}>
-                    Valor unitário
-                  </Text>
-                  {purchase.isManual ? (
-                    <Button
-                      mode="text"
-                      compact
-                      contentStyle={styles.reclassifyButtonContent}
-                      style={styles.reclassifyButton}
-                      onPress={() => openReclassificationModal(item)}
-                    >
-                      Reclassificar
-                    </Button>
-                  ) : (
-                    <Text variant="bodySmall" style={styles.readOnlyHint}>
-                      Item não editável (NFC-e)
+          {products.map((item, index) => {
+            const categoryLabel = item.categoryId
+              ? PRODUCT_CATEGORY_OPTIONS.find(c => c.id === item.categoryId)?.label
+              : null;
+
+            return (
+              <React.Fragment key={item.id ?? index}>
+                <TouchableOpacity
+                  style={styles.itemRow}
+                  onPress={purchase.isManual ? () => openItemEditModal(item) : undefined}
+                  disabled={!purchase.isManual}
+                  activeOpacity={purchase.isManual ? 0.7 : 1}
+                >
+                  <View style={styles.itemInfo}>
+                    <Text variant="bodyLarge" style={styles.itemName} numberOfLines={2}>
+                      {item.name}
                     </Text>
-                  )}
-                </View>
-                <View style={styles.itemActions}>
-                  <Text variant="titleMedium" style={{ color: colors.primary }}>
-                    {formatMoney(item.price * item.quantity)}
-                  </Text>
-                  {purchase.isManual && (
-                    <IconButton
-                      icon="delete-outline"
-                      iconColor={theme.colors.error}
-                      size={20}
-                      style={styles.deleteItemButton}
-                      disabled={isRemovingItemId === item.id}
-                      onPress={() => handleRemoveItem(item)}
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
-              {index < products.length - 1 && <Divider />}
-            </React.Fragment>
-          ))}
+                    <View style={styles.itemMeta}>
+                      <Text variant="bodySmall" style={{ color: colors.mutedText }}>
+                        {item.quantity}x {formatMoney(item.price)}
+                      </Text>
+                      {categoryLabel && (
+                        <>
+                          <Text variant="bodySmall" style={styles.dotSeparator}>·</Text>
+                          <Text variant="bodySmall" style={{ color: colors.mutedText }}>
+                            {categoryLabel}
+                          </Text>
+                        </>
+                      )}
+                      {purchase.isManual && (
+                        <>
+                          <Text variant="bodySmall" style={styles.dotSeparator}>·</Text>
+                          <TouchableOpacity onPress={() => openReclassificationModal(item)}>
+                            <Text variant="bodySmall" style={styles.reclassifyLink}>
+                              Classificar
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.itemActions}>
+                    <Text variant="titleMedium" style={styles.itemTotal}>
+                      {formatMoney(item.price * item.quantity)}
+                    </Text>
+                    {purchase.isManual && (
+                      <IconButton
+                        icon="delete-outline"
+                        iconColor={theme.colors.error}
+                        size={20}
+                        style={styles.deleteItemButton}
+                        disabled={isRemovingItemId === item.id}
+                        onPress={() => handleRemoveItem(item)}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+                {index < products.length - 1 && <Divider />}
+              </React.Fragment>
+            );
+          })}
         </Card>
 
         {products.length >= 2 && (
           <Surface style={styles.comparisonSurface} elevation={1}>
             <Text variant="titleMedium" style={styles.sectionTitle}>Regra de 3</Text>
             <Text variant="bodyMedium" style={styles.helperText}>
-              Selecione dois itens para comparar o preço por unidade padrão.
+              Compare o preço por unidade entre dois itens.
             </Text>
 
             <Menu
@@ -390,7 +377,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                   onPress={() => setFirstItemMenuVisible(true)}
                 >
                   <Text variant="bodyMedium" numberOfLines={1}>
-                    Item 1: {selectedItem1?.name || 'Selecionar item'}
+                    {selectedItem1?.name || 'Selecionar item 1'}
                   </Text>
                 </TouchableOpacity>
               }
@@ -416,7 +403,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                   onPress={() => setSecondItemMenuVisible(true)}
                 >
                   <Text variant="bodyMedium" numberOfLines={1}>
-                    Item 2: {selectedItem2?.name || 'Selecionar item'}
+                    {selectedItem2?.name || 'Selecionar item 2'}
                   </Text>
                 </TouchableOpacity>
               }
@@ -434,7 +421,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
             </Menu>
 
             <Button mode="contained-tonal" onPress={handleComparePrices} style={styles.compareButton}>
-              Comparar Preços
+              Comparar
             </Button>
 
             {comparisonResult && selectedItem1 && selectedItem2 && (
@@ -483,7 +470,7 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
         </Dialog>
 
         <Dialog visible={!!itemBeingReclassified} onDismiss={closeReclassificationModal}>
-          <Dialog.Title>Reclassificar produto</Dialog.Title>
+          <Dialog.Title>Classificar produto</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium" style={styles.dialogDescription}>
               {itemBeingReclassified?.name}
@@ -545,13 +532,22 @@ const styles = StyleSheet.create({
   detailRow: {
     marginBottom: 12,
   },
-  sectionTitle: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  sectionTitle: {
     fontWeight: '600',
+  },
+  readOnlyNote: {
+    color: colors.mutedText,
   },
   itemsCard: {
     borderRadius: 12,
     overflow: 'hidden',
+    marginBottom: 16,
   },
   itemRow: {
     flexDirection: 'row',
@@ -559,35 +555,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
-  itemRowReadOnly: {
-    opacity: 0.75,
-  },
   itemInfo: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 12,
+  },
+  itemName: {
+    color: colors.text,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  itemMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 2,
+  },
+  dotSeparator: {
+    marginHorizontal: 4,
+    color: colors.border,
+  },
+  reclassifyLink: {
+    color: colors.secondary,
+    fontWeight: '600',
+  },
+  itemTotal: {
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   itemActions: {
     alignItems: 'flex-end',
+    minWidth: 80,
   },
   deleteItemButton: {
     marginTop: 4,
-    marginRight: -8,
+    marginRight: -12,
     marginBottom: -8,
   },
-  reclassifyButton: {
-    alignSelf: 'flex-start',
-    marginTop: 6,
-    marginLeft: -8,
-  },
-  reclassifyButtonContent: {
-    height: 28,
-  },
-  readOnlyHint: {
-    marginTop: 8,
-    color: colors.mutedText,
-  },
   comparisonSurface: {
-    marginTop: 16,
     borderRadius: 12,
     padding: 16,
   },

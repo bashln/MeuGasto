@@ -1,0 +1,501 @@
+{
+  "name": "MeuGastoAi - Backlog UI/UX",
+  "description": "Todas as melhorias de UI/UX identificadas após análise completa do app. Organizadas por área e prioridade. P1=bug/quebrado, P2=inconsistência visível, P3=melhoria de UX, P4=polish.",
+  "tasks": [
+
+    {
+      "id": "UIUX-001",
+      "area": "SafeArea",
+      "priority": 1,
+      "title": "PurchaseEditScreen: corrigir safe area hardcoded",
+      "description": "Header usa `paddingTop: 50` fixo. Em dispositivos sem notch fica alto demais, em dispositivos com notch grande fica insuficiente.",
+      "files": ["src/screens/PurchaseEditScreen.tsx"],
+      "steps": [
+        "Importar useSafeAreaInsets de react-native-safe-area-context",
+        "Substituir paddingTop: 50 por paddingTop: insets.top + 16 no header style"
+      ]
+    },
+
+    {
+      "id": "UIUX-002",
+      "area": "SafeArea",
+      "priority": 1,
+      "title": "ForgotPasswordScreen: corrigir safe area hardcoded",
+      "description": "Header usa `paddingTop: 50` fixo. Mesmo problema que PurchaseEditScreen.",
+      "files": ["src/screens/ForgotPasswordScreen.tsx"],
+      "steps": [
+        "Importar useSafeAreaInsets",
+        "Substituir paddingTop: 50 por paddingTop: insets.top + 16"
+      ]
+    },
+
+    {
+      "id": "UIUX-003",
+      "area": "SafeArea",
+      "priority": 1,
+      "title": "OnboardingScreen: corrigir safe area hardcoded",
+      "description": "Header usa `paddingTop: 60` fixo.",
+      "files": ["src/screens/OnboardingScreen.tsx"],
+      "steps": [
+        "Importar useSafeAreaInsets",
+        "Aplicar insets.top no paddingTop do header"
+      ]
+    },
+
+    {
+      "id": "UIUX-004",
+      "area": "DraftDetail",
+      "priority": 1,
+      "title": "DraftDetailScreen: corrigir mensagem de convert que menciona aba removida",
+      "description": "Após converter rascunho em compra, alerta diz 'Acesse a aba Compras para visualizá-la.' A aba Rascunhos foi removida da tab bar, mas o texto da aba Compras ainda está correto. Porém a UX pode ser melhorada: navegar direto para a compra criada em vez de exibir alerta.",
+      "files": ["src/screens/DraftDetailScreen.tsx"],
+      "steps": [
+        "Em handleConvert, após convertToPurchase, navegar direto para PurchasesTab ou para a compra criada (se o retorno tiver o ID)",
+        "Remover o Alert.alert intermediário — sucesso já é evidenciado pela navegação",
+        "Se convertToPurchase não retornar o purchaseId, apenas navegar para navigation.navigate('PurchasesTab')"
+      ]
+    },
+
+    {
+      "id": "UIUX-005",
+      "area": "PurchaseEdit",
+      "priority": 1,
+      "title": "PurchaseEditScreen: substituir input de data por DatePicker",
+      "description": "Campo de data exige digitação manual no formato YYYY-MM-DD. Em mobile nenhum usuário digita datas — é UX de web form dos anos 2000.",
+      "files": ["src/screens/PurchaseEditScreen.tsx"],
+      "steps": [
+        "Instalar @react-native-community/datetimepicker (já disponível no Expo) ou usar expo-datetime-picker",
+        "Substituir o TextInput de data por um TouchableOpacity que abre o picker nativo",
+        "Mostrar a data formatada no campo (ex: '12/05/2026') e armazenar internamente como YYYY-MM-DD"
+      ]
+    },
+
+    {
+      "id": "UIUX-006",
+      "area": "ScanQRCode",
+      "priority": 2,
+      "title": "ScanQRCodeScreen: remover botão 'Selecionar da Galeria' desabilitado",
+      "description": "Botão com opacity 0.45 + hint 'Galeria em breve.' é dead UI. Mostra funcionalidade que não existe. Remover o botão ou substituir apenas por um pequeno chip/badge textual 'Galeria — em breve'.",
+      "files": ["src/screens/ScanQRCodeScreen.tsx"],
+      "steps": [
+        "Remover o TouchableOpacity do galleryButton e o Text 'disabledHint'",
+        "Opcionalmente adicionar uma linha de texto small 'Importação por galeria em breve' abaixo do botão de scan"
+      ]
+    },
+
+    {
+      "id": "UIUX-007",
+      "area": "ScanQRCode",
+      "priority": 2,
+      "title": "ScanQRCodeScreen: remover card 'ocrCard' de marketing",
+      "description": "O card 'Importação Automática / Leitura via QR Code' com ícone de check não transmite informação útil ao usuário. Está na mesma tela que o botão de scan — é óbvio que é automático.",
+      "files": ["src/screens/ScanQRCodeScreen.tsx"],
+      "steps": [
+        "Remover o bloco <View style={styles.ocrCard}> e seus estilos",
+        "Ajustar margens se necessário"
+      ]
+    },
+
+    {
+      "id": "UIUX-008",
+      "area": "ScanQRCode",
+      "priority": 2,
+      "title": "ScanQRCodeScreen: mostrar loading enquanto processa QR code",
+      "description": "Após scan, isProcessing fica true mas nenhum feedback visual é exibido. O usuário fica com a tela principal sem indicação de que algo está acontecendo.",
+      "files": ["src/screens/ScanQRCodeScreen.tsx"],
+      "steps": [
+        "Quando isProcessing === true, mostrar um overlay com ActivityIndicator e texto 'Processando nota fiscal...'",
+        "Remover o overlay quando showWebView ficar true ou isProcessing ficar false"
+      ]
+    },
+
+    {
+      "id": "UIUX-009",
+      "area": "Login",
+      "priority": 2,
+      "title": "LoginScreen: remover botão 'Continuar com Google' desabilitado",
+      "description": "Botão com opacity 0.45 disabled é dead UI, igual ao botão de galeria. Cria expectativa de funcionalidade inexistente.",
+      "files": ["src/screens/LoginScreen.tsx"],
+      "steps": [
+        "Remover o bloco dividerWithText (ou/divider) + googleButton",
+        "Se quiser manter a intenção futura, deixar apenas uma linha de texto small 'Login social em breve'"
+      ]
+    },
+
+    {
+      "id": "UIUX-010",
+      "area": "Login",
+      "priority": 2,
+      "title": "LoginScreen: remover seção de benefits",
+      "description": "Usuários na tela de login já conhecem o app (são usuários retornando). Mostrar 3 bullets de benefícios é ruído. Benefits pertencem ao Onboarding ou à tela de cadastro.",
+      "files": ["src/screens/LoginScreen.tsx"],
+      "steps": [
+        "Remover o bloco <View style={styles.divider} /> e <View style={styles.benefitsContainer}>",
+        "Remover os estilos orphans: divider, benefitsContainer, benefitItem, checkIcon, benefitText"
+      ]
+    },
+
+    {
+      "id": "UIUX-011",
+      "area": "Login",
+      "priority": 3,
+      "title": "LoginScreen: adicionar ActivityIndicator no botão de login",
+      "description": "Estado de loading mostra texto 'Entrando...' mas sem spinner. Outros botões do app (alterar senha, salvar) usam ActivityIndicator.",
+      "files": ["src/screens/LoginScreen.tsx"],
+      "steps": [
+        "Quando isLoading === true, renderizar ActivityIndicator no lugar do texto do botão",
+        "Manter o botão disabled durante o loading"
+      ]
+    },
+
+    {
+      "id": "UIUX-012",
+      "area": "Register",
+      "priority": 2,
+      "title": "RegisterScreen: adicionar toggle de mostrar senha no campo 'Confirmar Senha'",
+      "description": "Campo 'Senha' tem olho para mostrar/esconder, mas 'Confirmar Senha' não tem. Usuário não consegue verificar se digitou correto.",
+      "files": ["src/screens/RegisterScreen.tsx"],
+      "steps": [
+        "Adicionar o prop right={<TextInput.Icon icon={showPassword ? 'eye-off' : 'eye'} onPress={() => setShowPassword(!showPassword)} />} ao TextInput de confirmação",
+        "O estado showPassword já existe — apenas reutilizar"
+      ]
+    },
+
+    {
+      "id": "UIUX-013",
+      "area": "Register",
+      "priority": 3,
+      "title": "RegisterScreen: corrigir back button com safe area",
+      "description": "Back button é position absolute com top: 16 hardcoded. Em dispositivos com notch fica sobre o status bar.",
+      "files": ["src/screens/RegisterScreen.tsx"],
+      "steps": [
+        "Importar useSafeAreaInsets",
+        "Aplicar top: insets.top + 8 no backButton style"
+      ]
+    },
+
+    {
+      "id": "UIUX-014",
+      "area": "Onboarding",
+      "priority": 3,
+      "title": "OnboardingScreen: remover barra de progresso — manter só os dots",
+      "description": "Onboarding tem dois indicadores de progresso: dots E barra de progresso. São redundantes. Manter apenas dots (mais leve visualmente).",
+      "files": ["src/screens/OnboardingScreen.tsx"],
+      "steps": [
+        "Remover o bloco <View style={styles.progressBar}>",
+        "Remover os estilos progressBar e progressFill",
+        "Remover a constante `progress`"
+      ]
+    },
+
+    {
+      "id": "UIUX-015",
+      "area": "DraftDetail",
+      "priority": 2,
+      "title": "DraftDetailScreen: campo price inicial mostra '0' em vez de placeholder vazio",
+      "description": "Quando o usuário abre o formulário de adicionar item, o campo Preço mostra '0'. Usuário precisa limpar antes de digitar.",
+      "files": ["src/screens/DraftDetailScreen.tsx"],
+      "steps": [
+        "No TextInput de Preço, usar value={newItem.price === 0 ? '' : newItem.price.toString()}",
+        "Mesma correção no campo Quantidade se necessário"
+      ]
+    },
+
+    {
+      "id": "UIUX-016",
+      "area": "DraftDetail",
+      "priority": 3,
+      "title": "DraftDetailScreen: melhorar hierarquia visual dos botões de ação",
+      "description": "Salvar e Converter em Compra são dois botões primários do mesmo peso visual. Convert é uma ação destrutiva (exclui o rascunho) mas está no mesmo nível visual que Salvar.",
+      "files": ["src/screens/DraftDetailScreen.tsx"],
+      "steps": [
+        "Manter 'Salvar' como botão primário (contained, success)",
+        "Mudar 'Converter em Compra' para contained-tonal ou outlined com ícone",
+        "Mover 'Excluir' para inline no header (ícone de lixeira) como PurchaseDetailScreen faz",
+        "Remover o botão Excluir da seção de actions"
+      ]
+    },
+
+    {
+      "id": "UIUX-017",
+      "area": "DraftCard",
+      "priority": 3,
+      "title": "DraftCard: mostrar contagem de itens como PurchaseCard",
+      "description": "PurchaseCard mostra '3 itens'. DraftCard não mostra contagem de itens — o usuário não sabe o tamanho do rascunho sem abrir.",
+      "files": ["src/components/DraftCard.tsx"],
+      "steps": [
+        "Adicionar contagem de itens no footer: `draft.items?.length ?? 0` itens",
+        "Exibir junto ao totalPrice ou em linha separada abaixo do content"
+      ]
+    },
+
+    {
+      "id": "UIUX-018",
+      "area": "DraftCard",
+      "priority": 3,
+      "title": "DraftCard: tornar ícone de delete sutil como PurchaseCard",
+      "description": "DraftCard usa IconButton do Paper com iconColor={theme.colors.error} (vermelho). PurchaseCard foi atualizado para usar ícone outline mutedText. Os dois cards precisam ter aparência consistente.",
+      "files": ["src/components/DraftCard.tsx"],
+      "steps": [
+        "Substituir IconButton do Paper por TouchableOpacity com MaterialCommunityIcons 'trash-can-outline' size={18} color={colors.mutedText}",
+        "Remover import de IconButton se não usado em outro lugar no arquivo"
+      ]
+    },
+
+    {
+      "id": "UIUX-019",
+      "area": "PriceComparator",
+      "priority": 3,
+      "title": "ItemInputRow: mudar botão 'Remover' de vermelho preenchido para ícone sutil",
+      "description": "Remover item do comparador usa botão vermelho filled idêntico ao de ações destrutivas permanentes. Remoção no comparador não é destrutiva — o dado não estava salvo.",
+      "files": ["src/components/ItemInputRow.tsx"],
+      "steps": [
+        "Substituir o TouchableOpacity com estilo removeButton (fundo vermelho) por MaterialCommunityIcons 'close' size={20} color={colors.mutedText}",
+        "Remover estilos removeButton e removeButtonText"
+      ]
+    },
+
+    {
+      "id": "UIUX-020",
+      "area": "PriceComparator",
+      "priority": 3,
+      "title": "ItemInputRow: substituir título 'Item' por numeração (Item 1, Item 2...)",
+      "description": "Todos os rows mostram 'Item' como título. Quando há múltiplos itens, não há como diferenciá-los visualmente pelo header.",
+      "files": ["src/components/ItemInputRow.tsx", "src/screens/PriceComparatorScreen.tsx"],
+      "steps": [
+        "Adicionar prop `index: number` no ItemInputRowProps",
+        "Mostrar 'Item {index + 1}' em vez de 'Item'",
+        "Passar index no renderItem do PriceComparatorScreen: items.map((item, index) => <ItemInputRow ... index={index} />)"
+      ]
+    },
+
+    {
+      "id": "UIUX-021",
+      "area": "PriceComparator",
+      "priority": 3,
+      "title": "Unificar UNIT_OPTIONS entre ItemInputRow e DraftDetailScreen",
+      "description": "ItemInputRow tem ['g', 'kg', 'l', 'un']. DraftDetailScreen tem ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx']. Inconsistente — o usuário aprende unidades diferentes dependendo de onde está.",
+      "files": ["src/components/ItemInputRow.tsx", "src/screens/DraftDetailScreen.tsx"],
+      "steps": [
+        "Criar constante UNIT_OPTIONS em um arquivo compartilhado (ex: src/constants/units.ts): ['un', 'g', 'kg', 'l', 'ml', 'pc', 'cx']",
+        "Importar e usar nos dois arquivos"
+      ]
+    },
+
+    {
+      "id": "UIUX-022",
+      "area": "Colors",
+      "priority": 4,
+      "title": "LoginScreen: alinhar cor dos links de auth",
+      "description": "Link 'Esqueci minha senha' e 'Cadastre-se' usam colors.success (verde). Botão de login usa colors.primary (laranja). Links de navegação deveriam usar primary para consistência com a identidade visual.",
+      "files": ["src/screens/LoginScreen.tsx"],
+      "steps": [
+        "Mudar forgotText e registerLink de colors.success para colors.primary"
+      ]
+    },
+
+    {
+      "id": "UIUX-023",
+      "area": "Colors",
+      "priority": 4,
+      "title": "ForgotPasswordScreen: alinhar cor do botão com LoginScreen",
+      "description": "Botão 'Enviar link' usa colors.success (verde). LoginScreen usa colors.primary (laranja) para o botão de submit. Inconsistente dentro do mesmo fluxo de autenticação.",
+      "files": ["src/screens/ForgotPasswordScreen.tsx"],
+      "steps": [
+        "Mudar submitButton backgroundColor de colors.success para colors.primary"
+      ]
+    },
+
+    {
+      "id": "UIUX-024",
+      "area": "PurchaseEdit",
+      "priority": 3,
+      "title": "PurchaseEditScreen: remover Alert de sucesso após criar compra manual",
+      "description": "Após criar compra manual, app mostra Alert 'Compra manual criada com sucesso' antes de navegar para PurchaseDetail. O Alert interrompe o fluxo — a navegação para o detalhe já comunica sucesso.",
+      "files": ["src/screens/PurchaseEditScreen.tsx"],
+      "steps": [
+        "Remover o Alert.alert('Sucesso', ...) antes de navigation.navigate('PurchaseDetail', ...)",
+        "Navegar diretamente para PurchaseDetail"
+      ]
+    },
+
+    {
+      "id": "UIUX-025",
+      "area": "PurchaseEdit",
+      "priority": 3,
+      "title": "PurchaseEditScreen: remover Alert de sucesso após editar compra",
+      "description": "Após editar compra existente, app mostra Alert 'Compra atualizada com sucesso' antes de navigation.goBack(). Mesmo problema — o retorno à tela anterior já comunica o sucesso.",
+      "files": ["src/screens/PurchaseEditScreen.tsx"],
+      "steps": [
+        "Remover Alert.alert('Sucesso', 'Compra atualizada com sucesso') antes de navigation.goBack()",
+        "Ir diretamente para navigation.goBack()"
+      ]
+    },
+
+    {
+      "id": "UIUX-026",
+      "area": "LibConsistency",
+      "priority": 3,
+      "title": "DraftDetailScreen: substituir List.Item do Paper por layout próprio",
+      "description": "Lista de itens no DraftDetail usa List.Item do react-native-paper, que tem padding e estilo que não combina com o resto do app. PurchaseDetailScreen usa TouchableOpacity + View próprios para o mesmo tipo de lista.",
+      "files": ["src/screens/DraftDetailScreen.tsx"],
+      "steps": [
+        "Substituir cada List.Item por um View row com: nome do item à esquerda, total à direita, botão X de remover",
+        "Remover import de List de react-native-paper",
+        "Manter Divider entre items"
+      ]
+    },
+
+    {
+      "id": "UIUX-027",
+      "area": "LibConsistency",
+      "priority": 4,
+      "title": "DraftCard: converter de Paper Card para View estilizado manualmente",
+      "description": "DraftCard usa Card do react-native-paper. PurchaseCard usa View com shadow manual. Para consistência visual entre as duas listas de 'coleções', ambos deveriam ter o mesmo estilo de card.",
+      "files": ["src/components/DraftCard.tsx"],
+      "steps": [
+        "Substituir Card do Paper por View com os estilos do PurchaseCard (borderRadius 14, surface bg, shadow, marginBottom 12)",
+        "Remover imports de Card e useTheme do Paper",
+        "Ajustar Text para RNText com estilos próprios"
+      ]
+    },
+
+    {
+      "id": "UIUX-028",
+      "area": "Accessibility",
+      "priority": 4,
+      "title": "Adicionar accessibilityLabel nos botões principais de cada tela",
+      "description": "Apenas ScanQRCodeScreen e Header têm accessibilityRole/accessibilityLabel. FABs, botões de filtro, cards tappable não têm. Afeta leitores de tela (TalkBack/VoiceOver).",
+      "files": [
+        "src/components/PurchaseCard.tsx",
+        "src/components/DraftCard.tsx",
+        "src/screens/PurchasesScreen.tsx",
+        "src/screens/DraftsScreen.tsx",
+        "src/screens/DashboardScreen.tsx"
+      ],
+      "steps": [
+        "No PurchaseCard: adicionar accessibilityLabel='Ver compra no {supermarket}' no TouchableOpacity raiz",
+        "No DraftCard: accessibilityLabel='Ver rascunho'",
+        "Nos FABs: accessibilityLabel='Adicionar nova compra' / 'Novo rascunho'",
+        "Nos filtros de tipo (Todas/NFC-e/Manual): accessibilityRole='button'"
+      ]
+    },
+
+    {
+      "id": "UIUX-029",
+      "area": "Colors",
+      "priority": 4,
+      "title": "Remover colors.warning do tema — não está sendo usado",
+      "description": "colors.warning (#F59E0B) foi definido no tema mas era usado apenas no antigo PurchaseCard edit button (removido). Manter cor não usada no tema cria confusão para futuros devs.",
+      "files": ["src/theme/colors.ts"],
+      "steps": [
+        "Verificar com grep que colors.warning não é referenciado em nenhum arquivo",
+        "Remover a linha warning: '#F59E0B' do objeto colors"
+      ]
+    },
+
+    {
+      "id": "UIUX-030",
+      "area": "DraftsScreen",
+      "priority": 3,
+      "title": "DraftsScreen: adicionar padding horizontal na lista (igual PurchasesScreen)",
+      "description": "PurchasesScreen tem `paddingHorizontal: 16` no FlatList contentContainerStyle. DraftsScreen não tem — os DraftCards começam na borda da tela.",
+      "files": ["src/screens/DraftsScreen.tsx"],
+      "steps": [
+        "Adicionar paddingHorizontal: 16 ao contentContainerStyle do FlatList",
+        "Verificar que DraftCard não duplica o padding (tem marginHorizontal: 16 próprio — remover de DraftCard se aplicar padding na lista)"
+      ]
+    },
+
+    {
+      "id": "UIUX-031",
+      "area": "Dashboard",
+      "priority": 3,
+      "title": "Dashboard Insights: mostrar 'Sem dados' state mais informativo",
+      "description": "Quando não há dados, mostra apenas 'Sem dados suficientes para gerar insights neste período.' Poderia guiar o usuário para a ação correta.",
+      "files": ["src/screens/DashboardScreen.tsx"],
+      "steps": [
+        "Substituir o texto genérico por mensagem com ação: 'Nenhuma compra registrada neste mês.' + botão small 'Escanear NFC-e' que navega para ScanQRCode"
+      ]
+    },
+
+    {
+      "id": "UIUX-032",
+      "area": "ReportsScreen",
+      "priority": 3,
+      "title": "ReportsScreen: empty state com call-to-action",
+      "description": "Quando isEmpty é true, a tela mostra apenas o seletor de período vazio. Não há nenhuma mensagem ou indicação do que fazer.",
+      "files": ["src/screens/ReportsScreen.tsx"],
+      "steps": [
+        "Quando isEmpty === true, mostrar uma View centralizada com ícone + texto 'Nenhuma compra em {periodLabel}' + botão 'Escanear NFC-e'"
+      ]
+    },
+
+    {
+      "id": "UIUX-033",
+      "area": "PurchasesScreen",
+      "priority": 3,
+      "title": "PurchasesScreen: mostrar label do período ativo nas métricas",
+      "description": "As 3 métricas (Compras, Total gasto, Ticket médio) mostram dados cumulativos de todas as compras. O usuário não sabe se é do mês atual, do ano, ou de tudo. Adicionar indicação do escopo.",
+      "files": ["src/screens/PurchasesScreen.tsx"],
+      "steps": [
+        "Adicionar um texto small acima ou abaixo das métricas: 'Total geral' ou 'Todos os registros'",
+        "Alternativamente, linkar os dados de metrics ao período selecionado (requer mudança no contexto)"
+      ]
+    },
+
+    {
+      "id": "UIUX-034",
+      "area": "DraftDetail",
+      "priority": 2,
+      "title": "DraftDetailScreen: safe area no Header",
+      "description": "Header usa o componente customizado que já gerencia safe area via useSafeAreaInsets. Verificar que o scrollContent tem paddingBottom suficiente para não esconder o último item atrás dos botões de ação.",
+      "files": ["src/screens/DraftDetailScreen.tsx"],
+      "steps": [
+        "Adicionar paddingBottom: 40 ao scrollContent style (ou verificar se já está adequado)",
+        "Garantir que os botões de ação não ficam atrás do teclado quando aberto"
+      ]
+    },
+
+    {
+      "id": "UIUX-035",
+      "area": "ScanQRCode",
+      "priority": 3,
+      "title": "ScanQRCodeScreen: usar Header component em vez de View customizado",
+      "description": "ScanQRCode implementa seu próprio header (View com paddingTop calculado). O componente Header já existe e gerencia safe area. Usar Header mantém consistência visual e elimina código duplicado.",
+      "files": ["src/screens/ScanQRCodeScreen.tsx"],
+      "steps": [
+        "Substituir o bloco <View style={styles.header}> customizado pelo componente <Header title='Escanear NFC-e' iconName='qrcode-scan' onBack={handleClose} />",
+        "Remover styles.header, backButton, headerTitle, headerSpacer do StyleSheet"
+      ]
+    }
+  ],
+  "metadata": {
+    "createdAt": "2026-05-08",
+    "totalTasks": 35,
+    "byPriority": {
+      "P1_bug": ["UIUX-001", "UIUX-002", "UIUX-003", "UIUX-004", "UIUX-005"],
+      "P2_inconsistency": ["UIUX-006", "UIUX-007", "UIUX-008", "UIUX-009", "UIUX-010", "UIUX-012", "UIUX-015", "UIUX-034"],
+      "P3_ux": ["UIUX-011", "UIUX-013", "UIUX-016", "UIUX-017", "UIUX-018", "UIUX-019", "UIUX-020", "UIUX-021", "UIUX-024", "UIUX-025", "UIUX-026", "UIUX-030", "UIUX-031", "UIUX-032", "UIUX-033", "UIUX-035"],
+      "P4_polish": ["UIUX-014", "UIUX-022", "UIUX-023", "UIUX-027", "UIUX-028", "UIUX-029"]
+    },
+    "byArea": {
+      "SafeArea": ["UIUX-001", "UIUX-002", "UIUX-003"],
+      "ScanQRCode": ["UIUX-006", "UIUX-007", "UIUX-008", "UIUX-035"],
+      "Login/Auth": ["UIUX-009", "UIUX-010", "UIUX-011", "UIUX-022", "UIUX-023"],
+      "Register": ["UIUX-012", "UIUX-013"],
+      "Onboarding": ["UIUX-014"],
+      "DraftDetail": ["UIUX-004", "UIUX-015", "UIUX-016", "UIUX-034"],
+      "DraftCard": ["UIUX-017", "UIUX-018", "UIUX-027"],
+      "DraftsScreen": ["UIUX-030"],
+      "PriceComparator": ["UIUX-019", "UIUX-020", "UIUX-021"],
+      "PurchaseEdit": ["UIUX-005", "UIUX-024", "UIUX-025"],
+      "LibConsistency": ["UIUX-026", "UIUX-027"],
+      "Colors/Theme": ["UIUX-022", "UIUX-023", "UIUX-029"],
+      "Accessibility": ["UIUX-028"],
+      "Dashboard": ["UIUX-031"],
+      "ReportsScreen": ["UIUX-032"],
+      "PurchasesScreen": ["UIUX-033"]
+    }
+  }
+}

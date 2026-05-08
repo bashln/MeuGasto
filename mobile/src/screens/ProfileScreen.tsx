@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, TextInput, ActivityIndicator } from 'react-native';
-import {
-  Avatar,
-} from 'react-native-paper';
+import { Avatar } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context';
 import { authService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,7 +9,6 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { RootStackParamList, MainTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { Header } from '../components';
 import appConfig from '../../app.json';
 
 type ProfileScreenProps = {
@@ -21,6 +19,7 @@ type ProfileScreenProps = {
 };
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const appVersion = appConfig?.expo?.version || '0.3.0-alpha';
 
@@ -73,59 +72,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Header title="Perfil" iconName="account" />
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
-          <RNText style={styles.heroSubtitle}>
-            Gerencie suas informações pessoais e configurações de segurança
-          </RNText>
-        </View>
-
-        {/* Card do Usuário */}
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}>
         <View style={styles.userCard}>
-          <View style={styles.avatarContainer}>
-              <Avatar.Text
-                size={120}
-                label={user?.name ? getInitials(user.name) : 'U'}
-                style={{ backgroundColor: colors.success }}
-                labelStyle={{ fontSize: 32, fontWeight: '700' }}
-              />
-          </View>
+          <Avatar.Text
+            size={96}
+            label={user?.name ? getInitials(user.name) : 'U'}
+            style={{ backgroundColor: colors.success }}
+            labelStyle={{ fontSize: 28, fontWeight: '700' }}
+          />
           <RNText style={styles.userName}>{user?.name || 'Usuário'}</RNText>
           <RNText style={styles.userEmail}>{user?.email || ''}</RNText>
-        </View>
-
-        {/* Card Informações Pessoais */}
-        <View style={styles.infoCard}>
-          <View style={styles.cardHeader}>
-            <RNText style={styles.cardTitle}>Informações Pessoais</RNText>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <RNText style={styles.inputLabel}>Nome Completo</RNText>
-            <View style={styles.inputField}>
-              <RNText style={styles.inputText}>{user?.name || 'Não informado'}</RNText>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <RNText style={styles.inputLabel}>E-mail</RNText>
-            <View style={styles.inputField}>
-              <RNText style={styles.inputText}>{user?.email || 'Não informado'}</RNText>
-            </View>
-          </View>
-
           <TouchableOpacity
-            style={styles.changePasswordButton}
+            style={styles.editProfileButton}
             onPress={() => navigation.navigate('EditProfile')}
           >
-            <RNText style={styles.changePasswordButtonText}>Editar Perfil</RNText>
+            <RNText style={styles.editProfileButtonText}>Editar perfil</RNText>
           </TouchableOpacity>
         </View>
 
-        {/* Card Alterar Senha */}
         <View style={styles.infoCard}>
           <RNText style={styles.cardTitle}>Alterar Senha</RNText>
 
@@ -154,19 +118,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={styles.changePasswordButton}
+            style={styles.saveButton}
             onPress={handleChangePassword}
             disabled={isChangingPassword}
           >
             {isChangingPassword
               ? <ActivityIndicator size="small" color={colors.primaryText} />
-              : <RNText style={styles.changePasswordButtonText}>Alterar Senha</RNText>
+              : <RNText style={styles.saveButtonText}>Salvar senha</RNText>
             }
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <RNText style={styles.logoutButtonText}>Sair</RNText>
+          <RNText style={styles.logoutButtonText}>Sair da conta</RNText>
         </TouchableOpacity>
 
         <RNText style={styles.versionText}>Versão {appVersion}</RNText>
@@ -182,69 +146,66 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-  },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  heroSubtitle: {
-    fontSize: 16,
-    color: colors.mutedText,
-    textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   userCard: {
     backgroundColor: colors.surface,
     borderRadius: 18,
-    padding: 30,
+    padding: 28,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 20,
     elevation: 3,
-  },
-  avatarContainer: {
-    marginBottom: 20,
   },
   userName: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
     color: colors.mutedText,
+    marginBottom: 16,
+  },
+  editProfileButton: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  editProfileButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
   },
   infoCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 20,
     elevation: 3,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
   cardTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 6,
@@ -254,39 +215,35 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     height: 44,
     paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  inputText: {
     fontSize: 15,
     color: colors.text,
   },
-  inputPlaceholder: {
-    fontSize: 15,
-    color: colors.mutedText,
-  },
-  changePasswordButton: {
+  saveButton: {
     backgroundColor: colors.success,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 8,
     alignSelf: 'flex-end',
-    marginTop: 8,
+    marginTop: 4,
+    minWidth: 120,
+    alignItems: 'center',
   },
-  changePasswordButtonText: {
+  saveButtonText: {
     color: colors.primaryText,
     fontSize: 14,
     fontWeight: '500',
   },
   logoutButton: {
-    backgroundColor: colors.danger,
-    height: 52,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
   logoutButtonText: {
-    color: colors.primaryText,
+    color: colors.danger,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -294,6 +251,5 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     fontSize: 12,
     textAlign: 'center',
-    marginBottom: 16,
   },
 });

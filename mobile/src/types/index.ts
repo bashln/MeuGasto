@@ -91,8 +91,14 @@ export interface PurchaseFilter {
   endDate?: string;
   minPrice?: number;
   maxPrice?: number;
+  categoryId?: number;
   page?: number;
   size?: number;
+}
+
+export interface PurchaseMetrics {
+  totalCount: number;
+  totalValue: number;
 }
 
 export interface DraftFilter {

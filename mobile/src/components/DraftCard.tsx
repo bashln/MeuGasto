@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text, IconButton, useTheme } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, Text as RNText } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Draft } from '../types';
 import { formatMoney, formatDate } from '../utils';
+import { colors } from '../theme/colors';
 
 interface DraftCardProps {
   draft: Draft;
@@ -11,71 +12,79 @@ interface DraftCardProps {
 }
 
 export const DraftCard: React.FC<DraftCardProps> = ({ draft, onPress, onDelete }) => {
-  const theme = useTheme();
+  const itemCount = draft.items?.length ?? 0;
 
   return (
     <TouchableOpacity onPress={() => onPress?.(draft)} activeOpacity={0.7}>
-      <Card style={styles.card} mode="elevated">
-        <Card.Content>
-          <View style={styles.header}>
-            <View style={styles.info}>
-              <Text variant="titleMedium" style={styles.title}>
-                {draft.supermarket?.name || 'Sem supermercado'}
-              </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {formatDate(draft.createdAt)}
-              </Text>
-            </View>
-            {onDelete && (
-              <IconButton
-                icon="delete-outline"
-                iconColor={theme.colors.error}
-                size={20}
-                onPress={() => onDelete(draft)}
-              />
-            )}
-          </View>
+      <View style={styles.card}>
+        <View style={styles.row1}>
+          <RNText style={styles.marketName} numberOfLines={1}>
+            {draft.supermarket?.name || 'Sem supermercado'}
+          </RNText>
+          <RNText style={styles.totalValue}>
+            {formatMoney(draft.totalPrice)}
+          </RNText>
+        </View>
 
-          <Text
-            variant="bodyMedium"
-            numberOfLines={2}
-            style={[styles.content, { color: theme.colors.onSurfaceVariant }]}
-          >
-            {draft.content}
-          </Text>
+        <View style={styles.row2}>
+          <RNText style={styles.metaText}>
+            {formatDate(draft.createdAt)}
+            {'  ·  '}
+            {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+          </RNText>
 
-          <View style={styles.footer}>
-            <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
-              {formatMoney(draft.totalPrice)}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
+          {onDelete && (
+            <TouchableOpacity
+              onPress={() => onDelete(draft)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.mutedText} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
   },
-  header: {
+  row1: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 8,
   },
-  info: {
+  marketName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: colors.text,
     flex: 1,
+    marginRight: 12,
   },
-  title: {
-    fontWeight: '600',
+  totalValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: colors.text,
   },
-  content: {
-    marginTop: 8,
+  row2: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  footer: {
-    marginTop: 12,
-    alignItems: 'flex-end',
+  metaText: {
+    fontSize: 12,
+    color: colors.mutedText,
+    flex: 1,
   },
 });

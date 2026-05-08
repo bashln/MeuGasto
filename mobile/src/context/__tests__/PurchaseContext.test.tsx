@@ -30,6 +30,7 @@ describe('PurchaseContext', () => {
         { id: 1, supermarket: { id: 1, name: 'A' }, accessKey: '1', date: '2026-01-01', totalPrice: 10, isManual: true, products: [], createdAt: '', updatedAt: '' } as never,
       ],
       page: { pageNumber: 0, pageSize: 20, totalElements: 1, totalPages: 1, last: true },
+      metrics: { totalCount: 1, totalValue: 10 },
     });
     mockPurchaseService.getPurchaseById.mockResolvedValue({ id: 1 } as never);
     mockPurchaseService.updatePurchase.mockResolvedValue({ id: 1 } as never);

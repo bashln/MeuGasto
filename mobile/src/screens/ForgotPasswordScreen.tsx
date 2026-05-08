@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Text as RNText,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, TextInput } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { authService } from "../services";
@@ -22,6 +23,7 @@ type ForgotPasswordScreenProps = {
 export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -80,7 +82,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -140,7 +142,6 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: "row",
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   submitButton: {
-    backgroundColor: colors.success,
+    backgroundColor: colors.primary,
     height: 54,
     borderRadius: 14,
     justifyContent: "center",

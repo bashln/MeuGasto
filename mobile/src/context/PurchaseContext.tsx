@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, ReactNode, useCallback } from 'react';
 import { purchaseService } from '../services';
-import { Purchase, PurchaseFilter, PageResponse } from '../types';
+import { Purchase, PurchaseFilter, PageResponse, PurchaseMetrics } from '../types';
 
 interface PurchaseContextType {
   purchases: Purchase[];
@@ -9,6 +9,7 @@ interface PurchaseContextType {
   hasMore: boolean;
   error: string | null;
   page: PageResponse<Purchase>['page'] | null;
+  metrics: PurchaseMetrics;
   fetchPurchases: (filter?: PurchaseFilter) => Promise<void>;
   loadMorePurchases: (filter?: PurchaseFilter) => Promise<void>;
   getPurchase: (id: number) => Promise<Purchase>;
@@ -29,6 +30,8 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<PageResponse<Purchase>['page'] | null>(null);
+  const [metrics, setMetrics] = useState<PurchaseMetrics>({ totalCount: 0, totalValue: 0 });
+  const lastFilterRef = useRef<PurchaseFilter | undefined>(undefined);
 
   const fetchPurchases = useCallback(async (filter?: PurchaseFilter) => {
     const isLoadMore = (filter?.page ?? 0) > 0;
@@ -55,6 +58,10 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
 
       setPage(response.page);
       setHasMore(!response.page.last);
+      if (!isLoadMore) {
+        setMetrics(response.metrics);
+        lastFilterRef.current = filter;
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar compras';
       setError(message);
@@ -84,13 +91,13 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
     data: Partial<{ date: string; totalPrice: number; supermarketId: number | null }>
   ): Promise<Purchase> => {
     const purchase = await purchaseService.updatePurchase(id, data);
-    await fetchPurchases();
+    await fetchPurchases({ ...lastFilterRef.current, page: 0 });
     return purchase;
   }, [fetchPurchases]);
 
   const deletePurchase = useCallback(async (id: number): Promise<void> => {
     await purchaseService.deletePurchase(id);
-    await fetchPurchases();
+    await fetchPurchases({ ...lastFilterRef.current, page: 0 });
   }, [fetchPurchases]);
 
   return (
@@ -102,6 +109,7 @@ export const PurchaseProvider: React.FC<PurchaseProviderProps> = ({ children }) 
         hasMore,
         error,
         page,
+        metrics,
         fetchPurchases,
         loadMorePurchases,
         getPurchase,

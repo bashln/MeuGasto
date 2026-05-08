@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, Modal, FlatList, TouchableOpacity, Text as RNText } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Text,
   TextInput,
@@ -7,13 +8,10 @@ import {
   useTheme,
   Surface,
   IconButton,
-  List,
-  Divider,
-  Card,
 } from 'react-native-paper';
 import { useDrafts } from '../context';
 import { Draft } from '../types';
-import { formatMoney, formatDate } from '../utils';
+import { formatMoney, formatDate, ITEM_UNIT_OPTIONS } from '../utils';
 import { Loading, ErrorMessage, Header } from '../components';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -24,8 +22,6 @@ type DraftDetailScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DraftDetail'>;
   route: RouteProp<RootStackParamList, 'DraftDetail'>;
 };
-
-const UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx'];
 
 interface DraftItem {
   name: string;
@@ -138,7 +134,8 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
             setIsConverting(true);
             try {
               await convertToPurchase(draftId);
-              Alert.alert('Sucesso', 'Compra criada! Acesse a aba Compras para visualizá-la.', [
+              Alert.alert('Sucesso', 'Rascunho convertido em compra com sucesso.', [
+                { text: 'Ver compras', onPress: () => navigation.navigate('PurchasesTab' as never) },
                 { text: 'OK', onPress: () => navigation.goBack() },
               ]);
             } catch (err: unknown) {
@@ -206,35 +203,30 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
           Itens
         </Text>
 
-        <Card style={styles.itemsCard} mode="elevated">
+        <View style={styles.itemsCard}>
           {items.length === 0 ? (
             <View style={styles.emptyItems}>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                Nenhum item adicionado
-              </Text>
+              <RNText style={styles.emptyItemsText}>Nenhum item adicionado</RNText>
             </View>
           ) : (
             items.map((item, index) => (
-              <React.Fragment key={index}>
-                <List.Item
-                  title={item.name}
-                  description={`${item.quantity} ${item.unit} x ${formatMoney(item.price)}`}
-                  right={() => (
-                    <View style={styles.itemActions}>
-                      <Text variant="bodyMedium">{formatMoney(item.price * item.quantity)}</Text>
-                      <IconButton
-                        icon="close"
-                        size={20}
-                        onPress={() => removeItem(index)}
-                      />
-                    </View>
-                  )}
-                />
-                {index < items.length - 1 && <Divider />}
-              </React.Fragment>
+              <View key={index} style={[styles.itemRow, index > 0 && styles.itemRowBorder]}>
+                <View style={styles.itemRowContent}>
+                  <RNText style={styles.itemName}>{item.name}</RNText>
+                  <RNText style={styles.itemMeta}>{item.quantity} {item.unit} × {formatMoney(item.price)}</RNText>
+                </View>
+                <RNText style={styles.itemTotal}>{formatMoney(item.price * item.quantity)}</RNText>
+                <TouchableOpacity
+                  onPress={() => removeItem(index)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ marginLeft: 8 }}
+                >
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.mutedText} />
+                </TouchableOpacity>
+              </View>
             ))
           )}
-        </Card>
+        </View>
 
         <Surface style={styles.addItemCard} elevation={2}>
           <Text variant="titleSmall" style={styles.cardTitle}>
@@ -267,8 +259,9 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
             </TouchableOpacity>
             <TextInput
               label="Preço"
-              value={newItem.price.toString()}
+              value={newItem.price === 0 ? '' : newItem.price.toString()}
               onChangeText={(text) => setNewItem({ ...newItem, price: parseFloat(text) || 0 })}
+              placeholder="0,00"
               mode="outlined"
               keyboardType="numeric"
               style={[styles.input, styles.smallInput]}
@@ -288,16 +281,6 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
         </Surface>
 
         <View style={styles.actions}>
-          <Button
-            mode="contained"
-            onPress={handleSave}
-            loading={isSaving}
-            disabled={isSaving || isConverting}
-            style={styles.saveButton}
-          >
-            Salvar
-          </Button>
-
           {!isNewDraft && (
             <Button
               mode="contained"
@@ -311,6 +294,16 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
             </Button>
           )}
 
+          <Button
+            mode="contained-tonal"
+            onPress={handleSave}
+            loading={isSaving}
+            disabled={isSaving || isConverting}
+            style={styles.saveButton}
+          >
+            Salvar rascunho
+          </Button>
+
           {!isNewDraft && (
             <Button
               mode="outlined"
@@ -319,7 +312,7 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
               disabled={isSaving || isConverting}
               style={styles.deleteButton}
             >
-              Excluir
+              Excluir rascunho
             </Button>
           )}
         </View>
@@ -340,7 +333,7 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
               </TouchableOpacity>
             </View>
             <FlatList
-              data={UNIT_OPTIONS}
+              data={[...ITEM_UNIT_OPTIONS]}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -378,6 +371,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
   formCard: {
     backgroundColor: colors.surface,
@@ -406,9 +400,38 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
   },
-  itemActions: {
+  emptyItemsText: {
+    color: colors.mutedText,
+    fontSize: 14,
+  },
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  itemRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  itemRowContent: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  itemMeta: {
+    fontSize: 12,
+    color: colors.mutedText,
+    marginTop: 2,
+  },
+  itemTotal: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 8,
   },
   addItemCard: {
     backgroundColor: colors.surface,
