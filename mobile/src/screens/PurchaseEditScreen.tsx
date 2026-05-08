@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Text as RNText } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput, Menu } from 'react-native-paper';
 import { purchaseService, supermarketService } from '../services';
 import { Purchase, Supermarket } from '../types';
@@ -8,6 +9,27 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+
+const isoToDisplay = (iso: string): string => {
+  const [y, m, d] = iso.split('-');
+  if (y && m && d) return `${d}/${m}/${y}`;
+  return '';
+};
+
+const displayToIso = (display: string): string => {
+  const digits = display.replace(/\D/g, '');
+  if (digits.length === 8) {
+    return `${digits.slice(4)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`;
+  }
+  return '';
+};
+
+const maskDateInput = (text: string): string => {
+  const digits = text.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
 
 type PurchaseEditScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'PurchaseEdit'>;
@@ -17,27 +39,38 @@ type PurchaseEditScreenProps = {
 export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigation, route }) => {
   const { purchaseId } = route.params;
   const isNewPurchase = purchaseId === 0;
+  const insets = useSafeAreaInsets();
   const headerTitle = isNewPurchase ? 'Compra Manual' : 'Editar Compra';
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [supermarkets, setSupermarkets] = useState<Supermarket[]>([]);
   const [date, setDate] = useState('');
+  const [displayDate, setDisplayDate] = useState('');
   const [totalPrice, setTotalPrice] = useState('');
   const [selectedSupermarketId, setSelectedSupermarketId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
+  const handleDateChange = (text: string) => {
+    const masked = maskDateInput(text);
+    setDisplayDate(masked);
+    setDate(displayToIso(masked));
+  };
+
   const loadData = useCallback(async () => {
     try {
       if (!isNewPurchase) {
         const data = await purchaseService.getPurchaseById(purchaseId);
         setPurchase(data);
-        setDate(data.date || '');
+        const isoDate = data.date || '';
+        setDate(isoDate);
+        setDisplayDate(isoToDisplay(isoDate));
         setTotalPrice(String(data.totalPrice ?? 0));
         setSelectedSupermarketId(data.supermarket?.id ?? null);
       } else {
         const today = new Date().toISOString().split('T')[0];
         setDate(today);
+        setDisplayDate(isoToDisplay(today));
         setTotalPrice('');
         setSelectedSupermarketId(null);
       }
@@ -63,8 +96,8 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
       return;
     }
 
-    if (!date.trim()) {
-      Alert.alert('Erro', 'Informe a data da compra');
+    if (!date || date.length !== 10) {
+      Alert.alert('Erro', 'Informe a data no formato DD/MM/AAAA');
       return;
     }
 
@@ -83,7 +116,6 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
           supermarketId: selectedSupermarketId ?? undefined,
           items: [],
         });
-        Alert.alert('Sucesso', 'Compra manual criada com sucesso');
         navigation.navigate('PurchaseDetail', { purchaseId: created.id });
       } else {
         await purchaseService.updatePurchase(purchaseId, {
@@ -91,7 +123,6 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
           totalPrice: total,
           supermarketId: selectedSupermarketId,
         });
-        Alert.alert('Sucesso', 'Compra atualizada com sucesso');
         navigation.goBack();
       }
     } catch (err: unknown) {
@@ -105,7 +136,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
           </TouchableOpacity>
@@ -121,7 +152,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
         </TouchableOpacity>
@@ -135,10 +166,12 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
         <Text style={styles.label}>Data</Text>
         <TextInput
-          value={date}
-          onChangeText={setDate}
+          value={displayDate}
+          onChangeText={handleDateChange}
           mode="outlined"
-          placeholder="YYYY-MM-DD"
+          placeholder="DD/MM/AAAA"
+          keyboardType="numeric"
+          maxLength={10}
           outlineColor={colors.border}
           activeOutlineColor={colors.primary}
           style={styles.input}
@@ -194,6 +227,8 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
           style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={isSaving}
+          accessibilityLabel="Salvar compra"
+          accessibilityRole="button"
         >
           <RNText style={styles.saveButtonText}>
             {isSaving ? 'Salvando...' : 'Salvar alterações'}
@@ -211,7 +246,6 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: colors.primary,
-    paddingTop: 50,
     paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',

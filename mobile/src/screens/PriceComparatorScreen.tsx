@@ -96,10 +96,11 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
             <RNText style={styles.emptyHint}>{'Toque em "Adicionar Item" para começar.'}</RNText>
           </View>
         ) : (
-          items.map((item) => (
+          items.map((item, idx) => (
             <ItemInputRow
               key={item.id}
               item={item}
+              index={idx}
               onUpdate={(updates) => updateItem(item.id, updates)}
               onRemove={() => removeItem(item.id)}
               isCheapest={item.id === cheapestItemId}

@@ -2,17 +2,16 @@ import React from 'react';
 import { StyleSheet, Text as RNText, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Item } from '../types';
-import { calculateUnitPrice, formatMoney } from '../utils';
+import { calculateUnitPrice, formatMoney, ITEM_UNIT_OPTIONS } from '../utils';
 import { colors } from '../theme/colors';
 
 type ItemInputRowProps = {
   item: Item;
+  index?: number;
   onUpdate: (updates: Partial<Item>) => void;
   onRemove: () => void;
   isCheapest?: boolean;
 };
-
-const UNIT_OPTIONS = ['g', 'kg', 'l', 'un'] as const;
 
 const parseNumericInput = (value: string): number => {
   const normalized = value.replace(',', '.').trim();
@@ -24,7 +23,7 @@ const parseNumericInput = (value: string): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, onUpdate, onRemove, isCheapest = false }) => {
+export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdate, onRemove, isCheapest = false }) => {
   let unitPriceLabel = 'Preço por unidade: inválido';
 
   try {
@@ -41,7 +40,7 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, onUpdate, onRe
       testID="item-input-row"
     >
       <View style={styles.headerRow}>
-        <RNText style={styles.title}>Item</RNText>
+        <RNText style={styles.title}>{index !== undefined ? `Item ${index + 1}` : 'Item'}</RNText>
         {isCheapest && (
           <View style={styles.cheapestBadge}>
             <MaterialCommunityIcons name="check-circle" size={14} color={colors.primaryText} />
@@ -81,7 +80,7 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, onUpdate, onRe
       </View>
 
       <View style={styles.unitsContainer}>
-        {UNIT_OPTIONS.map((unitOption) => {
+        {ITEM_UNIT_OPTIONS.map((unitOption) => {
           const isActive = item.unit.trim().toLowerCase() === unitOption;
 
           return (
@@ -99,9 +98,12 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, onUpdate, onRe
 
       <View style={styles.footerRow}>
         <RNText style={styles.unitPriceText}>{unitPriceLabel}</RNText>
-        <TouchableOpacity style={styles.removeButton} onPress={onRemove} testID={`remove-item-${item.id}`}>
-          <MaterialCommunityIcons name="delete-outline" size={18} color={colors.primaryText} />
-          <RNText style={styles.removeButtonText}>Remover</RNText>
+        <TouchableOpacity
+          onPress={onRemove}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          testID={`remove-item-${item.id}`}
+        >
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.mutedText} />
         </TouchableOpacity>
       </View>
     </View>
@@ -200,19 +202,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
     marginRight: 10,
-  },
-  removeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.danger,
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  removeButtonText: {
-    color: colors.primaryText,
-    fontSize: 12,
-    fontWeight: '600',
   },
 });

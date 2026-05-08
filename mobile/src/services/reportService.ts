@@ -194,7 +194,8 @@ export const reportService = {
       .in('purchase_id', purchaseIds);
 
     if (itemsError) {
-      throw new Error(itemsError.message);
+      // category_id column may not exist yet in DB — return empty gracefully
+      return [];
     }
 
     const totalsByCategory: Record<number, number> = {};

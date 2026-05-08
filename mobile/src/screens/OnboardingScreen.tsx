@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context';
 import { ONBOARDING_STEPS } from '../services/onboardingService';
 import { colors } from '../theme/colors';
 
 export const OnboardingScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { completeOnboarding } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const totalSteps = ONBOARDING_STEPS.length;
@@ -24,11 +26,10 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   const step = ONBOARDING_STEPS[currentStep];
-  const progress = ((currentStep + 1) / totalSteps) * 100;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={handleSkip}>
           <Text style={styles.skipText}>Pular</Text>
         </TouchableOpacity>
@@ -60,10 +61,6 @@ export const OnboardingScreen: React.FC = () => {
           ))}
         </View>
 
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
-
         <Button
           mode="contained"
           onPress={handleNext}
@@ -84,7 +81,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundApp,
   },
   header: {
-    paddingTop: 60,
     paddingHorizontal: 20,
     alignItems: 'flex-end',
   },
@@ -145,18 +141,6 @@ const styles = StyleSheet.create({
   dotActive: {
     backgroundColor: colors.primary,
     width: 24,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 2,
   },
   button: {
     backgroundColor: colors.primary,

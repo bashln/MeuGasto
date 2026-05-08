@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '../lib/supabaseClient';
-import { Purchase, PurchaseFilter, PageResponse } from '../types';
+import { Purchase, PurchaseFilter, PageResponse, PurchaseMetrics } from '../types';
 import { getCurrentUserId } from './authService';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { DEFAULT_PRODUCT_CATEGORY_RULES, CATEGORY_IDS } from './productCategoryRules';
@@ -106,52 +106,76 @@ const productCategorizer = new ProductCategorizerService({
 });
 
 export const purchaseService = {
-  async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page'] }> {
+  async getPurchases(filter?: PurchaseFilter): Promise<{ data: Purchase[]; page: PageResponse<Purchase>['page']; metrics: PurchaseMetrics }> {
     const userId = await getCurrentUserId();
     const page = filter?.page ?? 0;
     const size = filter?.size ?? 20;
     const from = page * size;
     const to = from + size - 1;
-    
+
     const supabase = getClient();
-    
-    let query = supabase
+    const hasCategoryFilter = filter?.categoryId !== undefined;
+    const itemsJoin = hasCategoryFilter ? 'items!inner(*)' : 'items(*)';
+
+    let listQuery = supabase
       .from('purchases')
-      .select(`
-        *,
-        supermarket:supermarkets(*),
-        items(*)
-      `, { count: 'exact' })
+      .select(`*, supermarket:supermarkets(*), ${itemsJoin}`, { count: 'exact' })
+      .eq('user_id', userId);
+
+    let metricsSelect = hasCategoryFilter ? 'total_price, items!inner(id)' : 'total_price';
+    let metricsQuery = supabase
+      .from('purchases')
+      .select(metricsSelect)
       .eq('user_id', userId);
 
     if (filter?.supermarketId) {
-      query = query.eq('supermarket_id', filter.supermarketId);
+      listQuery = listQuery.eq('supermarket_id', filter.supermarketId);
+      metricsQuery = metricsQuery.eq('supermarket_id', filter.supermarketId);
     }
     if (filter?.isManual !== undefined) {
-      query = query.eq('manual', filter.isManual);
+      listQuery = listQuery.eq('manual', filter.isManual);
+      metricsQuery = metricsQuery.eq('manual', filter.isManual);
     }
     if (filter?.startDate) {
-      query = query.gte('date', filter.startDate);
+      listQuery = listQuery.gte('date', filter.startDate);
+      metricsQuery = metricsQuery.gte('date', filter.startDate);
     }
     if (filter?.endDate) {
-      query = query.lte('date', filter.endDate);
+      listQuery = listQuery.lte('date', filter.endDate);
+      metricsQuery = metricsQuery.lte('date', filter.endDate);
     }
     if (filter?.minPrice !== undefined) {
-      query = query.gte('total_price', filter.minPrice);
+      listQuery = listQuery.gte('total_price', filter.minPrice);
+      metricsQuery = metricsQuery.gte('total_price', filter.minPrice);
     }
     if (filter?.maxPrice !== undefined) {
-      query = query.lte('total_price', filter.maxPrice);
+      listQuery = listQuery.lte('total_price', filter.maxPrice);
+      metricsQuery = metricsQuery.lte('total_price', filter.maxPrice);
+    }
+    if (hasCategoryFilter) {
+      listQuery = listQuery.eq('items.category_id', filter?.categoryId);
+      metricsQuery = metricsQuery.eq('items.category_id', filter?.categoryId);
     }
 
-    const { data: purchases, error, count } = await query
-      .order('date', { ascending: false })
-      .range(from, to);
+    const [listResult, metricsResult] = await Promise.all([
+      listQuery.order('date', { ascending: false }).range(from, to),
+      metricsQuery,
+    ]);
 
-    if (error) {
-      throw new Error(error.message);
+    if (listResult.error) {
+      throw new Error(listResult.error.message);
+    }
+    if (metricsResult.error) {
+      throw new Error(metricsResult.error.message);
     }
 
-    const purchaseData = (purchases || []).map((purchase) => {
+    const totalValue = ((metricsResult.data as Array<{ total_price?: string | number }>) || []).reduce(
+      (sum, p) => sum + (parseFloat(String(p.total_price ?? 0)) || 0),
+      0
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const purchaseData = ((listResult.data as any[]) || []).map((purchase) => {
       return {
         id: purchase.id,
         supermarket: purchase.supermarket,
@@ -165,11 +189,15 @@ export const purchaseService = {
       };
     });
 
-    const totalElements = count || 0;
+    const totalElements = listResult.count || 0;
     const totalPages = Math.ceil(totalElements / size);
 
     return {
       data: purchaseData,
+      metrics: {
+        totalCount: totalElements,
+        totalValue,
+      },
       page: {
         pageNumber: page,
         pageSize: size,

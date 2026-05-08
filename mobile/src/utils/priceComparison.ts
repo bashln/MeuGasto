@@ -1,5 +1,7 @@
 import { Item } from '../types';
 
+export const ITEM_UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx'] as const;
+
 type ComparableUnit = 'kg' | 'l' | 'un';
 type UnitCategory = 'weight' | 'volume' | 'count';
 

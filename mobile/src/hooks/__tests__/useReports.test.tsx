@@ -1,5 +1,6 @@
 jest.mock('../../services', () => ({
   reportService: {
+    getDashboardStats: jest.fn(),
     getMonthlyExpenses: jest.fn(),
     getTopItems: jest.fn(),
     getExpensesBySupermarket: jest.fn(),
@@ -23,93 +24,123 @@ const HookHarness = ({ onRender }: { onRender: (value: HookState) => void }) => 
   return null;
 };
 
+const defaultMocks = () => {
+  mockReportService.getDashboardStats.mockResolvedValue({
+    totalSpent: 500,
+    purchaseCount: 3,
+    itemCount: 10,
+    savings: 0,
+  });
+  mockReportService.getMonthlyExpenses.mockResolvedValue([{ month: 1, total: 300 }]);
+  mockReportService.getTopItems.mockResolvedValue([{ name: 'Feijão', quantity: 2, total: 30 }]);
+  mockReportService.getExpensesBySupermarket.mockResolvedValue([{ supermarket: 'Mercado A', total: 300 }]);
+  mockReportService.getExpensesByCategory.mockResolvedValue([
+    { categoryId: 1, category: 'Alimentação', total: 300, percentage: 100 },
+  ]);
+  mockReportService.getItemReport.mockResolvedValue({
+    totalQuantity: 3,
+    totalSpent: 45,
+    averagePrice: 15,
+    purchaseCount: 2,
+    bySupermarket: [],
+  });
+};
+
 describe('useReports', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockReportService.getMonthlyExpenses.mockResolvedValue([{ month: 1, total: 300 }]);
-    mockReportService.getTopItems.mockResolvedValue([{ name: 'Feijão', quantity: 2, total: 30 }]);
-    mockReportService.getExpensesBySupermarket.mockResolvedValue([{ supermarket: 'Mercado A', total: 300 }]);
-    mockReportService.getExpensesByCategory.mockResolvedValue([{ categoryId: 1, category: 'Alimentação', total: 300, percentage: 100 }]);
-    mockReportService.getItemReport.mockResolvedValue({
-      totalQuantity: 3,
-      totalSpent: 45,
-      averagePrice: 15,
-      purchaseCount: 2,
-      bySupermarket: [],
-    });
+    defaultMocks();
   });
 
-  it('carrega relatório padrão de itens e define item selecionado', async () => {
+  it('inicia em modo mês e carrega dados do mês atual', async () => {
     const snapshots: HookState[] = [];
 
     await act(async () => {
-      TestRenderer.create(<HookHarness onRender={(value) => snapshots.push(value)} />);
+      TestRenderer.create(<HookHarness onRender={v => snapshots.push(v)} />);
     });
 
     const last = snapshots[snapshots.length - 1];
+    expect(last.periodMode).toBe('month');
+    expect(last.heroValue).toBe(500);
     expect(last.topItems).toHaveLength(1);
-    expect(last.selectedItem).toBe('Feijão');
-    expect(mockReportService.getTopItems).toHaveBeenCalled();
+    expect(last.topItems[0].name).toBe('Feijão');
+    expect(mockReportService.getDashboardStats).toHaveBeenCalledTimes(2); // current + prev month
+    expect(mockReportService.getExpensesByCategory).toHaveBeenCalledTimes(2);
+    expect(mockReportService.getTopItems).toHaveBeenCalledTimes(1);
   });
 
-  it('carrega relatório geral quando tipo for geral', async () => {
+  it('muda para modo ano e recarrega dados anuais', async () => {
     let latest: HookState | null = null;
 
     await act(async () => {
-      TestRenderer.create(<HookHarness onRender={(value) => { latest = value; }} />);
+      TestRenderer.create(<HookHarness onRender={v => { latest = v; }} />);
     });
+
+    jest.clearAllMocks();
+    defaultMocks();
 
     await act(async () => {
-      latest!.setReportType('geral');
+      latest!.setPeriodMode('year');
     });
 
-    await act(async () => {
-      await latest!.loadReport();
-    });
-
-    expect(mockReportService.getMonthlyExpenses).toHaveBeenCalled();
+    expect(mockReportService.getMonthlyExpenses).toHaveBeenCalledTimes(2); // current year + prev year
+    expect(mockReportService.getExpensesByCategory).toHaveBeenCalledTimes(2);
+    expect(mockReportService.getDashboardStats).not.toHaveBeenCalled(); // ano usa getMonthlyExpenses
   });
 
-  it('faz refresh e carrega item report quando item selecionado existe', async () => {
+  it('carrega item report quando loadItemReport é chamado', async () => {
     let latest: HookState | null = null;
 
     await act(async () => {
-      TestRenderer.create(<HookHarness onRender={(value) => { latest = value; }} />);
+      TestRenderer.create(<HookHarness onRender={v => { latest = v; }} />);
     });
 
     await act(async () => {
       latest!.setSelectedItem('Feijão');
+      await latest!.loadItemReport('Feijão');
     });
 
-    await act(async () => {
-      await latest!.refresh();
-    });
-
-    expect(mockReportService.getItemReport).toHaveBeenCalledWith('Feijão', expect.any(String), expect.any(String));
+    expect(mockReportService.getItemReport).toHaveBeenCalledWith(
+      'Feijão',
+      expect.stringMatching(/^\d{4}-\d{2}-01$/),
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    );
+    const last = latest!;
+    expect(last.itemReport).not.toBeNull();
+    expect(last.itemReport?.averagePrice).toBe(15);
   });
 
-  it('não carrega item report no refresh quando topItems limpa a seleção', async () => {
+  it('calcula delta de categoria vs período anterior', async () => {
+    mockReportService.getExpensesByCategory
+      .mockResolvedValueOnce([{ categoryId: 1, category: 'Alimentação', total: 400, percentage: 100 }])
+      .mockResolvedValueOnce([{ categoryId: 1, category: 'Alimentação', total: 200, percentage: 100 }]);
+
+    const snapshots: HookState[] = [];
+
+    await act(async () => {
+      TestRenderer.create(<HookHarness onRender={v => snapshots.push(v)} />);
+    });
+
+    const last = snapshots[snapshots.length - 1];
+    const alim = last.categoryData.find(c => c.categoryId === 1);
+    expect(alim).toBeDefined();
+    expect(alim!.delta).toBeCloseTo(100); // +100% vs mês anterior
+  });
+
+  it('refresh recarrega os dados', async () => {
     let latest: HookState | null = null;
 
-    mockReportService.getTopItems
-      .mockResolvedValueOnce([{ name: 'Feijão', quantity: 2, total: 30 }])
-      .mockResolvedValueOnce([]);
-
     await act(async () => {
-      TestRenderer.create(<HookHarness onRender={(value) => { latest = value; }} />);
+      TestRenderer.create(<HookHarness onRender={v => { latest = v; }} />);
     });
 
-    await act(async () => {
-      latest!.setSelectedItem('Arroz');
-    });
-
-    mockReportService.getItemReport.mockClear();
+    jest.clearAllMocks();
+    defaultMocks();
 
     await act(async () => {
       await latest!.refresh();
     });
 
-    expect(latest!.selectedItem).toBe('');
-    expect(mockReportService.getItemReport).not.toHaveBeenCalled();
+    expect(mockReportService.getDashboardStats).toHaveBeenCalled();
   });
 });
