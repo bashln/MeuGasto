@@ -305,7 +305,6 @@ export const nfceService = {
     supermarketId?: number
   ): Promise<{
     purchaseId: number;
-    accessKey: string;
     total: number;
     itemCount: number;
   }> {
@@ -363,7 +362,6 @@ export const nfceService = {
 
     return {
       purchaseId,
-      accessKey: sanitizedAccessKey,
       total: sanitizedPayload.total,
       itemCount: sanitizedPayload.items.length,
     };

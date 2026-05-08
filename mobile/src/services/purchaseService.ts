@@ -179,7 +179,7 @@ export const purchaseService = {
       return {
         id: purchase.id,
         supermarket: purchase.supermarket,
-        accessKey: purchase.access_key,
+        accessKey: purchase.access_key_hash,
         date: purchase.date,
         totalPrice: parseFloat(purchase.total_price) || 0,
         isManual: purchase.manual,
@@ -234,7 +234,7 @@ export const purchaseService = {
     return {
       id: purchase.id,
       supermarket: purchase.supermarket,
-      accessKey: purchase.access_key,
+      accessKey: purchase.access_key_hash,
       date: purchase.date,
       totalPrice: parseFloat(purchase.total_price) || 0,
       isManual: purchase.manual,
