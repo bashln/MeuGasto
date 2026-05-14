@@ -81,3 +81,8 @@ deploymentTargetDropDown.xml
 render.experimental.xml
 *.md
 !README.md
+!AGENTS.md
+!CLAUDE.md
+!CHANGELOG.md
+!SECURITY.md
+!LICENSE
