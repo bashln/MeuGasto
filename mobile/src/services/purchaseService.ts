@@ -122,7 +122,7 @@ export const purchaseService = {
       .select(`*, supermarket:supermarkets(*), ${itemsJoin}`, { count: 'exact' })
       .eq('user_id', userId);
 
-    let metricsSelect = hasCategoryFilter ? 'total_price, items!inner(id)' : 'total_price';
+    const metricsSelect = hasCategoryFilter ? 'total_price, items!inner(id)' : 'total_price';
     let metricsQuery = supabase
       .from('purchases')
       .select(metricsSelect)

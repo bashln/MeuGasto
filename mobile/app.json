@@ -2,6 +2,7 @@
   "expo": {
     "name": "MeuGasto",
     "slug": "meugasto",
+    "owner": "bashln",
     "version": "0.3.61",
     "scheme": "com.prati.meugasto",
     "orientation": "portrait",
@@ -46,7 +47,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "58567750-47a6-4955-a5f2-db6032189fc1"
+        "projectId": "a1d6cf32-6e8c-4edc-a0d0-7c979f8104e7"
       }
     },
     "updates": {
