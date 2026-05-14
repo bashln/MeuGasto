@@ -21,7 +21,14 @@ jest.mock('../../components', () => ({
 
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DashboardScreen } from '../DashboardScreen';
+
+const wrap = (ui: React.ReactElement) => (
+  <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, bottom: 0, right: 0 } }}>
+    {ui}
+  </SafeAreaProvider>
+);
 
 describe('DashboardScreen', () => {
   beforeEach(() => {
@@ -48,13 +55,13 @@ describe('DashboardScreen', () => {
     let renderer: ReturnType<typeof TestRenderer.create>;
 
     act(() => {
-      renderer = TestRenderer.create(<DashboardScreen navigation={{ navigate } as never} />);
+      renderer = TestRenderer.create(wrap(<DashboardScreen navigation={{ navigate } as never} />));
     });
 
     expect(renderer!.root.findByProps({ children: 'Insights deste mês' })).toBeTruthy();
 
-    const addPurchaseText = renderer!.root.findByProps({ children: '+ Adicionar' });
-    let current = addPurchaseText.parent;
+    const scanText = renderer!.root.findByProps({ children: 'Escanear NFC-e' });
+    let current = scanText.parent;
     while (current && typeof current.props?.onPress !== 'function') {
       current = current.parent;
     }
@@ -77,7 +84,7 @@ describe('DashboardScreen', () => {
     });
 
     act(() => {
-      TestRenderer.create(<DashboardScreen navigation={{ navigate: jest.fn() } as never} />);
+      TestRenderer.create(wrap(<DashboardScreen navigation={{ navigate: jest.fn() } as never} />));
     });
 
     act(() => {

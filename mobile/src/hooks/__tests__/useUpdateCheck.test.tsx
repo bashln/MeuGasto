@@ -27,7 +27,7 @@ describe('useUpdateCheck', () => {
   it('executa checagem no mount e popula updateInfo', async () => {
     mockUpdateService.checkForUpdate.mockResolvedValue({
       latestVersion: '1.4.0',
-      currentVersion: '1.3.0',
+      currentVersion: '0.3.61',
       isUpdateAvailable: true,
       isMandatory: false,
       releasePageUrl: 'https://example.com',
@@ -41,14 +41,14 @@ describe('useUpdateCheck', () => {
       TestRenderer.create(<HookHarness onRender={(value) => snapshots.push(value)} />);
     });
 
-    expect(mockUpdateService.checkForUpdate).toHaveBeenCalledWith('1.3.0');
+    expect(mockUpdateService.checkForUpdate).toHaveBeenCalledWith('0.3.61');
     expect(snapshots[snapshots.length - 1].updateInfo?.latestVersion).toBe('1.4.0');
   });
 
   it('dismiss limpa updateInfo e impede novas atualizações', async () => {
     mockUpdateService.checkForUpdate.mockResolvedValue({
       latestVersion: '1.4.0',
-      currentVersion: '1.3.0',
+      currentVersion: '0.3.61',
       isUpdateAvailable: true,
       isMandatory: false,
       releasePageUrl: 'https://example.com',

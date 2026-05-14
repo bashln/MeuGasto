@@ -35,7 +35,14 @@ jest.mock('../../components', () => ({
 import React from 'react';
 import { Alert } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PurchasesScreen } from '../PurchasesScreen';
+
+const wrap = (ui: React.ReactElement) => (
+  <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, bottom: 0, right: 0 } }}>
+    {ui}
+  </SafeAreaProvider>
+);
 
 describe('PurchasesScreen', () => {
   beforeEach(() => {
@@ -55,6 +62,7 @@ describe('PurchasesScreen', () => {
       hasMore: true,
       page: { pageNumber: 0 },
       error: null,
+      metrics: { totalCount: 1, totalValue: 100 },
       fetchPurchases: jest.fn().mockResolvedValue(undefined),
       loadMorePurchases: jest.fn().mockResolvedValue(undefined),
       deletePurchase: jest.fn().mockResolvedValue(undefined),
@@ -70,7 +78,7 @@ describe('PurchasesScreen', () => {
     });
 
     await act(async () => {
-      TestRenderer.create(<PurchasesScreen navigation={{ navigate: jest.fn() } as never} />);
+      TestRenderer.create(wrap(<PurchasesScreen navigation={{ navigate: jest.fn() } as never} />));
     });
 
     expect(fetchPurchases).toHaveBeenCalledWith({ page: 0, size: 20, isManual: undefined });
@@ -80,7 +88,7 @@ describe('PurchasesScreen', () => {
     let renderer: ReturnType<typeof TestRenderer.create>;
 
     act(() => {
-      renderer = TestRenderer.create(<PurchasesScreen navigation={{ navigate: jest.fn() } as never} />);
+      renderer = TestRenderer.create(wrap(<PurchasesScreen navigation={{ navigate: jest.fn() } as never} />));
     });
 
     act(() => {
