@@ -118,7 +118,7 @@ jobs:
 
       - name: Decode keystore
         working-directory: ./mobile/android
-        run: echo "$ANDROID_KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > app/meugasto-release.jks
+        run: python3 -c "import base64,os; open('app/meugasto-release.jks','wb').write(base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64']))"
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
