@@ -63,6 +63,11 @@ export class ProductCategorizerService {
     return this.fallbackCategoryId;
   }
 
+  async reload(): Promise<void> {
+    this.learnedReclassifications.clear();
+    await this.loadPersistedReclassifications();
+  }
+
   async learnReclassification(productName: string, categoryId: number): Promise<void> {
     const normalized = normalizeProductName(productName || '');
     if (!normalized) {

@@ -477,3 +477,5 @@ export const purchaseService = {
     return this.getPurchaseById(purchaseId);
   },
 };
+
+export const resetProductCategorizer = (): Promise<void> => productCategorizer.reload();

@@ -68,11 +68,14 @@ CREATE TABLE IF NOT EXISTS items (
   purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   code TEXT,
+  category_id INTEGER,
   quantity DECIMAL(10,3) DEFAULT 1,
   unit TEXT,
   price DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE items ADD COLUMN IF NOT EXISTS category_id INTEGER;
 
 ALTER TABLE items DROP CONSTRAINT IF EXISTS items_name_length_check;
 ALTER TABLE items ADD CONSTRAINT items_name_length_check
