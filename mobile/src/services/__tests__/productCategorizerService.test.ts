@@ -108,4 +108,24 @@ describe('ProductCategorizerService', () => {
       categoryId: CATEGORY_IDS.ALIMENTACAO,
     });
   });
+
+  it('reload limpa reclassificacoes aprendidas e recarrega da persistencia', async () => {
+    // "Cabo USB-C 2m" nao esta nas regras estaticas → retorna OUTROS por padrao
+    const load = jest.fn()
+      .mockResolvedValueOnce([{ productName: 'cabo usb-c 2m', categoryId: CATEGORY_IDS.HIGIENE }])
+      .mockResolvedValueOnce([]);
+
+    const svc = new ProductCategorizerService({
+      rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+      fallbackCategoryId: CATEGORY_IDS.OUTROS,
+      persistence: { load, save: jest.fn().mockResolvedValue(undefined) },
+    });
+
+    await svc.ready();
+    expect(svc.categorizeProduct('Cabo USB-C 2m')).toBe(CATEGORY_IDS.HIGIENE);
+
+    await svc.reload();
+    expect(svc.categorizeProduct('Cabo USB-C 2m')).toBe(CATEGORY_IDS.OUTROS);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
 });

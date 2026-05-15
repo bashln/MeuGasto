@@ -15,6 +15,9 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Adiciona categoria de produto aos itens
+ALTER TABLE items ADD COLUMN IF NOT EXISTS category_id INTEGER;
+
 -- Adiciona coluna hash ao lado da coluna atual
 ALTER TABLE purchases ADD COLUMN IF NOT EXISTS access_key_hash TEXT;
 

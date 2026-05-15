@@ -47,7 +47,8 @@ if ls mobile/supabase_migrations/*.sql > /dev/null 2>&1; then
 fi
 
 # Verificar que access_key em texto puro não está sendo armazenada (deve usar access_key_hash)
-if grep -rn "access_key[^_]" mobile/src/services/purchaseService.ts 2>/dev/null | grep -v "access_key_hash" | grep -q "purchase\["; then
+# Busca especificamente o padrão de mapeamento "purchase.access_key" sem _hash
+if grep -n "purchase\.access_key[^_]" mobile/src/services/purchaseService.ts 2>/dev/null | grep -q .; then
   echo -e "${RED}FAIL${NC}: purchaseService.ts mapeando access_key em texto puro — deve usar access_key_hash"
   FAIL=1
 fi
