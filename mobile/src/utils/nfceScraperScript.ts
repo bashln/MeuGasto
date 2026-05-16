@@ -51,7 +51,14 @@ export const NFCE_SCRAPE_SCRIPT = `
   }
 
   function scrapeItems() {
+    // Tenta #tabResult (portal antigo) e fallbacks para outros portais
     var rows = Array.from(document.querySelectorAll('#tabResult tr'));
+    if (rows.length === 0) {
+      rows = Array.from(document.querySelectorAll('table.table tr, table.itens tr, #tabelaItens tr, .NFCe-item, .item-nfce'));
+    }
+    if (rows.length === 0) {
+      rows = Array.from(document.querySelectorAll('tbody tr'));
+    }
     var items = [];
 
     for (var i = 0; i < rows.length; i++) {
@@ -150,12 +157,13 @@ export const NFCE_SCRAPE_SCRIPT = `
     var startedAt = Date.now();
     var maxWaitMs = 12000;
 
-    // espera DOM ter sinais de que carregou
+    // espera DOM ter sinais de que carregou (seletores do portal antigo e novo)
     var checkInterval = setInterval(function() {
-      var hasStore = !!document.querySelector('#u20, .txtTopo');
-      var hasItems = !!document.querySelector('#tabResult');
-      var hasTotal = !!document.querySelector('#totalNota .txtMax');
-      if (hasStore || hasItems || hasTotal || Date.now() - startedAt >= maxWaitMs) {
+      var hasStore = !!document.querySelector('#u20, .txtTopo, .nomeEmit, #nomeEmit, .razaoSocial');
+      var hasItems = !!document.querySelector('#tabResult, table.table tbody tr, table.itens tr, #tabelaItens, tbody tr');
+      var hasTotal = !!document.querySelector('#totalNota, .totalNFitem, .valorTotal');
+      var hasBodyText = document.body && (document.body.innerText || '').length > 200;
+      if (hasStore || hasItems || hasTotal || hasBodyText || Date.now() - startedAt >= maxWaitMs) {
         clearInterval(checkInterval);
         doScrape();
       }
@@ -166,9 +174,28 @@ export const NFCE_SCRAPE_SCRIPT = `
     try {
       var pageText = (document.body && (document.body.innerText || document.body.textContent) || '').trim();
 
-      var storeName = pickText('#u20') || pickText('.txtTopo');
-      var totalText = pickText('#totalNota .txtMax');
+      var storeName = pickText('#u20') || pickText('.txtTopo') || pickText('.nomeEmit') || pickText('#nomeEmit') || pickText('.razaoSocial') || pickText('#razaoSocial');
+      var totalText = pickText('#totalNota .txtMax') || pickText('#totalNota') || pickText('.totalNFitem') || pickText('.valorTotal');
       var total = normalizeMoneyBR(totalText);
+
+      // Fallback: extrair total do texto da página ("Valor a pagar R$: 22,00")
+      if (total == null || total === 0) {
+        var pagarMatch = pageText.match(/Valor\\s+a\\s+pagar\\s+R\\$:\\s*([\\d.,]+)/i);
+        if (!pagarMatch) pagarMatch = pageText.match(/Valor\\s+Total(?:\\s+R\\$)?[:\\s]+([\\d.,]+)/i);
+        if (pagarMatch) total = normalizeMoneyBR(pagarMatch[1]);
+      }
+
+      // Fallback: extrair nome do estabelecimento pelo padrão LTDA/EIRELI/S.A./ME
+      if (!storeName) {
+        var bodyLines = pageText.split('\\n');
+        for (var li = 0; li < Math.min(bodyLines.length, 30); li++) {
+          var ln = bodyLines[li].trim();
+          if (ln.length > 5 && ln.length < 120 && /\\b(LTDA|EIRELI|S\\.?A\\.?|ME|EPP|MICROEMPRESA)\\b/i.test(ln)) {
+            storeName = ln;
+            break;
+          }
+        }
+      }
 
       var cnpj = findCNPJ(pageText);
       var emittedAt = findEmissao(pageText);
