@@ -34,13 +34,15 @@ export class ProductCategorizerService {
   private readonly fallbackCategoryId: number;
   private readonly persistence?: ProductCategorizerPersistence;
   private readonly learnedReclassifications = new Map<string, number>();
-  private readonly initializationPromise: Promise<void>;
+  private initializationPromise: Promise<void>;
+  private loadGeneration = 0;
 
   constructor(config: ProductCategorizerConfig) {
     this.rules = config.rules;
     this.fallbackCategoryId = config.fallbackCategoryId ?? DEFAULT_FALLBACK_CATEGORY_ID;
     this.persistence = config.persistence;
-    this.initializationPromise = this.loadPersistedReclassifications();
+    this.loadGeneration = 1;
+    this.initializationPromise = this.loadPersistedReclassifications(1);
   }
 
   async ready(): Promise<void> {
@@ -65,7 +67,10 @@ export class ProductCategorizerService {
 
   async reload(): Promise<void> {
     this.learnedReclassifications.clear();
-    await this.loadPersistedReclassifications();
+    this.loadGeneration += 1;
+    const myGeneration = this.loadGeneration;
+    this.initializationPromise = this.loadPersistedReclassifications(myGeneration);
+    await this.initializationPromise;
   }
 
   async learnReclassification(productName: string, categoryId: number): Promise<void> {
@@ -80,13 +85,16 @@ export class ProductCategorizerService {
     }
   }
 
-  private async loadPersistedReclassifications(): Promise<void> {
+  private async loadPersistedReclassifications(generation: number): Promise<void> {
     if (!this.persistence) {
       return;
     }
 
     try {
       const learnedEntries = await this.persistence.load();
+      if (generation !== this.loadGeneration) {
+        return;
+      }
       for (const entry of learnedEntries) {
         const normalized = normalizeProductName(entry.productName || '');
         if (!normalized) {

@@ -47,7 +47,6 @@ export interface Item {
 export interface Purchase {
   id: number;
   supermarket: Supermarket;
-  accessKey: string;
   date: string;
   totalPrice: number;
   isManual: boolean;

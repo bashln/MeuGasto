@@ -22,7 +22,7 @@ const getUnitCategory = (unit: string): UnitCategory | null => {
     return 'weight';
   }
 
-  if (normalizedUnit === 'l') {
+  if (normalizedUnit === 'l' || normalizedUnit === 'ml') {
     return 'volume';
   }
 
@@ -56,6 +56,10 @@ const normalizeQuantity = (item: Item): { quantity: number; standardUnit: Compar
     return { quantity: item.quantity, standardUnit: 'l' };
   }
 
+  if (unit === 'ml') {
+    return { quantity: item.quantity / 1000, standardUnit: 'l' };
+  }
+
   if (unit === 'un') {
     return { quantity: item.quantity, standardUnit: 'un' };
   }
@@ -66,6 +70,47 @@ const normalizeQuantity = (item: Item): { quantity: number; standardUnit: Compar
 export const calculateUnitPrice = (item: Item): number => {
   const { quantity } = normalizeQuantity(item);
   return item.price / quantity;
+};
+
+export const getStandardUnit = (unit: string): ComparableUnit | null => {
+  const normalized = unit.trim().toLowerCase();
+  if (normalized === 'kg' || normalized === 'g') {
+    return 'kg';
+  }
+  if (normalized === 'l' || normalized === 'ml') {
+    return 'l';
+  }
+  if (normalized === 'un') {
+    return 'un';
+  }
+  return null;
+};
+
+export const findCheapestItem = (items: Item[]): Item | null => {
+  const entries = items
+    .map((item) => {
+      try {
+        const category = getUnitCategory(item.unit);
+        if (!category) {
+          return null;
+        }
+        return { item, unitPrice: calculateUnitPrice(item), category };
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry): entry is { item: Item; unitPrice: number; category: UnitCategory } => entry !== null);
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const firstCategory = entries[0].category;
+  if (!entries.every((entry) => entry.category === firstCategory)) {
+    return null;
+  }
+
+  return entries.sort((a, b) => a.unitPrice - b.unitPrice)[0].item;
 };
 
 export const compareItems = (item1: Item, item2: Item): PriceComparisonResult => {

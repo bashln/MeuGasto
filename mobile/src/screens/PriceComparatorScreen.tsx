@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Header, ItemInputRow } from '../components';
 import { RootStackParamList } from '../navigation/types';
 import { Item } from '../types';
-import { calculateUnitPrice } from '../utils';
+import { findCheapestItem } from '../utils';
 import { colors } from '../theme/colors';
 
 type PriceComparatorScreenProps = {
@@ -44,20 +44,7 @@ export const PriceComparatorScreen: React.FC<PriceComparatorScreenProps> = ({ na
     setItems([]);
   };
 
-  const cheapestItemId = useMemo(() => {
-    const sortableItems = items
-      .map((item) => {
-        try {
-          return { id: item.id, unitPrice: calculateUnitPrice(item) };
-        } catch {
-          return null;
-        }
-      })
-      .filter((entry): entry is { id: number; unitPrice: number } => entry !== null)
-      .sort((a, b) => a.unitPrice - b.unitPrice);
-
-    return sortableItems[0]?.id;
-  }, [items]);
+  const cheapestItemId = useMemo(() => findCheapestItem(items)?.id, [items]);
 
   return (
     <View style={styles.container}>

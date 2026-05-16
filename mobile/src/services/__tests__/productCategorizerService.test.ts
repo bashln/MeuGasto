@@ -109,6 +109,64 @@ describe('ProductCategorizerService', () => {
     });
   });
 
+  it('ready() apos reload aguarda novo load completar', async () => {
+    let resolveSecondLoad: (entries: { productName: string; categoryId: number }[]) => void = () => {};
+    const load = jest.fn()
+      .mockResolvedValueOnce([])
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecondLoad = resolve; }));
+
+    const svc = new ProductCategorizerService({
+      rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+      fallbackCategoryId: CATEGORY_IDS.OUTROS,
+      persistence: { load, save: jest.fn().mockResolvedValue(undefined) },
+    });
+
+    await svc.ready();
+    void svc.reload();
+
+    let readyResolved = false;
+    const readyPromise = svc.ready().then(() => { readyResolved = true; });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(readyResolved).toBe(false);
+
+    resolveSecondLoad([{ productName: 'cabo usb-c 2m', categoryId: CATEGORY_IDS.HIGIENE }]);
+    await readyPromise;
+    expect(readyResolved).toBe(true);
+    expect(svc.categorizeProduct('Cabo USB-C 2m')).toBe(CATEGORY_IDS.HIGIENE);
+  });
+
+  it('reloads concorrentes nao poluem o mapa com dados antigos', async () => {
+    let resolveFirstReload: (entries: { productName: string; categoryId: number }[]) => void = () => {};
+    let resolveSecondReload: (entries: { productName: string; categoryId: number }[]) => void = () => {};
+    const load = jest.fn()
+      .mockResolvedValueOnce([])
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveFirstReload = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSecondReload = resolve; }));
+
+    const svc = new ProductCategorizerService({
+      rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+      fallbackCategoryId: CATEGORY_IDS.OUTROS,
+      persistence: { load, save: jest.fn().mockResolvedValue(undefined) },
+    });
+
+    await svc.ready();
+
+    const reload1 = svc.reload();
+    const reload2 = svc.reload();
+
+    resolveSecondReload([{ productName: 'item novo', categoryId: CATEGORY_IDS.LATICINIOS }]);
+    await reload2;
+
+    expect(svc.categorizeProduct('item novo')).toBe(CATEGORY_IDS.LATICINIOS);
+
+    resolveFirstReload([{ productName: 'item antigo do user anterior', categoryId: CATEGORY_IDS.LIMPEZA }]);
+    await reload1;
+
+    expect(svc.categorizeProduct('item antigo do user anterior')).toBe(CATEGORY_IDS.OUTROS);
+    expect(svc.categorizeProduct('item novo')).toBe(CATEGORY_IDS.LATICINIOS);
+  });
+
   it('reload limpa reclassificacoes aprendidas e recarrega da persistencia', async () => {
     // "Cabo USB-C 2m" nao esta nas regras estaticas → retorna OUTROS por padrao
     const load = jest.fn()

@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text as RNText, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Item } from '../types';
-import { calculateUnitPrice, formatMoney, ITEM_UNIT_OPTIONS } from '../utils';
+import { calculateUnitPrice, formatMoney, getStandardUnit, ITEM_UNIT_OPTIONS } from '../utils';
 import { colors } from '../theme/colors';
 
 type ItemInputRowProps = {
@@ -28,8 +28,8 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdat
 
   try {
     const unitPrice = calculateUnitPrice(item);
-    const normalizedUnit = item.unit.trim().toLowerCase() || 'un';
-    unitPriceLabel = `Preço por unidade: ${formatMoney(unitPrice)}/${normalizedUnit}`;
+    const standardUnit = getStandardUnit(item.unit) ?? 'un';
+    unitPriceLabel = `Preço por unidade: ${formatMoney(unitPrice)}/${standardUnit}`;
   } catch {
     unitPriceLabel = 'Preço por unidade: inválido';
   }
