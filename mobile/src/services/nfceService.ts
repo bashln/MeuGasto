@@ -135,7 +135,7 @@ const STATE_URLS: Record<string, string> = {
   '35': 'https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx', // SP
   '41': 'https://www.fazenda.pr.gov.br/nfce/qrcode', // PR
   '42': 'https://sat.sef.sc.gov.br/nfce/consulta', // SC
-  '43': 'https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx', // RS
+  '43': 'https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce', // RS (migrado do sefaz.rs.gov.br em 2026)
   '50': 'https://www.dfe.ms.gov.br/nfce/qrcode', // MS
   '51': 'https://www.sefaz.mt.gov.br/nfce/consultanfce', // MT
   '52': 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/danfeNFCe', // GO
@@ -163,9 +163,15 @@ export const buildNFCeUrl = (input: string): string => {
   return `${baseUrl}?p=${pParam}`;
 };
 
+// Hosts legados (domínios que foram substituídos mas ainda podem aparecer em redirects)
+const NFCE_LEGACY_HOSTS = new Set<string>([
+  'www.sefaz.rs.gov.br', // RS: migrado para dfe-portal.svrs.rs.gov.br em 2026
+]);
+
 // Derive allowed hosts and path prefixes from STATE_URLS (single source of truth)
 export const NFCE_ALLOWED_HOSTS = new Set<string>([
   ...Object.values(STATE_URLS).map(url => new URL(url).hostname),
+  ...NFCE_LEGACY_HOSTS,
 ]);
 
 export const NFCE_ALLOWED_PATH_PREFIXES: Record<string, string[]> = Object.values(STATE_URLS).reduce(

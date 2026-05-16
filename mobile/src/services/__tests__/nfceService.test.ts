@@ -59,7 +59,7 @@ describe('nfceService URL and allowlist', () => {
 
   it('preserva payload completo para estado 43 (RS)', () => {
     const url = buildNFCeUrl('43180611111111111111111111111111111111111111|2|1|1|HASH');
-    expect(url).toContain('sefaz.rs.gov.br/NFCE/NFCE-COM.aspx');
+    expect(url).toContain('dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce');
     expect(url).toContain('43180611111111111111111111111111111111111111|2|1|1|HASH');
   });
 
