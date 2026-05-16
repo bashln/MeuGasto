@@ -41,7 +41,7 @@ describe('useUpdateCheck', () => {
       TestRenderer.create(<HookHarness onRender={(value) => snapshots.push(value)} />);
     });
 
-    expect(mockUpdateService.checkForUpdate).toHaveBeenCalledWith('0.3.0.62');
+    expect(mockUpdateService.checkForUpdate).toHaveBeenCalledWith('0.3.1.0');
     expect(snapshots[snapshots.length - 1].updateInfo?.latestVersion).toBe('1.4.0');
   });
 
