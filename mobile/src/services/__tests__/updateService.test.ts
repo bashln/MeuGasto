@@ -126,6 +126,24 @@ describe('updateService', () => {
       expect(result?.latestVersion).toBe('1.3.0');
     });
 
+    it('detects mandatory update with 4-segment minVersion (BUILD)', async () => {
+      mockGetItemAsync.mockResolvedValue(null);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ...mockRelease,
+          tag_name: 'v0.3.0.62',
+          body: 'minVersion: 0.3.0.62\n\n## Novidades\n- Build bump obrigatório',
+        }),
+      });
+
+      const result = await updateService.checkForUpdate('0.3.0.61');
+      expect(result).not.toBeNull();
+      expect(result?.latestVersion).toBe('0.3.0.62');
+      expect(result?.isMandatory).toBe(true);
+    });
+
     it('marks update as optional when no minVersion specified', async () => {
       mockGetItemAsync.mockResolvedValue(null);
 

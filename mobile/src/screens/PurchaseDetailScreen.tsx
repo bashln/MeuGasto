@@ -277,12 +277,6 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
             </Text>
           </View>
 
-          {purchase.accessKey && (
-            <View style={styles.detailRow}>
-              <Text variant="bodyMedium" style={{ color: colors.mutedText }}>Chave de Acesso</Text>
-              <Text variant="bodySmall" numberOfLines={2}>{purchase.accessKey}</Text>
-            </View>
-          )}
         </Surface>
 
         <View style={styles.sectionHeader}>

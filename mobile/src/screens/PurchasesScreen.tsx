@@ -95,10 +95,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
 
   const filteredPurchases = (purchases || []).filter((purchase) => {
     if (!searchQuery) return true;
-    return (
-      purchase.supermarket?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      purchase.accessKey?.includes(searchQuery)
-    );
+    return purchase.supermarket?.name?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const totalPurchases = metrics.totalCount;
