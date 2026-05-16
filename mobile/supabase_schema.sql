@@ -68,11 +68,14 @@ CREATE TABLE IF NOT EXISTS items (
   purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   code TEXT,
+  category_id INTEGER,
   quantity DECIMAL(10,3) DEFAULT 1,
   unit TEXT,
   price DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE items ADD COLUMN IF NOT EXISTS category_id INTEGER;
 
 ALTER TABLE items DROP CONSTRAINT IF EXISTS items_name_length_check;
 ALTER TABLE items ADD CONSTRAINT items_name_length_check
@@ -336,6 +339,7 @@ DECLARE
   v_name TEXT;
   v_code TEXT;
   v_unit TEXT;
+  v_category_id INTEGER;
   v_quantity NUMERIC;
   v_price NUMERIC;
   v_line_total NUMERIC;
@@ -454,10 +458,18 @@ BEGIN
   IF v_item_count > 0 THEN
     FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
     LOOP
+      BEGIN
+        v_category_id := NULLIF(v_item->>'category_id', '')::INTEGER;
+      EXCEPTION
+        WHEN invalid_text_representation THEN
+          v_category_id := NULL;
+      END;
+
       INSERT INTO items (
         purchase_id,
         name,
         code,
+        category_id,
         quantity,
         unit,
         price
@@ -466,6 +478,7 @@ BEGIN
         v_purchase_id,
         btrim(v_item->>'name'),
         NULLIF(btrim(COALESCE(v_item->>'code', '')), ''),
+        v_category_id,
         COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1),
         NULLIF(btrim(COALESCE(v_item->>'unit', '')), ''),
         COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0)

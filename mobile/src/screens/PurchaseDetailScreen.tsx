@@ -277,12 +277,6 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
             </Text>
           </View>
 
-          {purchase.accessKey && (
-            <View style={styles.detailRow}>
-              <Text variant="bodyMedium" style={{ color: colors.mutedText }}>Chave de Acesso</Text>
-              <Text variant="bodySmall" numberOfLines={2}>{purchase.accessKey}</Text>
-            </View>
-          )}
         </Surface>
 
         <View style={styles.sectionHeader}>
@@ -307,7 +301,6 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                 <TouchableOpacity
                   style={styles.itemRow}
                   onPress={purchase.isManual ? () => openItemEditModal(item) : undefined}
-                  disabled={!purchase.isManual}
                   activeOpacity={purchase.isManual ? 0.7 : 1}
                 >
                   <View style={styles.itemInfo}>
@@ -326,16 +319,14 @@ export const PurchaseDetailScreen: React.FC<PurchaseDetailScreenProps> = ({ navi
                           </Text>
                         </>
                       )}
-                      {purchase.isManual && (
-                        <>
-                          <Text variant="bodySmall" style={styles.dotSeparator}>·</Text>
-                          <TouchableOpacity onPress={() => openReclassificationModal(item)}>
-                            <Text variant="bodySmall" style={styles.reclassifyLink}>
-                              Classificar
-                            </Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
+                      <>
+                        <Text variant="bodySmall" style={styles.dotSeparator}>·</Text>
+                        <TouchableOpacity onPress={() => openReclassificationModal(item)}>
+                          <Text variant="bodySmall" style={styles.reclassifyLink}>
+                            Classificar
+                          </Text>
+                        </TouchableOpacity>
+                      </>
                     </View>
                   </View>
 

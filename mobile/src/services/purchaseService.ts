@@ -46,15 +46,23 @@ const recalculateItemsTotal = (items: Array<{ quantity: number | string; price: 
 const mapPurchaseItems = (items: unknown): Purchase['products'] => {
   const safeItems = Array.isArray(items) ? items : [];
 
-  return safeItems.map((item: PurchaseItemRow) => ({
-    id: item.id,
-    name: item.name,
-    code: item.code,
-    categoryId: item.category_id,
-    quantity: Number(item.quantity) || 1,
-    unit: item.unit,
-    price: Number(item.price) || 0,
-  }));
+  return safeItems.map((item: PurchaseItemRow) => {
+    const persisted = item.category_id;
+    const categoryId =
+      persisted !== undefined && persisted !== null
+        ? persisted
+        : productCategorizer.categorizeProduct(item.name);
+
+    return {
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      categoryId,
+      quantity: Number(item.quantity) || 1,
+      unit: item.unit,
+      price: Number(item.price) || 0,
+    };
+  });
 };
 
 const productCategorizer = new ProductCategorizerService({
@@ -179,7 +187,6 @@ export const purchaseService = {
       return {
         id: purchase.id,
         supermarket: purchase.supermarket,
-        accessKey: purchase.access_key_hash,
         date: purchase.date,
         totalPrice: parseFloat(purchase.total_price) || 0,
         isManual: purchase.manual,
@@ -234,7 +241,6 @@ export const purchaseService = {
     return {
       id: purchase.id,
       supermarket: purchase.supermarket,
-      accessKey: purchase.access_key_hash,
       date: purchase.date,
       totalPrice: parseFloat(purchase.total_price) || 0,
       isManual: purchase.manual,
@@ -477,3 +483,5 @@ export const purchaseService = {
     return this.getPurchaseById(purchaseId);
   },
 };
+
+export const resetProductCategorizer = (): Promise<void> => productCategorizer.reload();

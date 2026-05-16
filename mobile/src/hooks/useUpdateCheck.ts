@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { updateService, UpdateInfo } from '../services/updateService';
 
-const APP_VERSION = '0.3.62'; // Should match app.json version
+const APP_VERSION = '0.3.1.1'; // Should match app.json version
 
 interface UseUpdateCheckResult {
   updateInfo: UpdateInfo | null;

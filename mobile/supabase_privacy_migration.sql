@@ -15,6 +15,9 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Adiciona categoria de produto aos itens
+ALTER TABLE items ADD COLUMN IF NOT EXISTS category_id INTEGER;
+
 -- Adiciona coluna hash ao lado da coluna atual
 ALTER TABLE purchases ADD COLUMN IF NOT EXISTS access_key_hash TEXT;
 
@@ -59,6 +62,7 @@ DECLARE
   v_name TEXT;
   v_code TEXT;
   v_unit TEXT;
+  v_category_id INTEGER;
   v_quantity NUMERIC;
   v_price NUMERIC;
   v_line_total NUMERIC;
@@ -203,10 +207,18 @@ BEGIN
   IF v_item_count > 0 THEN
     FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
     LOOP
+      BEGIN
+        v_category_id := NULLIF(v_item->>'category_id', '')::INTEGER;
+      EXCEPTION
+        WHEN invalid_text_representation THEN
+          v_category_id := NULL;
+      END;
+
       INSERT INTO items (
         purchase_id,
         name,
         code,
+        category_id,
         quantity,
         unit,
         price
@@ -215,6 +227,7 @@ BEGIN
         v_purchase_id,
         btrim(v_item->>'name'),
         NULLIF(btrim(COALESCE(v_item->>'code', '')), ''),
+        v_category_id,
         COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1),
         NULLIF(btrim(COALESCE(v_item->>'unit', '')), ''),
         COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0)

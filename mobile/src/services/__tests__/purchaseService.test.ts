@@ -82,6 +82,33 @@ describe('purchaseService', () => {
     await expect(purchaseService.getPurchaseById(999)).rejects.toThrow('Compra não encontrada');
   });
 
+  it('aplica fallback de categorizacao quando category_id vem nulo do banco', async () => {
+    const chain = makeChain({
+      data: {
+        id: 42,
+        supermarket: null,
+        date: '2026-02-03',
+        total_price: '10.00',
+        manual: false,
+        items: [
+          { id: 1, name: 'Detergente Neutro', category_id: null, quantity: '1', unit: 'UN', price: '5' },
+          { id: 2, name: 'Refrigerante Cola 2L', category_id: undefined, quantity: '1', unit: 'UN', price: '5' },
+          { id: 3, name: 'Item pre-existente', category_id: 7, quantity: '1', unit: 'UN', price: '0' },
+        ],
+        created_at: '2026-02-03T00:00:00.000Z',
+        updated_at: '2026-02-03T00:00:00.000Z',
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(chain);
+
+    const purchase = await purchaseService.getPurchaseById(42);
+
+    expect(purchase.products[0].categoryId).toEqual(expect.any(Number));
+    expect(purchase.products[1].categoryId).toEqual(expect.any(Number));
+    expect(purchase.products[2].categoryId).toBe(7);
+  });
+
   it('inclui category_id nos itens ao criar compra manual', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
 
