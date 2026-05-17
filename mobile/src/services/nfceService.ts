@@ -377,3 +377,5 @@ export const nfceService = {
     };
   },
 };
+
+export const resetNFCeProductCategorizer = (): Promise<void> => productCategorizer.reload();

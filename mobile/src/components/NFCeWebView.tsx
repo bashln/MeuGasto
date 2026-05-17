@@ -42,7 +42,7 @@ export const shouldAllowNfceNavigationRequest = (request: WebViewNavigationReque
 
   // Só validamos com rigor a navegação principal.
   // Recursos internos (scripts/css/iframes) podem usar urls auxiliares e não devem acionar bloqueio.
-  if (request.isTopFrame !== true) {
+  if (request.isTopFrame === false) {
     return true;
   }
 
