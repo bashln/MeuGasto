@@ -11,6 +11,9 @@ on:
       - 'mobile/app.json'
       - 'mobile/package.json'
 
+permissions:
+  contents: read
+
 jobs:
   update:
     runs-on: ubuntu-latest

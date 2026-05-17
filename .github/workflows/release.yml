@@ -150,8 +150,14 @@ jobs:
       - name: Create Release
         run: |
           VERSION_NAME="${GITHUB_REF_NAME#v}"
-          gh release create "${{ github.ref_name }}" \
-            --generate-notes \
-            "mobile/android/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
+          ASSET_PATH="mobile/android/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
+          TAG_NAME="${{ github.ref_name }}"
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Release $TAG_NAME already exists — uploading asset"
+            gh release upload "$TAG_NAME" "$ASSET_PATH" --clobber
+          else
+            echo "Creating release $TAG_NAME with asset"
+            gh release create "$TAG_NAME" --generate-notes "$ASSET_PATH"
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

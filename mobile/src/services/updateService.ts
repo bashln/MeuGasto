@@ -60,7 +60,7 @@ export const compareVersions = (a: string, b: string): number => {
  */
 const extractMinVersion = (body: string | null): string | null => {
   if (!body) return null;
-  const match = body.match(/^minVersion:\s*(\d+\.\d+\.\d+)/m);
+  const match = body.match(/^minVersion:\s*(\d+\.\d+\.\d+(?:\.\d+)?)/m);
   return match ? match[1] : null;
 };
 

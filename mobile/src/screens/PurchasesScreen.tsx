@@ -95,10 +95,7 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
 
   const filteredPurchases = (purchases || []).filter((purchase) => {
     if (!searchQuery) return true;
-    return (
-      purchase.supermarket?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      purchase.accessKey?.includes(searchQuery)
-    );
+    return purchase.supermarket?.name?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const totalPurchases = metrics.totalCount;
@@ -163,7 +160,9 @@ export const PurchasesScreen: React.FC<PurchasesScreenProps> = ({ navigation }) 
           <RNText style={styles.metricValue}>{formatMoney(averageTicket)}</RNText>
         </View>
       </View>
-      <RNText style={styles.metricsScopeLabel}>Totais de todas as compras</RNText>
+      <RNText style={styles.metricsScopeLabel}>
+        {filterType === 'nfce' ? 'Totais das compras NFC-e' : filterType === 'manual' ? 'Totais das compras manuais' : 'Totais de todas as compras'}
+      </RNText>
 
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedText} style={{ marginRight: 10 }} />
