@@ -13,7 +13,6 @@ type HttpImportResult =
 const decodeHtmlEntities = (value: string): string => {
   return value
     .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&ccedil;/gi, 'ç')
@@ -24,7 +23,8 @@ const decodeHtmlEntities = (value: string): string => {
     .replace(/&ocirc;/gi, 'ô')
     .replace(/&uuml;/gi, 'ü')
     .replace(/&Atilde;/g, 'Ã')
-    .replace(/&Ccedil;/g, 'Ç');
+    .replace(/&Ccedil;/g, 'Ç')
+    .replace(/&amp;/gi, '&');
 };
 
 const stripTags = (value: string): string =>
