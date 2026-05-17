@@ -66,12 +66,17 @@ cd android
   -PMEUGASTO_KEY_ALIAS="$MEUGASTO_KEY_ALIAS" \
   -PMEUGASTO_KEY_PASSWORD="$MEUGASTO_KEY_PASSWORD"
 
-# ── Report APK location ───────────────────────────────────────────────────────
+# ── Package APK with release name ─────────────────────────────────────────────
+APP_VERSION="$(node -p "require('../app.json').expo.version")"
+RELEASE_APK_NAME="meugastov${APP_VERSION}.apk"
 APK_PATH="app/build/outputs/apk/release/app-release.apk"
+RELEASE_APK_PATH="app/build/outputs/apk/release/${RELEASE_APK_NAME}"
 if [[ -f "$APK_PATH" ]]; then
+  cp "$APK_PATH" "$RELEASE_APK_PATH"
   echo ""
   echo "Build complete."
   echo "APK: $(pwd)/$APK_PATH"
+  echo "Release APK: $(pwd)/$RELEASE_APK_PATH"
 else
   echo "ERROR: APK not found at $(pwd)/$APK_PATH"
   exit 1

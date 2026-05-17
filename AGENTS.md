@@ -91,8 +91,42 @@ Formato: `vMAJOR.MINOR.PATCH.BUILD`
 ## Distribution model
 
 - Android: signed APK via GitHub Releases (tag `v*` triggers `release.yml`)
-- OTA updates: EAS Update via `ota-update.yml` (dev → preview channel, main → production channel)
+- GitHub Releases assets must always use the pattern `meugastovX.X.X.XX.apk` for the app binary
+- OTA updates: EAS Update via `ota-update.yml` (testing branch → preview channel, main branch → production channel)
 - No Google Play, no TestFlight
+
+## OTA Architecture
+
+The app uses two independent OTA mechanisms. Both must stay in sync.
+
+### Mechanism 1 — EAS Updates (silent JS-only updates)
+
+Handles hot-patching the JS bundle without reinstalling the APK. Applied on the **next app launch** after download (fallbackToCacheTimeout: 0).
+
+**Channel configuration is critical.** The installed APK must declare which EAS channel to subscribe to. This is set via `requestHeaders` in `app.json`:
+
+```json
+"updates": {
+  "requestHeaders": { "expo-channel-name": "production" }
+}
+```
+
+**Rules:**
+- Never remove or change `updates.requestHeaders` without rebuilding and redistributing a new APK — existing installs will silently stop receiving OTA updates
+- Channel `production` is for the APK distributed to users (built from `main` / `v*` tags)
+- Channel `preview` is for testing builds (branch `testing`)
+- The `runtimeVersion` in `app.json` must match between the published OTA bundle and the installed APK — mismatches cause silent update failures
+- EAS Updates can only patch JS/assets — any change to native code, permissions, or `app.json` plugins requires a new APK release
+
+### Mechanism 2 — GitHub Release Notification (APK update dialog)
+
+Polls `https://api.github.com/repos/bashln/MeuGasto/releases/latest` to detect new APK releases and show a download dialog.
+
+**Rules:**
+- Release tags on GitHub **must always follow `vX.Y.Z.W` format** — non-semver tags (e.g. `testing`, `latest`, branch names) are ignored by the version checker but can corrupt the "Latest" marker on GitHub, causing the API to return a garbage version string to all users
+- Never manually push non-`v*` tags to GitHub or mark a non-versioned release as "Latest"
+- The `testing` named release (if it exists) must be deleted or converted to a draft/pre-release — it breaks the latest release API for all users
+- Check interval is 24h — this is intentional to avoid rate-limiting the GitHub API
 
 ## Progresso de implementação de notas fiscais
 

@@ -54,6 +54,8 @@ export const compareVersions = (a: string, b: string): number => {
   return 0;
 };
 
+const isValidVersion = (version: string): boolean => /^\d+(\.\d+)+$/.test(version);
+
 /**
  * Extract minVersion from release body
  * Looks for pattern: minVersion: 1.2.3
@@ -138,11 +140,17 @@ export const updateService = {
       }
 
       const release: GitHubRelease = await response.json();
-      
+
       // Extract version from tag (remove 'v' prefix if present)
       const latestVersion = release.tag_name.replace(/^v/, '');
-      
-      // Cache the latest version
+
+      // Ignore non-semver tags (e.g. "testing", "latest", branch names)
+      if (!isValidVersion(latestVersion)) {
+        logUpdateError('[Update] Skipping non-semver release tag', release.tag_name);
+        return null;
+      }
+
+      // Cache the latest version only after validation
       await SecureStore.setItemAsync(LATEST_VERSION_KEY, latestVersion);
       await updateLastChecked();
 
