@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import * as SplashScreen from 'expo-splash-screen';
 import { authService } from '../services/authService';
 import { onboardingService } from '../services/onboardingService';
+import { resetProductCategorizer } from '../services/purchaseService';
+import { resetNFCeProductCategorizer } from '../services/nfceService';
 import { AuthUser } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 
@@ -145,6 +147,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     const response = await authService.login({ email, password });
     setUser(response.user);
+    void resetProductCategorizer();
+    void resetNFCeProductCategorizer();
   };
 
   const register = async (email: string, password: string, name: string) => {
@@ -161,6 +165,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await authService.logout();
     } finally {
       setUser(null);
+      void resetProductCategorizer();
+      void resetNFCeProductCategorizer();
     }
   };
 

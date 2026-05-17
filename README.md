@@ -21,6 +21,13 @@ Os APKs são gerados automaticamente via GitHub Actions a cada nova tag de vers�
 
 ```
 .
+├── docs/                      # Documentação do projeto
+│   ├── index.md               # Índice da documentação
+│   ├── architecture/
+│   ├── audits/
+│   ├── status/
+│   ├── process/
+│   └── ai/
 ├── mobile/                    # Aplicativo Expo
 │   ├── src/
 │   │   ├── components/        # Componentes reutilizáveis

@@ -4,6 +4,7 @@ import {
   TextInput,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context';
 import { colors } from '../theme/colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,6 +21,7 @@ const BENEFITS = [
 ];
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { register } = useAuth();
 
   const [name, setName] = useState('');
@@ -27,6 +29,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -77,7 +80,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { top: insets.top + 8 }]}
           onPress={() => navigation.goBack()}
         >
           <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primary} />
@@ -159,11 +162,17 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               mode="outlined"
-              secureTextEntry={!showPassword}
+              secureTextEntry={!showConfirmPassword}
               style={styles.input}
               placeholder="••••••••"
               outlineColor={colors.border}
               activeOutlineColor={colors.primary}
+              right={
+                <TextInput.Icon
+                  icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                />
+              }
             />
           </View>
 
@@ -213,7 +222,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 16,
     left: 16,
     zIndex: 10,
     padding: 8,

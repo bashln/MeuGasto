@@ -1,72 +1,112 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text as RNText, Alert, Share, Modal, FlatList, RefreshControl } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text as RNText,
+  Alert,
+  Share,
+  Modal,
+  FlatList,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useReports } from '../hooks/useReports';
+import { useReports, PeriodMode, CategoryWithDelta } from '../hooks/useReports';
 import { formatMoney, getMonthName } from '../utils';
-import { Header, Loading, ErrorMessage } from '../components';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Loading, ErrorMessage, MonthYearPicker } from '../components';
 import { toCsvRow } from '../lib/csvSecurity';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 
-const currentYear = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
-const EMPTY_ITEM_REPORT = {
-  totalQuantity: 0,
-  totalSpent: 0,
-  averagePrice: 0,
-  purchaseCount: 0,
-  bySupermarket: [] as Array<{ supermarket: string; averagePrice: number; totalQuantity: number; totalSpent: number }>,
+// ↑ vermelho = gastou mais (ruim), ↓ verde = gastou menos (bom)
+const DeltaBadge: React.FC<{ delta: number | null }> = ({ delta }) => {
+  if (delta === null || delta === undefined) return null;
+  const rounded = Math.round(Math.abs(delta));
+  if (rounded === 0) return null;
+  const isUp = delta > 0;
+  return (
+    <View style={isUp ? styles.badgeUp : styles.badgeDown}>
+      <RNText style={styles.badgeText}>{isUp ? '↑' : '↓'} {rounded}%</RNText>
+    </View>
+  );
 };
 
 export const ReportsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {
     isLoading,
     error,
-    reportType,
+    periodMode,
+    selectedMonth,
     selectedYear,
-    selectedItem,
-    monthlyData,
+    heroValue,
+    prevHeroValue,
+    sparklineData,
+    categoryData,
     supermarketData,
     topItems,
     itemReport,
-    setReportType,
+    selectedItem,
+    setPeriodMode,
+    setSelectedMonth,
     setSelectedYear,
     setSelectedItem,
+    loadItemReport,
     refresh,
   } = useReports();
 
-  // TODO(vNext): reativar filtro de periodo de analise com opcoes dinamicas.
-  const selectedMarket = 'Todos';
-  const sortBy = 'Preço';
-  const [itemPickerVisible, setItemPickerVisible] = useState(false);
+  const [monthPickerVisible, setMonthPickerVisible] = useState(false);
+  const [yearPickerVisible, setYearPickerVisible] = useState(false);
+  const [itemDetailVisible, setItemDetailVisible] = useState(false);
+  const [itemDetailLoading, setItemDetailLoading] = useState(false);
+
+  // Rótulos de período
+  const periodLabel = periodMode === 'month'
+    ? `${getMonthName(selectedMonth)} ${selectedYear}`
+    : String(selectedYear);
+
+  const prevPeriodLabel = periodMode === 'month'
+    ? selectedMonth === 1
+      ? `Dezembro ${selectedYear - 1}`
+      : getMonthName(selectedMonth - 1)
+    : String(selectedYear - 1);
+
+  // Delta do hero
+  const heroDelta = prevHeroValue > 0
+    ? ((heroValue - prevHeroValue) / prevHeroValue) * 100
+    : null;
+
+  const handlePeriodPickerPress = () => {
+    if (periodMode === 'month') setMonthPickerVisible(true);
+    else setYearPickerVisible(true);
+  };
+
+  const handleTopItemPress = async (itemName: string) => {
+    setSelectedItem(itemName);
+    setItemDetailVisible(true);
+    setItemDetailLoading(true);
+    await loadItemReport(itemName);
+    setItemDetailLoading(false);
+  };
 
   const handleExportCSV = async () => {
-    let csvString = '';
-
-    if (reportType === 'geral') {
-      csvString = [
-        toCsvRow(['Mes', 'Total']),
-        ...monthlyData.map(m => toCsvRow([getMonthName(m.month), m.total.toFixed(2)])),
-      ].join('\n');
-    } else if (reportType === 'itens') {
-      const itemReportData = itemReport || EMPTY_ITEM_REPORT;
-      csvString = [
-        toCsvRow(['Supermercado', 'Preco Medio', 'Qtd Total', 'Total Gasto']),
-        ...itemReportData.bySupermarket.map(row =>
-          toCsvRow([
-            row.supermarket,
-            row.averagePrice.toFixed(2),
-            row.totalQuantity,
-            row.totalSpent.toFixed(2),
-          ])
-        ),
-      ].join('\n');
-    } else if (reportType === 'mercados') {
-      csvString = [
-        toCsvRow(['Supermercado', 'Total']),
-        ...supermarketData.map(s => toCsvRow([s.supermarket, s.total.toFixed(2)])),
-      ].join('\n');
-    }
+    const csvString = periodMode === 'month'
+      ? [
+          toCsvRow(['Categoria', 'Total', 'Percentual']),
+          ...categoryData.map(c => toCsvRow([c.category, c.total.toFixed(2), `${c.percentage.toFixed(1)}%`])),
+        ].join('\n')
+      : [
+          toCsvRow(['Mes', 'Total']),
+          ...sparklineData.map(m => toCsvRow([getMonthName(m.month), m.total.toFixed(2)])),
+        ].join('\n');
 
     try {
       await Share.share({ message: csvString, title: 'relatorio.csv' });
@@ -75,432 +115,337 @@ export const ReportsScreen: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return <Loading fullScreen />;
-  }
-
-  if (error) {
-    return <ErrorMessage message={error} onRetry={refresh} />;
-  }
-
-  // Métricas calculadas
-  const currentMonth = new Date().getMonth() + 1;
-  const currentMonthData = monthlyData.find(m => m.month === currentMonth);
-  const currentMonthValue = currentMonthData?.total || 0;
-
-  const last6Months = monthlyData.slice(-6);
-  const last6MonthsTotal = last6Months.reduce((sum, m) => sum + m.total, 0);
-
-  const totalItems = topItems.reduce((sum, item) => sum + item.quantity, 0);
-
-  const itemReportData = itemReport || EMPTY_ITEM_REPORT;
-
+  // Dados do modal de item
+  const itemReportData = itemReport ?? {
+    totalQuantity: 0,
+    totalSpent: 0,
+    averagePrice: 0,
+    purchaseCount: 0,
+    bySupermarket: [] as Array<{ supermarket: string; averagePrice: number; totalQuantity: number; totalSpent: number }>,
+  };
   const hasItemData = itemReportData.totalQuantity > 0;
-  const comparisonPrices = itemReportData.bySupermarket
-    .map(row => row.averagePrice)
-    .filter(price => price > 0);
+  const comparisonPrices = itemReportData.bySupermarket.map(r => r.averagePrice).filter(p => p > 0);
   const minPrice = comparisonPrices.length > 0 ? Math.min(...comparisonPrices) : 0;
   const maxPrice = comparisonPrices.length > 0 ? Math.max(...comparisonPrices) : 0;
 
-  // Dados do gráfico (simplificado)
-  const chartData = monthlyData.map(m => ({
-    month: getMonthName(m.month).substring(0, 3),
-    value: m.total
-  }));
+  // Dimensões calculadas para os gráficos
+  const maxSparkline = Math.max(...sparklineData.map(d => d.total), 1);
+  const maxCategoryTotal = categoryData.length > 0 ? Math.max(...categoryData.map(c => c.total)) : 1;
+  const sortedMarkets = [...supermarketData].sort((a, b) => b.total - a.total);
+  const maxMarketTotal = sortedMarkets.length > 0 ? sortedMarkets[0].total : 1;
 
-  const renderGeralView = () => (
-    <>
-      {/* Métricas */}
-      <View style={styles.metricsContainer}>
-        <View style={[styles.metricCard, styles.metricPurple]}>
-          <RNText style={styles.metricLabel}>Gasto este mês</RNText>
-          <RNText style={styles.metricValue}>{formatMoney(currentMonthValue)}</RNText>
-        </View>
-        <View style={[styles.metricCard, styles.metricGreen]}>
-          <RNText style={styles.metricLabel}>Total 6 meses</RNText>
-          <RNText style={styles.metricValue}>{formatMoney(last6MonthsTotal)}</RNText>
-        </View>
-        <View style={[styles.metricCard, styles.metricBlue]}>
-          <RNText style={styles.metricLabel}>Itens analisados</RNText>
-          <RNText style={styles.metricValue}>{totalItems}</RNText>
-        </View>
-      </View>
+  const isEmpty = !isLoading && heroValue === 0 && categoryData.length === 0 && topItems.length === 0;
 
-      {/* Gráfico Simplificado */}
-      <View style={styles.chartCard}>
-        <RNText style={styles.chartTitle}>Evolução de Gastos</RNText>
-        <View style={styles.chartArea}>
-          {(() => {
-            const maxChartValue = Math.max(...chartData.map(d => d.value)) || 1;
-            return chartData.map((item, index) => (
-            <View key={index} style={styles.chartBarContainer}>
-              <View style={styles.chartBarWrapper}>
-                <View
-                  style={[
-                    styles.chartBar,
-                    { height: `${Math.min((item.value / maxChartValue) * 100, 100)}%` }
-                  ]}
-                />
-              </View>
-              <RNText style={styles.chartLabel}>{item.month}</RNText>
-            </View>
-          ));
-          })()}
-        </View>
-      </View>
-
-      {/* Resumo do Pedido */}
-      <View style={styles.summaryCard}>
-        <RNText style={styles.summaryTitle}>Resumo do Período</RNText>
-
-        <View style={styles.summaryRow}>
-          <RNText style={styles.summaryLabel}>Maior gasto</RNText>
-          <RNText style={styles.summaryValue}>
-            {formatMoney(Math.max(...monthlyData.map(m => m.total), 0))}
-          </RNText>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <RNText style={styles.summaryLabel}>Menor gasto</RNText>
-          <RNText style={styles.summaryValue}>
-            {formatMoney(Math.min(...monthlyData.filter(m => m.total > 0).map(m => m.total), 0))}
-          </RNText>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <RNText style={styles.summaryLabel}>Média mensal</RNText>
-          <RNText style={styles.summaryValue}>
-            {formatMoney(monthlyData.length > 0 ? monthlyData.reduce((s, m) => s + m.total, 0) / monthlyData.length : 0)}
-          </RNText>
-        </View>
-
-        <View style={styles.summaryRow}>
-          <RNText style={styles.summaryLabel}>Meses com compras</RNText>
-          <RNText style={styles.summaryValue}>{monthlyData.reduce((s, m) => s + m.total, 0) > 0 ? monthlyData.filter(m => m.total > 0).length : 0}</RNText>
-        </View>
-      </View>
-    </>
-  );
-
-  const renderItensView = () => (
-    <>
-      {/* Filtros para Por Item */}
-      <View style={styles.filtersContainer}>
-        <View style={styles.filterRow}>
-          <RNText style={styles.filterLabel}>Item Específico</RNText>
-          <TouchableOpacity
-            style={styles.filterSelect}
-            onPress={() => setItemPickerVisible(true)}
-          >
-            <RNText style={styles.filterSelectText}>
-              {selectedItem || 'Nenhum item encontrado'}
-            </RNText>
-            <MaterialCommunityIcons name="chevron-down" size={14} color={colors.mutedText} />
-          </TouchableOpacity>
-        </View>
-
-        {/*
-          TODO(vNext): reativar filtro de periodo de analise.
-          <View style={styles.filterRow}>
-            <RNText style={styles.filterLabel}>Período de Análise</RNText>
-            <View style={styles.filterSelect}>
-              <RNText style={styles.filterSelectText}>{selectedPeriod}</RNText>
-            </View>
-          </View>
-        */}
-
-        <View style={styles.filterRow}>
-          <RNText style={styles.filterLabel}>Mercado</RNText>
-          <View style={styles.filterSelect}>
-            <RNText style={styles.filterSelectText}>{selectedMarket}</RNText>
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          <RNText style={styles.filterLabel}>Ordenar por</RNText>
-          <View style={styles.filterSelect}>
-            <RNText style={styles.filterSelectText}>{sortBy}</RNText>
-          </View>
-        </View>
-      </View>
-
-      {/* Métricas */}
-      <View style={styles.metricsContainer}>
-        <View style={[styles.metricCard, styles.metricPurple]}>
-          <RNText style={styles.metricLabel}>Preço médio</RNText>
-          <RNText style={styles.metricValue}>
-            {hasItemData ? formatMoney(itemReportData.averagePrice) : 'Sem dados'}
-          </RNText>
-        </View>
-        <View style={[styles.metricCard, styles.metricGreen]}>
-          <RNText style={styles.metricLabel}>Total gasto</RNText>
-          <RNText style={styles.metricValue}>
-            {hasItemData ? formatMoney(itemReportData.totalSpent) : 'Sem dados'}
-          </RNText>
-        </View>
-        <View style={[styles.metricCard, styles.metricBlue]}>
-          <RNText style={styles.metricLabel}>Compras</RNText>
-          <RNText style={styles.metricValue}>
-            {hasItemData ? `${itemReportData.purchaseCount}x` : 'Sem dados'}
-          </RNText>
-        </View>
-      </View>
-
-      {/* Item Analisado */}
-      <View style={styles.itemAnalyzedCard}>
-        <RNText style={styles.itemAnalyzedTitle}>
-          {selectedItem || 'Item selecionado'}
-        </RNText>
-        <RNText style={styles.itemAnalyzedDesc}>
-          {hasItemData
-            ? `Compras registradas: ${itemReportData.purchaseCount} • Quantidade: ${itemReportData.totalQuantity} • Preço médio: ${formatMoney(itemReportData.averagePrice)}`
-            : 'Sem dados suficientes para comparar este item no período selecionado.'}
-        </RNText>
-      </View>
-
-      {/* Tabela Comparativa */}
-      <View style={styles.tableCard}>
-        <View style={styles.tableHeader}>
-          <RNText style={styles.tableHeaderText}>Mercado</RNText>
-          <RNText style={styles.tableHeaderText}>Preço</RNText>
-          <RNText style={styles.tableHeaderText}>Status</RNText>
-        </View>
-
-        {itemReportData.bySupermarket.length === 0 ? (
-          <View style={styles.emptyComparisonRow}>
-            <RNText style={styles.emptyComparisonText}>
-              Sem dados suficientes para comparação neste período.
-            </RNText>
-          </View>
-        ) : (
-          itemReportData.bySupermarket.map((row, index) => {
-            const isLast = index === itemReportData.bySupermarket.length - 1;
-            const hasMultiple = comparisonPrices.length > 1;
-            let statusLabel = '-';
-            if (hasMultiple) {
-              if (row.averagePrice === minPrice) statusLabel = 'Melhor preço';
-              else if (row.averagePrice === maxPrice) statusLabel = 'Mais caro';
-            } else {
-              statusLabel = 'Único';
-            }
-
-            return (
-              <View
-                key={`${row.supermarket}-${index}`}
-                style={[styles.tableRow, isLast && styles.tableRowLast]}
-              >
-                <RNText style={styles.tableCell}>{row.supermarket}</RNText>
-                <RNText style={styles.tableCellPrice}>
-                  {formatMoney(row.averagePrice)}
-                </RNText>
-                <View style={styles.statusContainer}>
-                  <RNText style={
-                    statusLabel === 'Melhor preço' ? styles.statusBest
-                    : statusLabel === 'Mais caro' ? styles.statusWorst
-                    : styles.statusMedium
-                  }>{statusLabel}</RNText>
-                </View>
-              </View>
-            );
-          })
-        )}
-      </View>
-    </>
-  );
-
-  const renderMercadosView = () => {
-    const sorted = [...supermarketData].sort((a, b) => b.total - a.total);
-    const grandTotal = sorted.reduce((sum, s) => sum + s.total, 0);
-    const maxTotal = sorted.length > 0 ? sorted[0].total : 0;
-
-    return (
-      <>
-        <View style={styles.metricsContainer}>
-          <View style={[styles.metricCard, { backgroundColor: colors.primary }]}>
-            <RNText style={styles.metricLabel}>Total Geral</RNText>
-            <RNText style={styles.metricValue}>{formatMoney(grandTotal)}</RNText>
-          </View>
-          <View style={[styles.metricCard, styles.metricBlue]}>
-            <RNText style={styles.metricLabel}>Mercados</RNText>
-            <RNText style={styles.metricValue}>{sorted.length}</RNText>
-          </View>
-        </View>
-
-        <View style={styles.tableCard}>
-          {sorted.length === 0 ? (
-            <View style={styles.emptyComparisonRow}>
-              <RNText style={styles.emptyComparisonText}>Nenhum dado disponível.</RNText>
-            </View>
-          ) : (
-            sorted.map((item, index) => {
-              const widthPercent = maxTotal > 0
-                ? Math.min((item.total / maxTotal) * 100, 100)
-                : 0;
-
-              return (
-              <View
-                key={`${item.supermarket}-${index}`}
-                style={[styles.mercadoRow, index === sorted.length - 1 && styles.tableRowLast]}
-              >
-                <View style={styles.mercadoRowTop}>
-                  <RNText style={styles.mercadoName}>{item.supermarket}</RNText>
-                  <RNText style={styles.mercadoTotal}>{formatMoney(item.total)}</RNText>
-                </View>
-                <View style={styles.mercadoBarContainer}>
-                  <View style={[styles.mercadoBar, { width: `${widthPercent}%` }]} />
-                </View>
-              </View>
-              );
-            })
-          )}
-        </View>
-      </>
-    );
-  };
+  if (isLoading) return <Loading fullScreen />;
+  if (error) return <ErrorMessage message={error} onRetry={refresh} />;
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <Header title="Relatórios" iconName="chart-bar" />
-
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={refresh} />
-        }
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 12 }]}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} />}
       >
-        {/* Segmented Control */}
-        <View style={styles.segmentedControl}>
-          <TouchableOpacity
-            style={[styles.segmentButton, reportType === 'itens' && styles.segmentButtonActive]}
-            onPress={() => setReportType('itens')}
-          >
-            <RNText style={[styles.segmentText, reportType === 'itens' && styles.segmentTextActive]}>
-              Por Item
-            </RNText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.segmentButton, reportType === 'geral' && styles.segmentButtonActive]}
-            onPress={() => setReportType('geral')}
-          >
-            <RNText style={[styles.segmentText, reportType === 'geral' && styles.segmentTextActive]}>
-              Geral
-            </RNText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.segmentButton, reportType === 'mercados' && styles.segmentButtonActive]}
-            onPress={() => setReportType('mercados')}
-          >
-            <RNText style={[styles.segmentText, reportType === 'mercados' && styles.segmentTextActive]}>
-              Mercados
-            </RNText>
-          </TouchableOpacity>
-        </View>
-
-        {/* Seletor de Ano */}
-        <View style={styles.yearSelector}>
-          {YEAR_OPTIONS.map((year) => (
-            <TouchableOpacity
-              key={year}
-              style={[
-                styles.yearButton,
-                selectedYear === year && styles.yearButtonSelected,
-              ]}
-              onPress={() => setSelectedYear(year)}
-            >
-              <RNText
-                style={[
-                  styles.yearText,
-                  selectedYear === year && styles.yearTextSelected,
-                ]}
+        {/* ── Seletor de modo ── */}
+        <View style={styles.modeRow}>
+          <View style={styles.modePills}>
+            {(['month', 'year'] as PeriodMode[]).map(mode => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.modePill, periodMode === mode && styles.modePillActive]}
+                onPress={() => setPeriodMode(mode)}
               >
-                {year}
-              </RNText>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <RNText style={[styles.modePillText, periodMode === mode && styles.modePillTextActive]}>
+                  {mode === 'month' ? 'Mês' : 'Ano'}
+                </RNText>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        {/* Conteúdo baseado no tipo */}
-        {reportType === 'geral' && renderGeralView()}
-        {reportType === 'itens' && renderItensView()}
-        {reportType === 'mercados' && renderMercadosView()}
-
-        {/* Exportação */}
-        <View style={styles.exportCard}>
-          <RNText style={styles.exportTitle}>Exportar Relatório</RNText>
-          <View style={styles.exportButtons}>
-            <TouchableOpacity
-              style={[styles.pdfButton, { opacity: 0.45 }]}
-              disabled={true}
-            >
-              <View style={styles.exportButtonContent}>
-                <MaterialCommunityIcons name="file-pdf-box" size={18} color={colors.primaryText} style={{ marginRight: 6 }} />
-                <RNText style={styles.exportButtonText}>PDF</RNText>
-              </View>
+          <View style={styles.modeRowRight}>
+            <TouchableOpacity style={styles.periodButton} onPress={handlePeriodPickerPress}>
+              <RNText style={styles.periodButtonText}>{periodLabel}</RNText>
+              <MaterialCommunityIcons name="chevron-down" size={15} color={colors.text} />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.excelButton}
-              onPress={handleExportCSV}
-            >
-              <View style={styles.exportButtonContent}>
-                <MaterialCommunityIcons name="file-delimited" size={18} color={colors.primaryText} style={{ marginRight: 6 }} />
-                <RNText style={styles.exportButtonText}>CSV</RNText>
-              </View>
+            <TouchableOpacity onPress={handleExportCSV} style={styles.exportButton}>
+              <MaterialCommunityIcons name="file-export-outline" size={20} color={colors.mutedText} />
             </TouchableOpacity>
           </View>
-          <RNText style={styles.disabledHint}>PDF em breve.</RNText>
         </View>
+
+        {/* ── Hero Card ── */}
+        <View style={styles.heroCard}>
+          <RNText style={styles.heroLabel}>
+            {periodMode === 'month'
+              ? `Gasto em ${getMonthName(selectedMonth)}`
+              : `Total em ${selectedYear}`}
+          </RNText>
+          <RNText style={styles.heroValue}>{formatMoney(heroValue)}</RNText>
+
+          {heroDelta !== null && (
+            <View style={[
+              styles.heroBadge,
+              heroDelta > 0 ? styles.heroBadgeUp
+              : heroDelta < 0 ? styles.heroBadgeDown
+              : styles.heroBadgeNeutral,
+            ]}>
+              <RNText style={styles.heroBadgeText}>
+                {heroDelta > 0 ? '↑' : '↓'} {Math.abs(Math.round(heroDelta))}% vs {prevPeriodLabel}
+              </RNText>
+            </View>
+          )}
+
+          {/* Sparkline inline no hero */}
+          {sparklineData.length > 0 && (
+            <View style={styles.sparkline}>
+              {sparklineData.map((item, i) => {
+                const h = Math.max((item.total / maxSparkline) * 44, item.total > 0 ? 4 : 0);
+                const isHighlighted = periodMode === 'month' && item.month === selectedMonth;
+                return (
+                  <View key={i} style={styles.sparklineCol}>
+                    <View
+                      style={[
+                        styles.sparklineBar,
+                        {
+                          height: h,
+                          backgroundColor: isHighlighted
+                            ? 'rgba(255,255,255,0.95)'
+                            : 'rgba(255,255,255,0.28)',
+                        },
+                      ]}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* ── No que você gastou? ── */}
+        {categoryData.length > 0 && (
+          <View style={styles.section}>
+            <RNText style={styles.sectionTitle}>No que você gastou?</RNText>
+            {categoryData.map((cat: CategoryWithDelta) => {
+              const w = maxCategoryTotal > 0
+                ? Math.min((cat.total / maxCategoryTotal) * 100, 100)
+                : 0;
+              return (
+                <View key={cat.categoryId} style={styles.catRow}>
+                  <View style={styles.catTopRow}>
+                    <RNText style={styles.catName}>{cat.category}</RNText>
+                    <View style={styles.catRight}>
+                      <RNText style={styles.catTotal}>{formatMoney(cat.total)}</RNText>
+                      <DeltaBadge delta={cat.delta} />
+                    </View>
+                  </View>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFillCategory, { width: `${w}%` }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* ── Onde você comprou? ── */}
+        {sortedMarkets.length > 0 && (
+          <View style={styles.section}>
+            <RNText style={styles.sectionTitle}>Onde você comprou?</RNText>
+            {sortedMarkets.map((market, i) => {
+              const w = maxMarketTotal > 0
+                ? Math.min((market.total / maxMarketTotal) * 100, 100)
+                : 0;
+              return (
+                <View key={`${market.supermarket}-${i}`} style={styles.marketRow}>
+                  <View style={styles.marketTopRow}>
+                    <RNText style={styles.marketName}>{market.supermarket}</RNText>
+                    <RNText style={styles.marketTotal}>{formatMoney(market.total)}</RNText>
+                  </View>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFillMarket, { width: `${w}%` }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* ── Itens frequentes ── */}
+        {topItems.length > 0 && (
+          <View style={styles.section}>
+            <RNText style={styles.sectionTitle}>Itens frequentes</RNText>
+            <RNText style={styles.sectionHint}>Toque para ver preços por mercado</RNText>
+            <View style={styles.itemsList}>
+              {topItems.map((item, i) => (
+                <TouchableOpacity
+                  key={`${item.name}-${i}`}
+                  style={[styles.itemRow, i === topItems.length - 1 && styles.itemRowLast]}
+                  onPress={() => handleTopItemPress(item.name)}
+                >
+                  <View style={styles.itemInfo}>
+                    <RNText style={styles.itemName} numberOfLines={1}>{item.name}</RNText>
+                    <RNText style={styles.itemSub}>{item.quantity}x · {formatMoney(item.total)}</RNText>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={18} color={colors.mutedText} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── Estado vazio ── */}
+        {isEmpty && (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="chart-timeline-variant" size={56} color={colors.border} />
+            <RNText style={styles.emptyTitle}>Sem dados para este período</RNText>
+            <RNText style={styles.emptyHint}>Registre compras para ver seus relatórios aqui.</RNText>
+            <TouchableOpacity
+              style={styles.emptyCTA}
+              onPress={() => navigation.navigate('ScanQRCode')}
+            >
+              <RNText style={styles.emptyCTAText}>Importar nota fiscal</RNText>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
-      {/* Modal: Item Picker */}
+      {/* Picker de mês */}
+      <MonthYearPicker
+        visible={monthPickerVisible}
+        onClose={() => setMonthPickerVisible(false)}
+        value={{ month: selectedMonth, year: selectedYear }}
+        onChange={({ month, year }) => {
+          setSelectedMonth(month);
+          setSelectedYear(year);
+          setMonthPickerVisible(false);
+        }}
+      />
+
+      {/* Modal: seletor de ano */}
       <Modal
-        visible={itemPickerVisible}
+        visible={yearPickerVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setItemPickerVisible(false)}
+        onRequestClose={() => setYearPickerVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <RNText style={styles.modalTitle}>Selecionar Item</RNText>
-              <TouchableOpacity onPress={() => setItemPickerVisible(false)}>
+              <RNText style={styles.modalTitle}>Selecionar Ano</RNText>
+              <TouchableOpacity onPress={() => setYearPickerVisible(false)}>
                 <MaterialCommunityIcons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
             <FlatList
-              data={topItems}
-              keyExtractor={(item) => item.name}
-              style={styles.pickerList}
-              renderItem={({ item }) => (
+              data={YEAR_OPTIONS}
+              keyExtractor={year => String(year)}
+              renderItem={({ item: year }) => (
                 <TouchableOpacity
-                  style={[
-                    styles.pickerItem,
-                    selectedItem === item.name && styles.pickerItemSelected,
-                  ]}
+                  style={[styles.pickerItem, selectedYear === year && styles.pickerItemSelected]}
                   onPress={() => {
-                    setSelectedItem(item.name);
-                    setItemPickerVisible(false);
+                    setSelectedYear(year);
+                    setYearPickerVisible(false);
                   }}
                 >
-                  <RNText
-                    style={[
-                      styles.pickerItemName,
-                      selectedItem === item.name && styles.pickerItemNameSelected,
-                    ]}
-                  >
-                    {item.name}
-                  </RNText>
-                  <RNText
-                    style={[
-                      styles.pickerItemTotal,
-                      selectedItem === item.name && styles.pickerItemTotalSelected,
-                    ]}
-                  >
-                    {formatMoney(item.total)}
+                  <RNText style={[styles.pickerItemText, selectedYear === year && styles.pickerItemTextSelected]}>
+                    {year}
                   </RNText>
                 </TouchableOpacity>
               )}
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: detalhe do item (preços por mercado) */}
+      <Modal
+        visible={itemDetailVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setItemDetailVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, styles.itemModalCard]}>
+            <View style={styles.modalHeader}>
+              <RNText style={styles.modalTitle} numberOfLines={1}>{selectedItem}</RNText>
+              <TouchableOpacity onPress={() => setItemDetailVisible(false)}>
+                <MaterialCommunityIcons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {itemDetailLoading ? (
+              <View style={styles.itemDetailLoading}>
+                <ActivityIndicator color={colors.primary} size="large" />
+              </View>
+            ) : (
+              <>
+                <View style={styles.itemMetrics}>
+                  <View style={[styles.itemMetricCard, { backgroundColor: colors.secondary }]}>
+                    <RNText style={styles.itemMetricLabel}>Preço médio</RNText>
+                    <RNText style={styles.itemMetricValue}>
+                      {hasItemData ? formatMoney(itemReportData.averagePrice) : '-'}
+                    </RNText>
+                  </View>
+                  <View style={[styles.itemMetricCard, { backgroundColor: colors.success }]}>
+                    <RNText style={styles.itemMetricLabel}>Total gasto</RNText>
+                    <RNText style={styles.itemMetricValue}>
+                      {hasItemData ? formatMoney(itemReportData.totalSpent) : '-'}
+                    </RNText>
+                  </View>
+                  <View style={[styles.itemMetricCard, { backgroundColor: colors.info }]}>
+                    <RNText style={styles.itemMetricLabel}>Compras</RNText>
+                    <RNText style={styles.itemMetricValue}>
+                      {hasItemData ? `${itemReportData.purchaseCount}x` : '-'}
+                    </RNText>
+                  </View>
+                </View>
+
+                <View style={styles.tableHeader}>
+                  <RNText style={styles.tableHeaderText}>Mercado</RNText>
+                  <RNText style={styles.tableHeaderText}>Preço</RNText>
+                  <RNText style={styles.tableHeaderText}>Status</RNText>
+                </View>
+
+                <FlatList
+                  data={itemReportData.bySupermarket}
+                  keyExtractor={(row, i) => `${row.supermarket}-${i}`}
+                  ListEmptyComponent={
+                    <View style={styles.tableEmpty}>
+                      <RNText style={styles.tableEmptyText}>
+                        Sem dados para este item no período.
+                      </RNText>
+                    </View>
+                  }
+                  renderItem={({ item: row, index }) => {
+                    const isLast = index === itemReportData.bySupermarket.length - 1;
+                    const hasMultiple = comparisonPrices.length > 1;
+                    let statusLabel = 'Único';
+                    let statusStyle = styles.statusNeutral;
+                    if (hasMultiple) {
+                      if (row.averagePrice === minPrice) {
+                        statusLabel = 'Melhor preço';
+                        statusStyle = styles.statusBest;
+                      } else if (row.averagePrice === maxPrice) {
+                        statusLabel = 'Mais caro';
+                        statusStyle = styles.statusWorst;
+                      } else {
+                        statusLabel = 'Intermediário';
+                      }
+                    }
+                    return (
+                      <View style={[styles.tableRow, isLast && styles.tableRowLast]}>
+                        <RNText style={styles.tableCell}>{row.supermarket}</RNText>
+                        <RNText style={styles.tableCellPrice}>
+                          {formatMoney(row.averagePrice)}
+                        </RNText>
+                        <View style={styles.statusContainer}>
+                          <RNText style={statusStyle}>{statusLabel}</RNText>
+                        </View>
+                      </View>
+                    );
+                  }}
+                />
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -515,207 +460,367 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
-  segmentedControl: {
+  // ── Seletor de modo ──
+  modeRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  segmentButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  segmentButtonActive: {
+  modeRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exportButton: {
+    padding: 4,
+  },
+  modePills: {
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
+    padding: 3,
+    gap: 2,
+  },
+  modePill: {
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  modePillActive: {
     backgroundColor: colors.primary,
   },
-  segmentText: {
+  modePillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.mutedText,
+  },
+  modePillTextActive: {
+    color: colors.primaryText,
+  },
+  periodButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  periodButtonText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
   },
-  segmentTextActive: {
-    color: colors.primaryText,
-  },
-  yearSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  yearButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceAlt,
-  },
-  yearButtonSelected: {
+
+  // ── Hero Card ──
+  heroCard: {
     backgroundColor: colors.primary,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
   },
-  yearText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
+  heroLabel: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
+    marginBottom: 6,
   },
-  yearTextSelected: {
+  heroValue: {
     color: colors.primaryText,
-  },
-  metricsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  metricCard: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-  },
-  metricPurple: {
-    backgroundColor: colors.secondary,
-  },
-  metricGreen: {
-    backgroundColor: colors.success,
-  },
-  metricBlue: {
-    backgroundColor: colors.info,
-  },
-  metricLabel: {
-    color: colors.primaryText,
-    fontSize: 11,
-    marginBottom: 4,
-  },
-  metricValue: {
-    color: colors.primaryText,
-    fontSize: 14,
+    fontSize: 34,
     fontWeight: 'bold',
+    marginBottom: 12,
   },
-  chartCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+  heroBadge: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
     marginBottom: 16,
   },
-  chartTitle: {
-    fontSize: 16,
+  heroBadgeUp: {
+    backgroundColor: 'rgba(255,59,48,0.25)',
+  },
+  heroBadgeDown: {
+    backgroundColor: 'rgba(52,199,89,0.28)',
+  },
+  heroBadgeNeutral: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  heroBadgeText: {
+    color: colors.primaryText,
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
   },
-  chartArea: {
+  sparkline: {
     flexDirection: 'row',
-    height: 160,
     alignItems: 'flex-end',
-    justifyContent: 'space-around',
-  },
-  chartBarContainer: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  chartBarWrapper: {
-    height: 120,
-    width: 24,
-    backgroundColor: colors.border,
-    borderRadius: 4,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  chartBar: {
-    width: '100%',
-    backgroundColor: colors.success,
-    borderRadius: 4,
-  },
-  chartLabel: {
-    fontSize: 10,
-    color: colors.mutedText,
+    height: 44,
+    gap: 3,
     marginTop: 4,
   },
-  summaryCard: {
+  sparklineCol: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sparklineBar: {
+    borderRadius: 2,
+    minHeight: 0,
+  },
+
+  // ── Seções ──
+  section: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
   },
-  summaryTitle: {
+  sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 4,
+  },
+  sectionHint: {
+    fontSize: 12,
+    color: colors.mutedText,
     marginBottom: 12,
   },
-  summaryRow: {
+
+  // Delta badges inline
+  badgeUp: {
+    backgroundColor: 'rgba(255,59,48,0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  badgeDown: {
+    backgroundColor: 'rgba(52,199,89,0.15)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
+  // ── Categorias ──
+  catRow: {
+    marginTop: 10,
+  },
+  catTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: colors.mutedText,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  filtersContainer: {
-    marginBottom: 16,
-  },
-  filterRow: {
-    marginBottom: 14,
-  },
-  filterLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
+    alignItems: 'center',
     marginBottom: 6,
   },
-  filterSelect: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    height: 44,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  filterSelectText: {
+  catName: {
     fontSize: 14,
     color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
   },
-  itemAnalyzedCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  catRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  itemAnalyzedTitle: {
+  catTotal: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  barTrack: {
+    height: 7,
+    backgroundColor: colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFillCategory: {
+    height: '100%',
+    backgroundColor: colors.secondary,
+    borderRadius: 4,
+  },
+
+  // ── Mercados ──
+  marketRow: {
+    marginTop: 10,
+  },
+  marketTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  marketName: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
+  marketTotal: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  barFillMarket: {
+    height: '100%',
+    backgroundColor: colors.success,
+    borderRadius: 4,
+  },
+
+  // ── Itens frequentes ──
+  itemsList: {
+    marginTop: 4,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  itemRowLast: {},
+  itemInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  itemSub: {
+    fontSize: 12,
+    color: colors.mutedText,
+    marginTop: 2,
+  },
+
+  // ── Estado vazio ──
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 8,
+  },
+  emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    marginTop: 8,
   },
-  itemAnalyzedDesc: {
+  emptyHint: {
     fontSize: 13,
     color: colors.mutedText,
+    textAlign: 'center',
   },
-  tableCard: {
+  emptyCTA: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+  },
+  emptyCTAText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // ── Modais ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    maxHeight: '70%',
+  },
+  itemModalCard: {
+    maxHeight: '82%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+    marginRight: 8,
+  },
+  pickerItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pickerItemSelected: {
+    backgroundColor: colors.primary,
+  },
+  pickerItemText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  pickerItemTextSelected: {
+    color: colors.primaryText,
+    fontWeight: '600',
+  },
+
+  // ── Item detail modal ──
+  itemDetailLoading: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  itemMetrics: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  itemMetricCard: {
+    flex: 1,
+    borderRadius: 10,
+    padding: 10,
+    alignItems: 'center',
+  },
+  itemMetricLabel: {
+    color: colors.primaryText,
+    fontSize: 10,
+    marginBottom: 3,
+    textAlign: 'center',
+  },
+  itemMetricValue: {
+    color: colors.primaryText,
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   tableHeader: {
     backgroundColor: colors.secondary,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
   },
   tableHeaderText: {
     color: colors.primaryText,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   tableRow: {
@@ -731,24 +836,14 @@ const styles = StyleSheet.create({
   tableRowLast: {
     borderBottomWidth: 0,
   },
-  emptyComparisonRow: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: colors.surface,
-  },
-  emptyComparisonText: {
-    color: colors.mutedText,
-    fontSize: 13,
-    textAlign: 'center',
-  },
   tableCell: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text,
     fontWeight: '500',
     flex: 1,
   },
   tableCellPrice: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text,
     fontWeight: '600',
     flex: 1,
@@ -761,151 +856,24 @@ const styles = StyleSheet.create({
   statusBest: {
     color: colors.success,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   statusWorst: {
     color: colors.danger,
     fontSize: 12,
-    fontWeight: '600',
-  },
-  statusMedium: {
-    color: colors.mutedText,
-    fontSize: 12,
-  },
-  exportCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 100,
-  },
-  exportTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  exportButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  exportButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pdfButton: {
-    flex: 1,
-    backgroundColor: colors.info,
-    height: 44,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  excelButton: {
-    flex: 1,
-    backgroundColor: colors.success,
-    height: 44,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exportButtonText: {
-    color: colors.primaryText,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  disabledHint: {
-    marginTop: 10,
-    fontSize: 12,
-    color: colors.mutedText,
-  },
-  // Mercados view
-  mercadoRow: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  mercadoRowTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  mercadoName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  mercadoTotal: {
-    fontSize: 14,
-    color: colors.mutedText,
-    fontWeight: '500',
-  },
-  mercadoBarContainer: {
-    height: 6,
-    backgroundColor: colors.border,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  mercadoBar: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  // Item picker modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
   },
-  pickerList: {
-    marginBottom: 20,
-  },
-  pickerItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pickerItemSelected: {
-    backgroundColor: colors.primary,
-  },
-  pickerItemName: {
-    fontSize: 14,
-    color: colors.text,
-    flex: 1,
-  },
-  pickerItemNameSelected: {
-    color: colors.primaryText,
-    fontWeight: '600',
-  },
-  pickerItemTotal: {
-    fontSize: 14,
+  statusNeutral: {
     color: colors.mutedText,
+    fontSize: 12,
   },
-  pickerItemTotalSelected: {
-    color: colors.primaryText,
+  tableEmpty: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  tableEmptyText: {
+    color: colors.mutedText,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

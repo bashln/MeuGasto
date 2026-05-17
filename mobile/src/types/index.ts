@@ -38,6 +38,7 @@ export interface Item {
   id: number;
   name: string;
   code?: string;
+  categoryId?: number;
   quantity: number;
   unit: string;
   price: number;
@@ -46,7 +47,6 @@ export interface Item {
 export interface Purchase {
   id: number;
   supermarket: Supermarket;
-  accessKey: string;
   date: string;
   totalPrice: number;
   isManual: boolean;
@@ -90,8 +90,14 @@ export interface PurchaseFilter {
   endDate?: string;
   minPrice?: number;
   maxPrice?: number;
+  categoryId?: number;
   page?: number;
   size?: number;
+}
+
+export interface PurchaseMetrics {
+  totalCount: number;
+  totalValue: number;
 }
 
 export interface DraftFilter {

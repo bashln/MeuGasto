@@ -3,13 +3,11 @@ describe('supabaseClient configuration', () => {
   const originalKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
   const loadModule = () => {
-    let mod: typeof import('../supabaseClient');
-
+    let loadedModule: typeof import('../supabaseClient') | undefined;
     jest.isolateModules(() => {
-      mod = require('../supabaseClient') as typeof import('../supabaseClient');
+      loadedModule = jest.requireActual('../supabaseClient') as typeof import('../supabaseClient');
     });
-
-    return mod!;
+    return loadedModule!;
   };
 
   afterEach(() => {

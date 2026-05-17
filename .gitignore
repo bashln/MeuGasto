@@ -2,10 +2,8 @@
 node_modules/
 dist/
 dist-ssr/
-AGENTS.md
-CLAUDE.md
-GEMINI.md
-QWEN.md
+# Tracked .md files are in docs/, root stubs, and standard root files (README.md, CHANGELOG.md, SECURITY.md)
+# Ignore any other stray .md files not explicitly tracked
 
 # Environment variables
 .env
@@ -57,6 +55,13 @@ output-metadata.json
 .DS_Store
 Thumbs.db
 
+# AI agents & tooling
+.ralph-tui/
+docs/ai/
+
+# Coverage artifacts
+mobile/coverage/
+
 # Misc
 *.local
 *.suo
@@ -74,3 +79,10 @@ mobile/ios/
 local.properties
 deploymentTargetDropDown.xml
 render.experimental.xml
+*.md
+!README.md
+!AGENTS.md
+!CLAUDE.md
+!CHANGELOG.md
+!SECURITY.md
+!LICENSE

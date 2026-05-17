@@ -1,0 +1,96 @@
+import { ProductCategoryRule } from './productCategorizerService';
+
+export const CATEGORY_IDS = {
+  ALIMENTACAO: 1,
+  BEBIDAS: 2,
+  LIMPEZA: 3,
+  HIGIENE: 4,
+  PADARIA: 5,
+  HORTIFRUTI: 6,
+  CARNES_E_FRIOS: 7,
+  LATICINIOS: 8,
+  OUTROS: 999,
+} as const;
+
+export const PRODUCT_CATEGORY_OPTIONS: Array<{ id: number; label: string }> = [
+  { id: CATEGORY_IDS.ALIMENTACAO, label: 'Alimentação' },
+  { id: CATEGORY_IDS.BEBIDAS, label: 'Bebidas' },
+  { id: CATEGORY_IDS.LIMPEZA, label: 'Limpeza' },
+  { id: CATEGORY_IDS.HIGIENE, label: 'Higiene' },
+  { id: CATEGORY_IDS.PADARIA, label: 'Padaria' },
+  { id: CATEGORY_IDS.HORTIFRUTI, label: 'Hortifruti' },
+  { id: CATEGORY_IDS.CARNES_E_FRIOS, label: 'Carnes e Frios' },
+  { id: CATEGORY_IDS.LATICINIOS, label: 'Laticínios' },
+  { id: CATEGORY_IDS.OUTROS, label: 'Outros' },
+];
+
+export const DEFAULT_PRODUCT_CATEGORY_RULES: ProductCategoryRule[] = [
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(arroz|feijao|macarrao|espaguete|farinha|acucar|sal|molho de tomate)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(oleo de soja|azeite|vinagre|maionese|mostarda|ketchup)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(atum|sardinha|milho verde|ervilha|seleta|palmito|extrato)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(biscoito|bolacha|wafer|cookies|torrada|granola)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(cereal|aveia|quinoa|lentilha|grao de bico)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(miojo|tempero pronto|caldo|canjao|canjicao|canjica)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(pipoca|amendoim|castanha|uvas passas|fruta seca)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(chocolate em po|achocolatado|doce de leite|geleia|mel)\b/i },
+
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(agua mineral|agua com gas|agua sem gas)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(refrigerante|guarana|cola|soda)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(suco|nectar|cha pronto|isotonico|energetico)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(cerveja|chopp|vinho|espumante|vodka|whisky|gin|rum)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(leite vegetal|agua de coco|cafe pronto)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(capsula de cafe|po para preparo de bebida|xarope)\b/i },
+
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(detergente|lava[- ]?loucas|sabao em po|sabao liquido|amaciante)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(desinfetante|agua sanitaria|cloro|alvejante)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(limpador multiuso|limpa vidro|desengordurante|lustra moveis)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(esponja|palha de aco|saco de lixo|pano de limpeza|vassoura)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(rodo|balde|luva de limpeza|inseticida|odorizador de ambiente)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(sabao em barra|limpa piso|limpa forno|limpa banheiro)\b/i },
+
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(shampoo|condicionador|sabonete|creme dental|escova dental)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(fio dental|enxaguante bucal|desodorante|hidratante)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(protetor solar|absorvente|papel higienico|lenço umedecido)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(frada|fralda|pomada assadura|talco|algodao)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(cotonete|gilete|espuma de barbear|aparelho de barbear)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(sabonete liquido|alcool em gel|mascara descartavel)\b/i },
+
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(pao frances|pao de forma|pao integral|bisnaguinha)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(croissant|baguete|pao de queijo|broa|sonho)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(bolo|torta doce|rosca|panetone|colomba)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(fermento biologico|mistura para bolo|massa pronta)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(pizza congelada|esfiha|salgado assado|salgado frito)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(tapioca pronta|beiju|crepioca)\b/i },
+
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(banana|maca|pera|uva|laranja|tangerina|mexerica)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(mamao|abacaxi|melancia|melao|morango|kiwi|abacate)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(alface|couve|espinafre|rucula|agri[aã]o)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(tomate|cebola|alho|batata|cenoura|abobrinha|berinjela)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(mandioca|inhame|beterraba|chuchu|pepino|pimentao)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(coentro|salsinha|cebolinha|hortela|manjericao)\b/i },
+
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(carne bovina|patinho|acem|coxao mole|contra file)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(frango|peito de frango|coxa|sobrecoxa|asa de frango)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(carne suina|lombo|costela suina|bacon|linguica)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(peixe|tilapia|salmao|merluza|atum fresco|camarao)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(presunto|mussarela|queijo prato|mortadela|salame)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(salsicha|nuggets|hamburguer|kibe|almond[eê]ga)\b/i },
+
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(leite integral|leite desnatado|leite semidesnatado)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(iogurte|coalhada|bebida lactea|yakult)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(queijo minas|queijo parmesao|requeijao|cream cheese)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(manteiga|margarina|creme de leite|leite condensado)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(doce de leite cremoso|sobremesa lactea|pudim pronto)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(leite em po|whey protein|proteina lactea)\b/i },
+
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(ovo branco|ovo caipira|ovos)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(cuscuz|fuba|polvilho|farofa pronta)\b/i },
+  { categoryId: CATEGORY_IDS.ALIMENTACAO, pattern: /\b(molho shoyu|molho ingles|pimenta|oregano|cominho)\b/i },
+  { categoryId: CATEGORY_IDS.BEBIDAS, pattern: /\b(cafe torrado|cafe moido|cha mate|cha de camomila)\b/i },
+  { categoryId: CATEGORY_IDS.HIGIENE, pattern: /\b(suporte para escova dental|saboneteira|toalha umedecida)\b/i },
+  { categoryId: CATEGORY_IDS.LIMPEZA, pattern: /\b(refil mop|panos multiuso|saponaceo|removedor)\b/i },
+  { categoryId: CATEGORY_IDS.HORTIFRUTI, pattern: /\b(cogumelo|shitake|shimeji|broto de feijao)\b/i },
+  { categoryId: CATEGORY_IDS.CARNES_E_FRIOS, pattern: /\b(peru defumado|peito de peru|carpaccio|charque)\b/i },
+  { categoryId: CATEGORY_IDS.PADARIA, pattern: /\b(pao australiano|pao de alho|grissini|focaccia)\b/i },
+  { categoryId: CATEGORY_IDS.LATICINIOS, pattern: /\b(kefir|ricota|queijo cottage|queijo brie)\b/i },
+];

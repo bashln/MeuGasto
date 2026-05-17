@@ -8,13 +8,17 @@ import { updateService, compareVersions } from '../updateService';
 import * as SecureStore from 'expo-secure-store';
 
 const mockGetItemAsync = SecureStore.getItemAsync as jest.Mock;
-const mockSetItemAsync = SecureStore.setItemAsync as jest.Mock;
 const mockDeleteItemAsync = SecureStore.deleteItemAsync as jest.Mock;
+const originalFetch = global.fetch;
 
 describe('updateService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   describe('compareVersions', () => {
@@ -120,6 +124,24 @@ describe('updateService', () => {
       expect(result).not.toBeNull();
       expect(result?.isMandatory).toBe(true);
       expect(result?.latestVersion).toBe('1.3.0');
+    });
+
+    it('detects mandatory update with 4-segment minVersion (BUILD)', async () => {
+      mockGetItemAsync.mockResolvedValue(null);
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ...mockRelease,
+          tag_name: 'v0.3.0.62',
+          body: 'minVersion: 0.3.0.62\n\n## Novidades\n- Build bump obrigatório',
+        }),
+      });
+
+      const result = await updateService.checkForUpdate('0.3.0.61');
+      expect(result).not.toBeNull();
+      expect(result?.latestVersion).toBe('0.3.0.62');
+      expect(result?.isMandatory).toBe(true);
     });
 
     it('marks update as optional when no minVersion specified', async () => {

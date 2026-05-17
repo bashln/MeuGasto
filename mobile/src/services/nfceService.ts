@@ -2,6 +2,8 @@ import { getSupabaseClient } from '../lib/supabaseClient';
 import { NFCeScrapedData, validateAccessKey, validateAndSanitizeNFCePayload } from '../lib/nfcePayloadValidation';
 import { getCurrentUserId } from './authService';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { DEFAULT_PRODUCT_CATEGORY_RULES, CATEGORY_IDS } from './productCategoryRules';
+import { ProductCategorizerService } from './productCategorizerService';
 
 const getClient = (): SupabaseClient => {
   const client = getSupabaseClient();
@@ -9,6 +11,62 @@ const getClient = (): SupabaseClient => {
     throw new Error('Supabase não configurado');
   }
   return client;
+};
+
+const productCategorizer = new ProductCategorizerService({
+  rules: DEFAULT_PRODUCT_CATEGORY_RULES,
+  fallbackCategoryId: CATEGORY_IDS.OUTROS,
+  persistence: {
+    load: async () => {
+      const userId = await getCurrentUserId().catch(() => null);
+      if (!userId) {
+        return [];
+      }
+
+      const supabase = getClient();
+      const { data, error } = await supabase
+        .from('learned_reclassifications')
+        .select('normalized_name, category_id')
+        .eq('user_id', userId);
+
+      if (error || !data) {
+        return [];
+      }
+
+      return data.map((entry: { normalized_name: string; category_id: number }) => ({
+        productName: entry.normalized_name,
+        categoryId: entry.category_id,
+      }));
+    },
+    save: async () => {
+      // Fluxo NFC-e só consome classificações aprendidas; persistência é feita na reclassificação manual.
+    },
+  },
+});
+
+export const hashAccessKey = async (accessKey: string): Promise<string> => {
+  const sanitizedAccessKey = validateAccessKey(accessKey);
+  const subtle = globalThis.crypto?.subtle;
+
+  if (!subtle) {
+    throw new Error('SHA-256 indisponivel no ambiente atual');
+  }
+
+  const input = new TextEncoder().encode(sanitizedAccessKey);
+  const digest = await subtle.digest('SHA-256', input);
+  return Array.from(new Uint8Array(digest))
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+export const buildExternalScraperPayload = async (
+  nfceUrl: string,
+  accessKey: string
+): Promise<{ nfceUrl: string; accessKeyHash: string }> => {
+  return {
+    nfceUrl,
+    accessKeyHash: await hashAccessKey(accessKey),
+  };
 };
 
 
@@ -52,34 +110,36 @@ export const parseQrInput = (input: string): string => {
   throw new Error('QR Code NFC-e inválido: não foi possível extrair a chave de acesso');
 };
 
+// Fonte oficial (produção): ENCAT NFC-e "URL por UF utilizada QR code"
+// https://nfce.encat.org/desenvolvedor/qrcode/ (acesso em 2026-05-05)
 const STATE_URLS: Record<string, string> = {
-  '11': 'https://www.sefaz.am.gov.br/nfce/consulta',
-  '12': 'https://www.sefaz.ac.gov.br/nfce/consulta',
-  '13': 'https://www.sefaz.ap.gov.br/nfce/consulta',
-  '14': 'https://www.sefaz.se.gov.br/nfce/consulta',
-  '15': 'https://www.sefaz.to.gov.br/nfce/consulta',
-  '16': 'https://www.fazenda.ma.gov.br/nfce/consulta',
-  '17': 'https://www.sefaz.pi.gov.br/nfce/consulta',
-  '21': 'https://www.fazenda.mg.gov.br/nfce/consulta',
-  '22': 'https://www.sefaz.es.gov.br/nfce/consulta',
-  '23': 'https://www.sefaz.rj.gov.br/nfce/consulta',
-  '24': 'https://www.sefaz.rj.gov.br/nfce/consulta',
-  '25': 'https://www.sefaz.pb.gov.br/nfce/consulta',
-  '26': 'https://www.sefaz.pe.gov.br/nfce/consulta',
-  '27': 'https://www.sefaz.al.gov.br/nfce/consulta',
-  '28': 'https://www.sefaz.ba.gov.br/nfce/consulta',
-  '29': 'https://www.sefaz.se.gov.br/nfce/consulta',
-  '31': 'https://www.sefaz.mt.gov.br/nfce/consulta',
-  '32': 'https://www.sefaz.ms.gov.br/nfce/consulta',
-  '33': 'https://www.sefaz.rj.gov.br/nfce/consulta',
-  '35': 'https://www.fazenda.sp.gov.br/nfce/consulta',
-  '41': 'https://www.fazenda.pr.gov.br/nfce/consulta',
-  '42': 'https://www.sefaz.sc.gov.br/nfce/consulta',
-  '43': 'https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce',
-  '50': 'https://www.sefaz.go.gov.br/nfce/consulta',
-  '51': 'https://www.sefaz.mt.gov.br/nfce/consulta',
-  '52': 'https://www.sefaz.ro.gov.br/nfce/consulta',
-  '53': 'https://www.sefaz.to.gov.br/nfce/consulta',
+  '11': 'https://www.nfce.sefin.ro.gov.br/consultanfce/consulta.jsp', // RO
+  '12': 'https://www.sefaznet.ac.gov.br/nfce/qrcode', // AC
+  '13': 'https://sistemas.sefaz.am.gov.br/nfceweb/consultarNFCe.jsp', // AM
+  '14': 'https://www.sefaz.rr.gov.br/nfce/servlet/qrcode', // RR
+  '15': 'https://appnfc.sefa.pa.gov.br/portal/view/consultas/nfce/nfceForm.seam', // PA
+  '16': 'https://www.sefaz.ap.gov.br/nfce/nfcep.php', // AP
+  '17': 'https://www.sefaz.to.gov.br/nfce/qrcode', // TO
+  '21': 'https://nfce.sefaz.ma.gov.br/portal/consultarNFCe.jsp', // MA
+  '22': 'https://www.sefaz.pi.gov.br/nfce/qrcode', // PI
+  '23': 'https://nfce.sefaz.ce.gov.br/pages/ShowNFCe.html', // CE
+  '24': 'https://nfce.set.rn.gov.br/consultarNFCe.aspx', // RN
+  '25': 'https://www.sefaz.pb.gov.br/nfce', // PB
+  '26': 'https://nfce.sefaz.pe.gov.br/nfce/consulta', // PE
+  '27': 'https://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp', // AL
+  '28': 'https://www.nfce.se.gov.br/nfce/qrcode', // SE
+  '29': 'https://nfe.sefaz.ba.gov.br/servicos/nfce/qrcode.aspx', // BA
+  '31': 'https://portalsped.fazenda.mg.gov.br/portalnfce/sistema/qrcode.xhtml', // MG
+  '32': 'https://app.sefaz.es.gov.br/ConsultaNFCe', // ES
+  '33': 'https://consultadfe.fazenda.rj.gov.br/consultaNFCe/QRCode', // RJ
+  '35': 'https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx', // SP
+  '41': 'https://www.fazenda.pr.gov.br/nfce/qrcode', // PR
+  '42': 'https://sat.sef.sc.gov.br/nfce/consulta', // SC
+  '43': 'https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce', // RS
+  '50': 'https://www.dfe.ms.gov.br/nfce/qrcode', // MS
+  '51': 'https://www.sefaz.mt.gov.br/nfce/consultanfce', // MT
+  '52': 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/danfeNFCe', // GO
+  '53': 'https://www.fazenda.df.gov.br/nfce/qrcode', // DF
 };
 
 export const buildNFCeUrl = (input: string): string => {
@@ -96,9 +156,10 @@ export const buildNFCeUrl = (input: string): string => {
   const stateCode = accessKey.substring(0, 2);
   const baseUrl = STATE_URLS[stateCode] || STATE_URLS['43'];
 
-  // Para RS (43), preserva o p completo (chave + metadados)
-  // Para outros estados, usa só a chave
-  const pParam = stateCode === '43' ? pValue : accessKey;
+  // Alguns portais (ex.: RS/RJ) dependem dos metadados completos no parâmetro `p`
+  // (chave + versão + ambiente + tipo + hash). Para os demais, manter apenas a chave
+  // reduz risco de incompatibilidade com implementações legadas.
+  const pParam = stateCode === '43' || stateCode === '33' ? pValue : accessKey;
 
   return `${baseUrl}?p=${pParam}`;
 };
@@ -117,6 +178,15 @@ export const NFCE_ALLOWED_PATH_PREFIXES: Record<string, string[]> = Object.value
   },
   {} as Record<string, string[]>,
 );
+
+// RJ pode redirecionar para /consultaNFCe/paginas/resultadoQRCode2.faces?cid=...
+// após abrir /consultaNFCe/QRCode?p=...; esse fluxo é legítimo e deve ser permitido.
+if (!NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br']) {
+  NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br'] = [];
+}
+if (!NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br'].includes('/consultaNFCe/paginas/')) {
+  NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br'].push('/consultaNFCe/paginas/');
+}
 
 export const isAllowedNfceUrl = (
   value: string,
@@ -245,10 +315,10 @@ export const nfceService = {
     supermarketId?: number
   ): Promise<{
     purchaseId: number;
-    accessKey: string;
     total: number;
     itemCount: number;
   }> {
+    await productCategorizer.ready();
     const supabase = getClient();
     const userId = await getCurrentUserId();
     const sanitizedPayload: NFCeScrapedData = validateAndSanitizeNFCePayload(scrapedData);
@@ -275,6 +345,7 @@ export const nfceService = {
     const itemsPayload = sanitizedPayload.items.map(item => ({
       name: item.name,
       code: '',
+      category_id: productCategorizer.categorizeProduct(item.name),
       quantity: item.quantity,
       unit: item.unit,
       price: item.unityPrice ?? item.totalPrice ?? 0,
@@ -301,9 +372,10 @@ export const nfceService = {
 
     return {
       purchaseId,
-      accessKey: sanitizedAccessKey,
       total: sanitizedPayload.total,
       itemCount: sanitizedPayload.items.length,
     };
   },
 };
+
+export const resetNFCeProductCategorizer = (): Promise<void> => productCategorizer.reload();

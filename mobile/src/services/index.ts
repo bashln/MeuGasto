@@ -8,3 +8,5 @@ export * from './nfceService';
 export * from './updateService';
 export * from './onboardingService';
 export * from './draftContent';
+export * from './productCategorizerService';
+export * from './productCategoryRules';

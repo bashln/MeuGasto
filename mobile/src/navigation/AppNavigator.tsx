@@ -70,16 +70,6 @@ const MainTabs: React.FC = () => {
         }}
       />
       <Tab.Screen
-        name="DraftsTab"
-        component={DraftsScreen}
-        options={{
-          title: 'Rascunhos',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="note-multiple" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="ReportsTab"
         component={ReportsScreen}
         options={{
@@ -159,6 +149,11 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen
               name="PurchaseEdit"
               component={PurchaseEditScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Drafts"
+              component={DraftsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

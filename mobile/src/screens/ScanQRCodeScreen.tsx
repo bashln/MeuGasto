@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, StyleSheet, Alert, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { NFCeWebView, QRCodeScanner } from '../components';
+import { NFCeWebView, QRCodeScanner, Header } from '../components';
 import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
-import { nfceService, purchaseService } from '../services';
+import { nfceService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/types';
 import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
+import { nfceHttpImportService } from '../services/nfceHttpImportService';
 import { colors } from '../theme/colors';
 
 type ScanQRCodeScreenProps = {
@@ -15,46 +15,95 @@ type ScanQRCodeScreenProps = {
 };
 
 export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
   const [currentAccessKey, setCurrentAccessKey] = useState('');
+  const importSettledRef = useRef(false);
 
   const handleScan = async (data: string) => {
     if (isProcessing) return;
     
     setIsProcessing(true);
     setShowCamera(false);
+    importSettledRef.current = false;
 
     try {
       if (__DEV__) {
         console.warn('QR Code data:', data);
       }
 
-      const url = buildNFCeUrl(data);
+      let url = '';
+      let accessKey = '';
+
+      try {
+        url = buildNFCeUrl(data);
+        accessKey = extractAccessKeyFromQRCode(data);
+      } catch {
+        const raw = (data || '').trim();
+        const normalizedRaw = (() => {
+          if (/^https?:\/\//i.test(raw)) {
+            return raw.replace(/^http:\/\//i, 'https://');
+          }
+          if (/^www\./i.test(raw)) {
+            return `https://${raw}`;
+          }
+          return raw;
+        })();
+        if (!isAllowedNfceUrl(normalizedRaw)) {
+          throw new Error('QR Code NFC-e inválido');
+        }
+        url = normalizedRaw;
+        accessKey = '';
+      }
+
+      // Garantia defensiva: nunca abrir NFC-e em HTTP claro.
+      if (/^http:\/\//i.test(url)) {
+        url = url.replace(/^http:\/\//i, 'https://');
+      }
+
       if (!isAllowedNfceUrl(url)) {
         throw new Error('URL de consulta NFC-e não permitida');
       }
       if (__DEV__) {
         console.warn('URL SEFAZ:', url);
       }
-
-      const accessKey = extractAccessKeyFromQRCode(data);
       if (__DEV__) {
         console.warn('Chave extraída:', accessKey);
       }
 
       setCurrentUrl(url);
       setCurrentAccessKey(accessKey);
+
+      // GET-first: tenta importar sem WebView (mais estavel para alguns portais, como RJ).
+      const httpResult = await nfceHttpImportService.tryImport(url);
+      if (httpResult.ok) {
+        const effectiveAccessKey = (accessKey || httpResult.accessKey || httpResult.data.accessKey || '').trim();
+        if (!/^\d{44}$/.test(effectiveAccessKey)) {
+          throw new Error('Não foi possível identificar a chave de acesso da NFC-e');
+        }
+
+        const result = await nfceService.createPurchaseFromScrapedData(
+          httpResult.data,
+          effectiveAccessKey
+        );
+
+        setIsProcessing(false);
+        Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
+        navigation.navigate('PurchaseDetail', { purchaseId: result.purchaseId });
+        return;
+      }
+
+      // GET-first para todos os estados; fallback WebView preservado para evitar regressões.
       setShowWebView(true);
+      return;
     } catch (error: unknown) {
       if (__DEV__) {
         console.warn('Erro ao processar QR Code:', error);
       }
       setIsProcessing(false);
-      showImportError('qr');
+      showImportError(error instanceof Error ? error.message : 'qr');
     }
   };
 
@@ -63,38 +112,51 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const handleWebViewSuccess = async (scrapedData: NFCeScrapedData) => {
+    if (importSettledRef.current) {
+      return;
+    }
+    importSettledRef.current = true;
+
     try {
       if (__DEV__) {
         console.warn('Dados extraídos:', scrapedData);
       }
 
+      const effectiveAccessKey = (currentAccessKey || scrapedData.accessKey || '').trim();
+      if (!/^\d{44}$/.test(effectiveAccessKey)) {
+        throw new Error('Não foi possível identificar a chave de acesso da NFC-e');
+      }
+
       const result = await nfceService.createPurchaseFromScrapedData(
         scrapedData,
-        currentAccessKey
+        effectiveAccessKey
       );
 
       if (__DEV__) {
         console.warn('Compra salva:', result);
       }
 
-      const purchase = await purchaseService.getPurchaseById(result.purchaseId);
-
       setShowWebView(false);
       setIsProcessing(false);
 
       Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
-      navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
+      navigation.navigate('PurchaseDetail', { purchaseId: result.purchaseId });
     } catch (error: unknown) {
       if (__DEV__) {
         console.warn('Erro ao salvar compra:', error);
       }
       setShowWebView(false);
       setIsProcessing(false);
-      showImportError('save');
+      showImportError(error instanceof Error ? error.message : 'save');
     }
   };
 
   const handleWebViewError = (error: string) => {
+    if (importSettledRef.current) {
+      return;
+    }
+    importSettledRef.current = true;
+
     if (__DEV__) {
       console.warn('Erro na WebView:', error);
     }
@@ -104,6 +166,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const handleWebViewCancel = () => {
+    importSettledRef.current = true;
     setShowWebView(false);
     setIsProcessing(false);
   };
@@ -121,16 +184,39 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const showImportError = (reason?: string) => {
+    const rawReason = typeof reason === 'string' ? reason.trim() : '';
     let message = 'Você pode tentar novamente ou salvar manualmente.';
 
     if (typeof reason === 'string') {
       const lower = reason.toLowerCase();
       if (lower.includes('network') || lower.includes('conex') || lower.includes('internet')) {
         message = 'Sem internet no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (
+        lower.includes('ssl') ||
+        lower.includes('http') ||
+        lower.includes('erro de rede') ||
+        lower.includes('handshake')
+      ) {
+        message = 'Falha de conexão com a SEFAZ no momento. Você pode tentar novamente ou salvar manualmente.';
       } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
         message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
       } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
         message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (
+        lower.includes('duplicate') ||
+        lower.includes('unique') ||
+        lower.includes('já importada') ||
+        lower.includes('ja importada') ||
+        lower.includes('já cadastrada') ||
+        lower.includes('ja cadastrada') ||
+        lower.includes('access_key')
+      ) {
+        message = 'Esta nota já foi importada anteriormente.';
+      }
+
+      // Diagnóstico explícito para troubleshooting em campo.
+      if (rawReason) {
+        message = `${message}\n\nDiagnóstico: ${rawReason}`;
       }
     }
 
@@ -161,61 +247,33 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
     );
   }
 
-  // Tela principal com design Figma
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
-        <TouchableOpacity
-          onPress={handleClose}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cadastro de Compras</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Cadastro de Compras" iconName="qrcode-scan" onBack={handleClose} />
 
       <View style={styles.content}>
-        <View style={styles.mainCard}>
-          <View style={styles.iconContainer}>
-            <MaterialCommunityIcons name="qrcode-scan" size={32} color={colors.primaryText} />
+        {isProcessing ? (
+          <View style={styles.processingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.processingText}>Processando nota fiscal...</Text>
           </View>
-          <Text style={styles.cardTitle}>Ler QR Code</Text>
-          <Text style={styles.cardSubtitle}>
-            Escaneie o QR Code da NFC-e
-          </Text>
-
-          <TouchableOpacity
-            style={[styles.button, styles.photoButton]}
-            onPress={handleTakePhoto}
-          >
-            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
-            <Text style={styles.buttonText}>Escanear QR Code</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.galleryButton, { opacity: 0.45 }]}
-            disabled={true}
-          >
-            <MaterialCommunityIcons name="image" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
-            <Text style={styles.buttonTextWhite}>Selecionar da Galeria</Text>
-          </TouchableOpacity>
-          <Text style={styles.disabledHint}>Galeria em breve.</Text>
-        </View>
-
-        <View style={styles.ocrCard}>
-          <View style={styles.ocrContent}>
-            <View>
-            <Text style={styles.ocrTitle}>Importação Automática</Text>
-            <Text style={styles.ocrSubtitle}>
-              Leitura via QR Code
-            </Text>
+        ) : (
+          <View style={styles.mainCard}>
+            <View style={styles.iconContainer}>
+              <MaterialCommunityIcons name="qrcode-scan" size={32} color={colors.primaryText} />
             </View>
-            <MaterialCommunityIcons name="check-circle" size={24} color={colors.success} />
+            <Text style={styles.cardTitle}>Ler QR Code</Text>
+            <Text style={styles.cardSubtitle}>Escaneie o QR Code da NFC-e</Text>
+
+            <TouchableOpacity
+              style={[styles.button, styles.photoButton]}
+              onPress={handleTakePhoto}
+            >
+              <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>Escanear QR Code</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         <TouchableOpacity
           style={styles.manualButton}
@@ -229,10 +287,17 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       <NFCeWebView
         visible={showWebView}
         url={currentUrl}
+        accessKey={currentAccessKey}
         onSuccess={handleWebViewSuccess}
         onError={handleWebViewError}
         onCancel={handleWebViewCancel}
-        timeout={30000}
+        timeout={(() => {
+          try {
+            return new URL(currentUrl).hostname === 'consultadfe.fazenda.rj.gov.br' ? 45000 : 30000;
+          } catch {
+            return 30000;
+          }
+        })()}
       />
     </View>
   );
@@ -246,29 +311,19 @@ const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
   },
-  header: {
-    backgroundColor: colors.primary,
-    paddingTop: 16,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    color: colors.primaryText,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  headerSpacer: {
-    width: 40,
-  },
   content: {
     flex: 1,
     padding: 20,
+  },
+  processingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  processingText: {
+    color: colors.mutedText,
+    fontSize: 15,
   },
   mainCard: {
     backgroundColor: colors.surface,
@@ -314,46 +369,10 @@ const styles = StyleSheet.create({
   photoButton: {
     backgroundColor: colors.primary,
   },
-  galleryButton: {
-    backgroundColor: colors.secondary,
-  },
   buttonText: {
     color: colors.primaryText,
     fontSize: 15,
     fontWeight: '600',
-  },
-  buttonTextWhite: {
-    color: colors.primaryText,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  disabledHint: {
-    marginTop: -4,
-    marginBottom: 6,
-    fontSize: 12,
-    color: colors.mutedText,
-    alignSelf: 'flex-start',
-  },
-  ocrCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-  },
-  ocrContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ocrTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  ocrSubtitle: {
-    fontSize: 12,
-    color: colors.mutedText,
-    marginTop: 2,
   },
   manualButton: {
     backgroundColor: colors.success,

@@ -18,9 +18,8 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({ purchase, onPress, o
   return (
     <TouchableOpacity onPress={() => onPress?.(purchase)} activeOpacity={0.7}>
       <View style={styles.card}>
-        {/* Linha 1: Nome do mercado + Valor */}
         <View style={styles.row1}>
-          <RNText style={styles.marketName}>
+          <RNText style={styles.marketName} numberOfLines={1}>
             {purchase.supermarket?.name || 'Supermercado'}
           </RNText>
           <RNText style={styles.totalValue}>
@@ -28,39 +27,27 @@ export const PurchaseCard: React.FC<PurchaseCardProps> = ({ purchase, onPress, o
           </RNText>
         </View>
 
-        {/* Linha 2: Data e hora */}
-        <RNText style={styles.dateText}>
-          {formatDate(purchase.date)}
-        </RNText>
+        <View style={styles.row2}>
+          <RNText style={styles.metaText}>
+            {formatDate(purchase.date)}
+            {'  ·  '}
+            {purchase.isManual ? 'Manual' : 'NFC-e'}
+            {'  ·  '}
+            {itemCount} {itemCount === 1 ? 'item' : 'itens'}
+          </RNText>
 
-        {/* Linha 3: Categoria + quantidade */}
-        <RNText style={styles.categoryText}>
-          {purchase.isManual ? 'Manual' : 'NFC-e'} • {itemCount} {itemCount === 1 ? 'item' : 'itens'}
-        </RNText>
-
-        {/* Linha 4: Ações */}
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.detailsButton}
-            onPress={() => onPress?.(purchase)}
-          >
-            <RNText style={styles.detailsButtonText}>Ver detalhes</RNText>
-          </TouchableOpacity>
-
-          <View style={styles.sideActions}>
+          <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.editButton}
               onPress={() => onEdit?.(purchase)}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialCommunityIcons name="pencil" size={18} color={colors.primaryText} />
+              <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.mutedText} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.deleteButton}
               onPress={() => onDelete?.(purchase)}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <MaterialCommunityIcons name="trash-can" size={18} color={colors.primaryText} />
+              <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.mutedText} />
             </TouchableOpacity>
           </View>
         </View>
@@ -85,64 +72,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   marketName: {
     fontSize: 15,
     fontWeight: 'bold',
     color: colors.text,
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
   },
   totalValue: {
     fontSize: 15,
     fontWeight: 'bold',
     color: colors.text,
   },
-  dateText: {
-    fontSize: 12,
-    color: colors.mutedText,
-    marginBottom: 4,
-  },
-  categoryText: {
-    fontSize: 12,
-    color: colors.mutedText,
-    marginBottom: 12,
-  },
-  actions: {
+  row2: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  detailsButton: {
-    backgroundColor: colors.success,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+  metaText: {
+    fontSize: 12,
+    color: colors.mutedText,
+    flex: 1,
   },
-  detailsButtonText: {
-    color: colors.primaryText,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  sideActions: {
+  actions: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  editButton: {
-    backgroundColor: colors.warning,
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteButton: {
-    backgroundColor: colors.danger,
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    gap: 16,
+    marginLeft: 12,
   },
 });

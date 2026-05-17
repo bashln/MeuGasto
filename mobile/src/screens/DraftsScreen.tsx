@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Alert, TextInput, ActivityIndicator, Text as RNText } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Alert, TextInput, ActivityIndicator, Text as RNText, TouchableOpacity } from 'react-native';
 import { Text, FAB, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDrafts } from '../context';
@@ -91,7 +91,7 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.backgroundApp }]}>
-      <Header title="Rascunhos" iconName="note-multiple" />
+      <Header title="Rascunhos" iconName="note-multiple" onBack={() => navigation.goBack()} />
 
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={18} color={colors.mutedText} style={{ marginRight: 10 }} />
@@ -102,6 +102,11 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
           onChangeText={setSearchQuery}
           placeholderTextColor={colors.mutedText}
         />
+        {!!searchQuery && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialCommunityIcons name="close-circle" size={18} color={colors.mutedText} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -150,6 +155,7 @@ export const DraftsScreen: React.FC<DraftsScreenProps> = ({ navigation }) => {
         style={[styles.fab, { backgroundColor: colors.success }]}
         onPress={handleAddDraft}
         color={colors.primaryText}
+        accessibilityLabel="Criar novo rascunho"
       />
     </View>
   );
@@ -175,6 +181,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   list: {
+    paddingHorizontal: 16,
     paddingBottom: 80,
   },
   emptyContainer: {
@@ -186,7 +193,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    bottom: 16,
+    bottom: 90,
   },
   listFooter: {
     paddingVertical: 16,

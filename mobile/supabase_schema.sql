@@ -68,11 +68,14 @@ CREATE TABLE IF NOT EXISTS items (
   purchase_id INTEGER REFERENCES purchases(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   code TEXT,
+  category_id INTEGER,
   quantity DECIMAL(10,3) DEFAULT 1,
   unit TEXT,
   price DECIMAL(10,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE items ADD COLUMN IF NOT EXISTS category_id INTEGER;
 
 ALTER TABLE items DROP CONSTRAINT IF EXISTS items_name_length_check;
 ALTER TABLE items ADD CONSTRAINT items_name_length_check
@@ -112,6 +115,22 @@ ALTER TABLE drafts ADD CONSTRAINT drafts_content_length_check
   CHECK (content IS NULL OR char_length(content) <= 50000);
 
 -- =============================================
+-- LEARNED RECLASSIFICATIONS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS learned_reclassifications (
+  id SERIAL PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  normalized_name TEXT NOT NULL,
+  category_id INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE learned_reclassifications DROP CONSTRAINT IF EXISTS learned_reclassifications_name_length_check;
+ALTER TABLE learned_reclassifications ADD CONSTRAINT learned_reclassifications_name_length_check
+  CHECK (char_length(btrim(normalized_name)) > 0 AND char_length(normalized_name) <= 200);
+
+-- =============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================
 
@@ -121,6 +140,7 @@ ALTER TABLE supermarkets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE drafts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE learned_reclassifications ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
 -- PROFILES POLICIES
@@ -236,6 +256,21 @@ CREATE POLICY "Users can delete own drafts" ON drafts
   FOR DELETE USING (auth.uid() = user_id);
 
 -- =============================================
+-- LEARNED RECLASSIFICATIONS POLICIES
+-- =============================================
+CREATE POLICY "Users can view own reclassifications" ON learned_reclassifications
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own reclassifications" ON learned_reclassifications
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own reclassifications" ON learned_reclassifications
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own reclassifications" ON learned_reclassifications
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- =============================================
 -- AUTO-CREATE PROFILE ON SIGNUP
 -- =============================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -270,6 +305,9 @@ CREATE INDEX IF NOT EXISTS idx_drafts_user_id ON drafts(user_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_supermarket_id ON drafts(supermarket_id);
 
 CREATE INDEX IF NOT EXISTS idx_supermarkets_user_id ON supermarkets(user_id);
+CREATE INDEX IF NOT EXISTS idx_learned_reclassifications_user_id ON learned_reclassifications(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_learned_reclassifications_user_name_unique
+  ON learned_reclassifications(user_id, normalized_name);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_purchases_user_access_key_unique
   ON purchases(user_id, access_key)
   WHERE access_key IS NOT NULL;
@@ -301,6 +339,7 @@ DECLARE
   v_name TEXT;
   v_code TEXT;
   v_unit TEXT;
+  v_category_id INTEGER;
   v_quantity NUMERIC;
   v_price NUMERIC;
   v_line_total NUMERIC;
@@ -419,10 +458,18 @@ BEGIN
   IF v_item_count > 0 THEN
     FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
     LOOP
+      BEGIN
+        v_category_id := NULLIF(v_item->>'category_id', '')::INTEGER;
+      EXCEPTION
+        WHEN invalid_text_representation THEN
+          v_category_id := NULL;
+      END;
+
       INSERT INTO items (
         purchase_id,
         name,
         code,
+        category_id,
         quantity,
         unit,
         price
@@ -431,6 +478,7 @@ BEGIN
         v_purchase_id,
         btrim(v_item->>'name'),
         NULLIF(btrim(COALESCE(v_item->>'code', '')), ''),
+        v_category_id,
         COALESCE(NULLIF(v_item->>'quantity', '')::NUMERIC, 1),
         NULLIF(btrim(COALESCE(v_item->>'unit', '')), ''),
         COALESCE(NULLIF(v_item->>'price', '')::NUMERIC, 0)

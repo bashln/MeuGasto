@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Text as RNText, ActivityIndicator } from 'react-native';
 import {
   TextInput,
 } from 'react-native-paper';
@@ -12,12 +12,6 @@ import { RootStackParamList } from '../navigation/types';
 type LoginScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
-
-const BENEFITS = [
-  'Controle seus gastos mensais',
-  'Organize suas compras',
-  'Emita relatórios personalizados',
-];
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const { login } = useAuth();
@@ -122,26 +116,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
             onPress={handleLogin}
             disabled={isLoading}
+            accessibilityLabel="Entrar na conta"
+            accessibilityRole="button"
           >
-            <RNText style={styles.loginButtonText}>
-              {isLoading ? 'Entrando...' : 'Entrar'}
-            </RNText>
-          </TouchableOpacity>
-
-          <View style={styles.dividerWithText}>
-            <View style={styles.dividerLine} />
-            <RNText style={styles.dividerText}>ou</RNText>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.googleButton, { opacity: 0.45 }]}
-            disabled={true}
-          >
-            <RNText style={styles.googleButtonText}>Continuar com Google</RNText>
+            {isLoading
+              ? <ActivityIndicator size="small" color={colors.primaryText} />
+              : <RNText style={styles.loginButtonText}>Entrar</RNText>
+            }
           </TouchableOpacity>
         </View>
 
@@ -150,19 +134,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
             <RNText style={styles.registerLink}>Cadastre-se</RNText>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.benefitsContainer}>
-          {BENEFITS.map((benefit, index) => (
-            <View key={index} style={styles.benefitItem}>
-              <View style={styles.checkIcon}>
-                <MaterialCommunityIcons name="check" size={12} color={colors.primaryText} />
-              </View>
-              <RNText style={styles.benefitText}>{benefit}</RNText>
-            </View>
-          ))}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -251,7 +222,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   forgotText: {
-    color: colors.success,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -268,39 +239,13 @@ const styles = StyleSheet.create({
     elevation: 6,
     marginBottom: 18,
   },
+  loginButtonDisabled: {
+    opacity: 0.7,
+  },
   loginButtonText: {
     color: colors.primaryText,
     fontSize: 16,
     fontWeight: '600',
-  },
-  dividerWithText: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    color: colors.mutedText,
-    marginHorizontal: 12,
-    fontSize: 14,
-  },
-  googleButton: {
-    height: 52,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  googleButtonText: {
-    color: colors.mutedText,
-    fontSize: 15,
-    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -313,35 +258,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   registerLink: {
-    color: colors.success,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 16,
-  },
-  benefitsContainer: {
-    alignItems: 'center',
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  checkIcon: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.success,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  benefitText: {
-    color: colors.mutedText,
-    fontSize: 14,
   },
 });

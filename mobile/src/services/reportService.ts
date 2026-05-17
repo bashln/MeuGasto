@@ -2,6 +2,7 @@ import { getSupabaseClient } from '../lib/supabaseClient';
 import { DashboardStats } from '../types';
 import { getCurrentUserId } from './authService';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { CATEGORY_IDS, PRODUCT_CATEGORY_OPTIONS } from './productCategoryRules';
 
 const getClient = (): SupabaseClient => {
   const client = getSupabaseClient();
@@ -12,10 +13,11 @@ const getClient = (): SupabaseClient => {
 };
 
 const buildDateRange = (month?: number, year?: number): { startDate: string; endDate: string } => {
-  if (month && year) {
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  if (month !== undefined && year !== undefined) {
+    const normalizedMonth = month === 0 ? 1 : month;
+    const startDate = `${year}-${String(normalizedMonth).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, normalizedMonth, 0).getDate();
+    const endDate = `${year}-${String(normalizedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     return { startDate, endDate };
   }
 
@@ -27,6 +29,11 @@ const buildDateRange = (month?: number, year?: number): { startDate: string; end
   const endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
   return { startDate, endDate };
 };
+
+const CATEGORY_LABEL_BY_ID: Record<number, string> = PRODUCT_CATEGORY_OPTIONS.reduce<Record<number, string>>((acc, option) => {
+  acc[option.id] = option.label;
+  return acc;
+}, {});
 
 export const reportService = {
   async getDashboardStats(month?: number, year?: number): Promise<DashboardStats> {
@@ -105,6 +112,11 @@ export const reportService = {
     startDate?: string,
     endDate?: string
   ): Promise<Array<{ supermarket: string; total: number }>> {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return [];
+    }
+
     const supabase = getClient();
 
     const { data, error } = await supabase.rpc('report_expenses_by_supermarket', {
@@ -144,6 +156,71 @@ export const reportService = {
       quantity: Number(row.quantity) || 0,
       total: Number(row.total) || 0,
     }));
+  },
+
+  async getExpensesByCategory(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Array<{ categoryId: number; category: string; total: number; percentage: number }>> {
+    const userId = await getCurrentUserId();
+    const supabase = getClient();
+
+    let purchasesQuery = supabase
+      .from('purchases')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (startDate) {
+      purchasesQuery = purchasesQuery.gte('date', startDate);
+    }
+    if (endDate) {
+      purchasesQuery = purchasesQuery.lte('date', endDate);
+    }
+
+    const { data: purchases, error: purchasesError } = await purchasesQuery;
+
+    if (purchasesError) {
+      throw new Error(purchasesError.message);
+    }
+
+    const purchaseIds = (purchases ?? []).map((purchase) => purchase.id);
+    if (purchaseIds.length === 0) {
+      return [];
+    }
+
+    const { data: items, error: itemsError } = await supabase
+      .from('items')
+      .select('category_id, quantity, price')
+      .in('purchase_id', purchaseIds);
+
+    if (itemsError) {
+      return [];
+    }
+
+    const totalsByCategory: Record<number, number> = {};
+    let grandTotal = 0;
+
+    (items ?? []).forEach((item) => {
+      const categoryId = Number(item.category_id) || CATEGORY_IDS.OUTROS;
+      const quantity = Number(item.quantity) || 0;
+      const price = Number(item.price) || 0;
+      const lineTotal = quantity * price;
+
+      totalsByCategory[categoryId] = (totalsByCategory[categoryId] || 0) + lineTotal;
+      grandTotal += lineTotal;
+    });
+
+    return Object.entries(totalsByCategory)
+      .map(([rawCategoryId, total]) => {
+        const categoryId = Number(rawCategoryId);
+        return {
+          categoryId,
+          category: CATEGORY_LABEL_BY_ID[categoryId] || CATEGORY_LABEL_BY_ID[CATEGORY_IDS.OUTROS] || 'Outros',
+          total,
+          percentage: grandTotal > 0 ? (total / grandTotal) * 100 : 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
   },
 
   async getItemReport(
@@ -219,7 +296,7 @@ export const reportService = {
       .from('items')
       .select('purchase_id, name, quantity, price')
       .in('purchase_id', purchaseIds)
-      .eq('name', itemName);
+      .ilike('name', itemName);
 
     if (itemsError) {
       throw new Error(itemsError.message);
