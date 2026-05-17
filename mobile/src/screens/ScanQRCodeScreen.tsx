@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, StyleSheet, Alert, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner, Header } from '../components';
 import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
-import { nfceService, purchaseService } from '../services';
+import { nfceService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
+import { nfceHttpImportService } from '../services/nfceHttpImportService';
 import { colors } from '../theme/colors';
 
 type ScanQRCodeScreenProps = {
@@ -19,40 +20,90 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   const [showWebView, setShowWebView] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
   const [currentAccessKey, setCurrentAccessKey] = useState('');
+  const importSettledRef = useRef(false);
 
   const handleScan = async (data: string) => {
     if (isProcessing) return;
     
     setIsProcessing(true);
     setShowCamera(false);
+    importSettledRef.current = false;
 
     try {
       if (__DEV__) {
         console.warn('QR Code data:', data);
       }
 
-      const url = buildNFCeUrl(data);
+      let url = '';
+      let accessKey = '';
+
+      try {
+        url = buildNFCeUrl(data);
+        accessKey = extractAccessKeyFromQRCode(data);
+      } catch {
+        const raw = (data || '').trim();
+        const normalizedRaw = (() => {
+          if (/^https?:\/\//i.test(raw)) {
+            return raw.replace(/^http:\/\//i, 'https://');
+          }
+          if (/^www\./i.test(raw)) {
+            return `https://${raw}`;
+          }
+          return raw;
+        })();
+        if (!isAllowedNfceUrl(normalizedRaw)) {
+          throw new Error('QR Code NFC-e inválido');
+        }
+        url = normalizedRaw;
+        accessKey = '';
+      }
+
+      // Garantia defensiva: nunca abrir NFC-e em HTTP claro.
+      if (/^http:\/\//i.test(url)) {
+        url = url.replace(/^http:\/\//i, 'https://');
+      }
+
       if (!isAllowedNfceUrl(url)) {
         throw new Error('URL de consulta NFC-e não permitida');
       }
       if (__DEV__) {
         console.warn('URL SEFAZ:', url);
       }
-
-      const accessKey = extractAccessKeyFromQRCode(data);
       if (__DEV__) {
         console.warn('Chave extraída:', accessKey);
       }
 
       setCurrentUrl(url);
       setCurrentAccessKey(accessKey);
+
+      // GET-first: tenta importar sem WebView (mais estavel para alguns portais, como RJ).
+      const httpResult = await nfceHttpImportService.tryImport(url);
+      if (httpResult.ok) {
+        const effectiveAccessKey = (accessKey || httpResult.accessKey || httpResult.data.accessKey || '').trim();
+        if (!/^\d{44}$/.test(effectiveAccessKey)) {
+          throw new Error('Não foi possível identificar a chave de acesso da NFC-e');
+        }
+
+        const result = await nfceService.createPurchaseFromScrapedData(
+          httpResult.data,
+          effectiveAccessKey
+        );
+
+        setIsProcessing(false);
+        Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
+        navigation.navigate('PurchaseDetail', { purchaseId: result.purchaseId });
+        return;
+      }
+
+      // GET-first para todos os estados; fallback WebView preservado para evitar regressões.
       setShowWebView(true);
+      return;
     } catch (error: unknown) {
       if (__DEV__) {
         console.warn('Erro ao processar QR Code:', error);
       }
       setIsProcessing(false);
-      showImportError('qr');
+      showImportError(error instanceof Error ? error.message : 'qr');
     }
   };
 
@@ -61,38 +112,51 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const handleWebViewSuccess = async (scrapedData: NFCeScrapedData) => {
+    if (importSettledRef.current) {
+      return;
+    }
+    importSettledRef.current = true;
+
     try {
       if (__DEV__) {
         console.warn('Dados extraídos:', scrapedData);
       }
 
+      const effectiveAccessKey = (currentAccessKey || scrapedData.accessKey || '').trim();
+      if (!/^\d{44}$/.test(effectiveAccessKey)) {
+        throw new Error('Não foi possível identificar a chave de acesso da NFC-e');
+      }
+
       const result = await nfceService.createPurchaseFromScrapedData(
         scrapedData,
-        currentAccessKey
+        effectiveAccessKey
       );
 
       if (__DEV__) {
         console.warn('Compra salva:', result);
       }
 
-      const purchase = await purchaseService.getPurchaseById(result.purchaseId);
-
       setShowWebView(false);
       setIsProcessing(false);
 
       Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
-      navigation.navigate('PurchaseDetail', { purchaseId: purchase.id });
+      navigation.navigate('PurchaseDetail', { purchaseId: result.purchaseId });
     } catch (error: unknown) {
       if (__DEV__) {
         console.warn('Erro ao salvar compra:', error);
       }
       setShowWebView(false);
       setIsProcessing(false);
-      showImportError('save');
+      showImportError(error instanceof Error ? error.message : 'save');
     }
   };
 
   const handleWebViewError = (error: string) => {
+    if (importSettledRef.current) {
+      return;
+    }
+    importSettledRef.current = true;
+
     if (__DEV__) {
       console.warn('Erro na WebView:', error);
     }
@@ -102,6 +166,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const handleWebViewCancel = () => {
+    importSettledRef.current = true;
     setShowWebView(false);
     setIsProcessing(false);
   };
@@ -119,16 +184,39 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
   };
 
   const showImportError = (reason?: string) => {
+    const rawReason = typeof reason === 'string' ? reason.trim() : '';
     let message = 'Você pode tentar novamente ou salvar manualmente.';
 
     if (typeof reason === 'string') {
       const lower = reason.toLowerCase();
       if (lower.includes('network') || lower.includes('conex') || lower.includes('internet')) {
         message = 'Sem internet no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (
+        lower.includes('ssl') ||
+        lower.includes('http') ||
+        lower.includes('erro de rede') ||
+        lower.includes('handshake')
+      ) {
+        message = 'Falha de conexão com a SEFAZ no momento. Você pode tentar novamente ou salvar manualmente.';
       } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
         message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
       } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
         message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (
+        lower.includes('duplicate') ||
+        lower.includes('unique') ||
+        lower.includes('já importada') ||
+        lower.includes('ja importada') ||
+        lower.includes('já cadastrada') ||
+        lower.includes('ja cadastrada') ||
+        lower.includes('access_key')
+      ) {
+        message = 'Esta nota já foi importada anteriormente.';
+      }
+
+      // Diagnóstico explícito para troubleshooting em campo.
+      if (rawReason) {
+        message = `${message}\n\nDiagnóstico: ${rawReason}`;
       }
     }
 
@@ -199,10 +287,17 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       <NFCeWebView
         visible={showWebView}
         url={currentUrl}
+        accessKey={currentAccessKey}
         onSuccess={handleWebViewSuccess}
         onError={handleWebViewError}
         onCancel={handleWebViewCancel}
-        timeout={30000}
+        timeout={(() => {
+          try {
+            return new URL(currentUrl).hostname === 'consultadfe.fazenda.rj.gov.br' ? 45000 : 30000;
+          } catch {
+            return 30000;
+          }
+        })()}
       />
     </View>
   );

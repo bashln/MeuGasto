@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - testing
     paths:
       - 'mobile/src/**'
       - 'mobile/assets/**'

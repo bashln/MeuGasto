@@ -8,6 +8,7 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { useUpdateCheck } from '../useUpdateCheck';
 import { updateService } from '../../services/updateService';
+import appConfig from '../../../app.json';
 
 const mockUpdateService = updateService as jest.Mocked<typeof updateService>;
 
@@ -41,7 +42,7 @@ describe('useUpdateCheck', () => {
       TestRenderer.create(<HookHarness onRender={(value) => snapshots.push(value)} />);
     });
 
-    expect(mockUpdateService.checkForUpdate).toHaveBeenCalledWith('0.3.62');
+    expect(mockUpdateService.checkForUpdate).toHaveBeenCalledWith(appConfig.expo.version);
     expect(snapshots[snapshots.length - 1].updateInfo?.latestVersion).toBe('1.4.0');
   });
 

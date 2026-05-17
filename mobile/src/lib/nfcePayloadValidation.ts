@@ -2,6 +2,7 @@ const MAX_TEXT_FIELD_LENGTH = 120;
 const MAX_ITEM_NAME_LENGTH = 200;
 const MAX_ITEM_UNIT_LENGTH = 10;
 const MAX_CNPJ_LENGTH = 14;
+const ACCESS_KEY_LENGTH = 44;
 const MAX_EMITTED_AT_LENGTH = 32;
 
 const MIN_ITEM_QUANTITY = 0.001;
@@ -21,6 +22,7 @@ export interface NFCeScrapedItem {
 export interface NFCeScrapedData {
   storeName?: string;
   cnpj?: string;
+  accessKey?: string;
   emittedAt?: string;
   city?: string;
   state?: string;
@@ -45,6 +47,15 @@ const sanitizeCnpj = (value: unknown): string => {
   }
 
   return value.replace(/\D/g, '').slice(0, MAX_CNPJ_LENGTH);
+};
+
+const sanitizeAccessKey = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const digits = value.replace(/\D/g, '');
+  return digits.length === ACCESS_KEY_LENGTH ? digits : '';
 };
 
 const sanitizeState = (value: unknown): string => {
@@ -140,6 +151,7 @@ export const validateAndSanitizeNFCePayload = (payload: unknown): NFCeScrapedDat
   return {
     storeName: sanitizeText(source.storeName, MAX_TEXT_FIELD_LENGTH),
     cnpj: sanitizeCnpj(source.cnpj),
+    accessKey: sanitizeAccessKey(source.accessKey),
     emittedAt: sanitizeEmittedAt(source.emittedAt),
     city: sanitizeText(source.city, MAX_TEXT_FIELD_LENGTH),
     state: sanitizeState(source.state),

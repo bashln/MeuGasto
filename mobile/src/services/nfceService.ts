@@ -135,7 +135,7 @@ const STATE_URLS: Record<string, string> = {
   '35': 'https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx', // SP
   '41': 'https://www.fazenda.pr.gov.br/nfce/qrcode', // PR
   '42': 'https://sat.sef.sc.gov.br/nfce/consulta', // SC
-  '43': 'https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx', // RS
+  '43': 'https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce', // RS
   '50': 'https://www.dfe.ms.gov.br/nfce/qrcode', // MS
   '51': 'https://www.sefaz.mt.gov.br/nfce/consultanfce', // MT
   '52': 'https://nfeweb.sefaz.go.gov.br/nfeweb/sites/nfce/danfeNFCe', // GO
@@ -156,9 +156,10 @@ export const buildNFCeUrl = (input: string): string => {
   const stateCode = accessKey.substring(0, 2);
   const baseUrl = STATE_URLS[stateCode] || STATE_URLS['43'];
 
-  // Para RS (43), preserva o p completo (chave + metadados)
-  // Para outros estados, usa só a chave
-  const pParam = stateCode === '43' ? pValue : accessKey;
+  // Alguns portais (ex.: RS/RJ) dependem dos metadados completos no parâmetro `p`
+  // (chave + versão + ambiente + tipo + hash). Para os demais, manter apenas a chave
+  // reduz risco de incompatibilidade com implementações legadas.
+  const pParam = stateCode === '43' || stateCode === '33' ? pValue : accessKey;
 
   return `${baseUrl}?p=${pParam}`;
 };
@@ -177,6 +178,15 @@ export const NFCE_ALLOWED_PATH_PREFIXES: Record<string, string[]> = Object.value
   },
   {} as Record<string, string[]>,
 );
+
+// RJ pode redirecionar para /consultaNFCe/paginas/resultadoQRCode2.faces?cid=...
+// após abrir /consultaNFCe/QRCode?p=...; esse fluxo é legítimo e deve ser permitido.
+if (!NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br']) {
+  NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br'] = [];
+}
+if (!NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br'].includes('/consultaNFCe/paginas/')) {
+  NFCE_ALLOWED_PATH_PREFIXES['consultadfe.fazenda.rj.gov.br'].push('/consultaNFCe/paginas/');
+}
 
 export const isAllowedNfceUrl = (
   value: string,
