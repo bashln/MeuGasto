@@ -86,13 +86,13 @@ Formato: `vMAJOR.MINOR.PATCH.BUILD`
 ## Branch rules
 
 - `main` branch is protected — never push directly, never force push
-- All changes go through `dev` -> PR -> `testing` -> PR -> `main`
+- All changes go through `dev` -> PR -> `main`
 
 ## Distribution model
 
 - Android: signed APK via GitHub Releases (tag `v*` triggers `release.yml`)
 - GitHub Releases assets must always use the pattern `meugastovX.X.X.XX.apk` for the app binary
-- OTA updates: EAS Update via `ota-update.yml` (testing branch → preview channel, main branch → production channel)
+- OTA updates: EAS Update via `ota-update.yml` (main branch → production channel)
 - No Google Play, no TestFlight
 
 ## OTA Architecture
@@ -112,9 +112,9 @@ Handles hot-patching the JS bundle without reinstalling the APK. Applied on the 
 ```
 
 **Rules:**
+
 - Never remove or change `updates.requestHeaders` without rebuilding and redistributing a new APK — existing installs will silently stop receiving OTA updates
-- Channel `production` is for the APK distributed to users (built from `main` / `v*` tags)
-- Channel `preview` is for testing builds (branch `testing`)
+- Only one channel in use: `production`, published on every merge to `main`
 - The `runtimeVersion` in `app.json` must match between the published OTA bundle and the installed APK — mismatches cause silent update failures
 - EAS Updates can only patch JS/assets — any change to native code, permissions, or `app.json` plugins requires a new APK release
 
@@ -123,9 +123,9 @@ Handles hot-patching the JS bundle without reinstalling the APK. Applied on the 
 Polls `https://api.github.com/repos/bashln/MeuGasto/releases/latest` to detect new APK releases and show a download dialog.
 
 **Rules:**
+
 - Release tags on GitHub **must always follow `vX.Y.Z.W` format** — non-semver tags (e.g. `testing`, `latest`, branch names) are ignored by the version checker but can corrupt the "Latest" marker on GitHub, causing the API to return a garbage version string to all users
 - Never manually push non-`v*` tags to GitHub or mark a non-versioned release as "Latest"
-- The `testing` named release (if it exists) must be deleted or converted to a draft/pre-release — it breaks the latest release API for all users
 - Check interval is 24h — this is intentional to avoid rate-limiting the GitHub API
 
 ## Progresso de implementação de notas fiscais

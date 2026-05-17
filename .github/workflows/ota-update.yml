@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - testing
     paths:
       - 'mobile/src/**'
       - 'mobile/assets/**'
@@ -31,19 +30,10 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
-      - name: Set EAS channel
-        id: channel
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "channel=production" >> $GITHUB_OUTPUT
-          else
-            echo "channel=preview" >> $GITHUB_OUTPUT
-          fi
-
       - name: Publish EAS Update
         working-directory: ./mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-        run: npx eas-cli update --channel ${{ steps.channel.outputs.channel }} --message "Auto update from ${{ github.sha }}" --non-interactive
+        run: npx eas-cli update --channel production --message "Auto update from ${{ github.sha }}" --non-interactive
