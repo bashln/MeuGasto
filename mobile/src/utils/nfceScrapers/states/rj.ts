@@ -55,10 +55,10 @@ export const RJ_NFCE_SCRAPE_SCRIPT = `
   }
 
   function findAccessKey(pageText) {
-    var compact = (pageText || '').replace(/\s+/g, ' ');
-    var keyMatch = compact.match(/(?:Chave de acesso:?\s*)?((?:\d{4}\s*){11})/i);
+    var compact = (pageText || '').replace(/\\s+/g, ' ');
+    var keyMatch = compact.match(/(?:Chave de acesso:?\\s*)?((?:\\d{4}\\s*){11})/i);
     if (!keyMatch || !keyMatch[1]) return '';
-    var digits = keyMatch[1].replace(/\D/g, '');
+    var digits = keyMatch[1].replace(/\\D/g, '');
     return digits.length === 44 ? digits : '';
   }
 
@@ -231,9 +231,9 @@ export const RJ_NFCE_SCRAPE_SCRIPT = `
   }
 
   function scrapeItemsFromRawText(pageText) {
-    var compact = (pageText || '').replace(/\s+/g, ' ');
+    var compact = (pageText || '').replace(/\\s+/g, ' ');
     var items = [];
-    var pattern = /([A-Z0-9À-ÿ][A-Z0-9À-ÿ\s\-\/\.\(\),]{3,}?)\s*\(C[óo]digo:\s*\d+\s*\)\s*Qtde\.:?\s*([\d.,]+)\s*UN:\s*([A-Z]{1,5})\s*Vl\.\s*Unit\.?:\s*([\d.,]+)\s*Vl\.\s*Total\s*([\d.,]+)/gi;
+    var pattern = /([A-Z0-9À-ÿ][A-Z0-9À-ÿ\\s\\-\\/\\.\\(\\),]{3,}?)\\s*\\(C[óo]digo:\\s*\\d+\\s*\\)\\s*Qtde\\.:?\\s*([\\d.,]+)\\s*UN:\\s*([A-Z]{1,5})\\s*Vl\\.\\s*Unit\\.?:\\s*([\\d.,]+)\\s*Vl\\.\\s*Total\\s*([\\d.,]+)/gi;
     var match;
 
     while ((match = pattern.exec(compact)) !== null) {
