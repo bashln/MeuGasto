@@ -55,4 +55,31 @@ describe('ItemInputRow', () => {
 
     expect(onRemove).toHaveBeenCalledTimes(1);
   });
+
+  it('preserva a representacao em string de casas decimais e virgulas no input', () => {
+    const onUpdate = jest.fn();
+    let renderer: ReturnType<typeof TestRenderer.create>;
+
+    act(() => {
+      renderer = TestRenderer.create(
+        <ItemInputRow item={baseItem} onUpdate={onUpdate} onRemove={jest.fn()} />,
+      );
+    });
+
+    const priceInput = renderer!.root.findByProps({ testID: 'price-input-1' });
+
+    // Digita com vírgula pendente (ex: '16,')
+    act(() => {
+      priceInput.props.onChangeText('16,');
+    });
+    expect(priceInput.props.value).toBe('16,');
+    expect(onUpdate).toHaveBeenLastCalledWith({ price: 16 });
+
+    // Digita com decimal completo (ex: '16,9')
+    act(() => {
+      priceInput.props.onChangeText('16,9');
+    });
+    expect(priceInput.props.value).toBe('16,9');
+    expect(onUpdate).toHaveBeenLastCalledWith({ price: 16.9 });
+  });
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { colors } from '../theme/colors';
 
@@ -17,9 +17,15 @@ export const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
   visible,
   onClose,
 }) => {
-  const [selectedYear, setSelectedYear] = useState(value.year);
   const currentYear = new Date().getFullYear();
-  const years = [currentYear - 1, currentYear, currentYear + 1];
+  const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+  const [selectedYear, setSelectedYear] = useState(value.year);
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedYear(value.year);
+    }
+  }, [visible, value.year]);
 
   const handleMonthSelect = (month: number) => {
     onChange({ month, year: selectedYear });

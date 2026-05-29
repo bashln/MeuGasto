@@ -1,17 +1,15 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   TouchableOpacity,
   Text as RNText,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, TextInput } from "react-native-paper";
+import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { authService } from "../services";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from '../navigation/types';
 import { colors } from "../theme/colors";
@@ -24,58 +22,6 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSend = async () => {
-    const safeEmail = email.trim().toLowerCase();
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail);
-
-    if (!safeEmail) {
-      setError("Informe seu e-mail");
-      return;
-    }
-
-    if (!isValidEmail) {
-      setError("Digite um e-mail valido");
-      return;
-    }
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      await authService.forgotPassword(safeEmail);
-      Alert.alert(
-        "Sucesso",
-        "Enviamos um link de recuperação para seu e-mail.",
-      );
-      navigation.goBack();
-    } catch (err: unknown) {
-      const errorObj = err as { message?: string; status?: number; code?: string; name?: string };
-      if (__DEV__) {
-        console.error("forgotPassword error:", {
-          message: errorObj?.message,
-          status: errorObj?.status,
-          code: errorObj?.code,
-          name: errorObj?.name,
-          raw: err,
-        });
-      }
-
-      if (errorObj?.code === "email_address_invalid") {
-        setError(
-          "Esse domínio não recebe e-mails de recuperação. Use um e-mail com domínio válido.",
-        );
-        return;
-      }
-
-      setError("Não foi possível enviar o e-mail de recuperação. Tente novamente.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <KeyboardAvoidingView
@@ -94,40 +40,34 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Esqueci minha senha</Text>
-        <Text style={styles.subtitle}>
-          Informe seu e-mail para receber o link de recuperação.
-        </Text>
-
-        {error ? (
-          <View style={styles.errorBox}>
-            <RNText style={styles.errorText}>{error}</RNText>
+        <View style={styles.card}>
+          <View style={styles.iconContainer}>
+            <MaterialCommunityIcons name="lock-reset" size={44} color={colors.primary} />
           </View>
-        ) : null}
+          <Text style={styles.title}>Redefinição de Senha</Text>
+          
+          <RNText style={styles.infoText}>
+            A recuperação automática de senha por e-mail não está ativa no aplicativo.
+          </RNText>
 
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          mode="outlined"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          style={styles.input}
-          placeholder="seu@email.com"
-          outlineColor={colors.border}
-          activeOutlineColor={colors.primary}
-        />
+          <RNText style={styles.instructions}>
+            Se você esqueceu ou deseja alterar suas credenciais de acesso, entre em contato com o administrador do sistema.
+          </RNText>
+
+          <View style={styles.tipBox}>
+            <MaterialCommunityIcons name="lightbulb-on" size={20} color={colors.primary} style={styles.tipIcon} />
+            <RNText style={styles.tipText}>
+              A senha pode ser redefinida rapidamente pelo administrador através do painel de controle do Supabase.
+            </RNText>
+          </View>
+        </View>
 
         <TouchableOpacity
-          style={[
-            styles.submitButton,
-            isLoading && styles.submitButtonDisabled,
-          ]}
-          onPress={handleSend}
-          disabled={isLoading}
+          style={styles.backButtonLarge}
+          onPress={() => navigation.goBack()}
         >
-          <RNText style={styles.submitButtonText}>
-            {isLoading ? "Enviando..." : "Enviar link"}
+          <RNText style={styles.backButtonLargeText}>
+            Voltar para o Login
           </RNText>
         </TouchableOpacity>
       </View>
@@ -138,7 +78,7 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundAuth,
+    backgroundColor: colors.backgroundApp,
   },
   header: {
     backgroundColor: colors.primary,
@@ -161,47 +101,80 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    flex: 1,
+    justifyContent: "center",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 8,
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
+    marginBottom: 24,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.mutedText,
-    marginBottom: 20,
-  },
-  errorBox: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: colors.dangerBackground,
-    marginBottom: 12,
-  },
-  errorText: {
-    color: colors.danger,
-  },
-  input: {
-    backgroundColor: colors.inputBackground,
-    borderRadius: 12,
-    height: 50,
-    fontSize: 15,
-    marginBottom: 16,
-  },
-  submitButton: {
-    backgroundColor: colors.primary,
-    height: 54,
-    borderRadius: 14,
+  iconContainer: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: colors.surfaceAlt,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 20,
   },
-  submitButtonDisabled: {
-    opacity: 0.7,
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 12,
   },
-  submitButtonText: {
+  infoText: {
+    fontSize: 15,
+    color: colors.text,
+    textAlign: "center",
+    fontWeight: "600",
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  instructions: {
+    fontSize: 14,
+    color: colors.mutedText,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  tipBox: {
+    flexDirection: "row",
+    backgroundColor: colors.inputBackground,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    width: "100%",
+  },
+  tipIcon: {
+    marginRight: 10,
+  },
+  tipText: {
+    fontSize: 12,
+    color: colors.mutedText,
+    flex: 1,
+    lineHeight: 16,
+  },
+  backButtonLarge: {
+    backgroundColor: colors.primary,
+    height: 52,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+  },
+  backButtonLargeText: {
     color: colors.primaryText,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
 });
