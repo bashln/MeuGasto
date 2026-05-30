@@ -40,7 +40,6 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdat
       setQuantityStr(item.quantity ? String(item.quantity) : '');
     }
   }, [item.quantity, quantityStr]);
-
   let unitPriceLabel = 'Preço por unidade: inválido';
 
   try {
