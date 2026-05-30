@@ -13,6 +13,7 @@ type ItemInputRowProps = {
   isCheapest?: boolean;
 };
 
+
 const parseNumericInput = (value: string): number => {
   const normalized = value.replace(',', '.').trim();
   if (!normalized) {
@@ -27,19 +28,25 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdat
   const [priceStr, setPriceStr] = React.useState(item.price ? String(item.price) : '');
   const [quantityStr, setQuantityStr] = React.useState(item.quantity ? String(item.quantity) : '');
 
+  const priceStrRef = React.useRef(priceStr);
+  priceStrRef.current = priceStr;
+  const quantityStrRef = React.useRef(quantityStr);
+  quantityStrRef.current = quantityStr;
+
   React.useEffect(() => {
-    const parsedLocal = parseNumericInput(priceStr);
+    const parsedLocal = parseNumericInput(priceStrRef.current);
     if (parsedLocal !== item.price) {
       setPriceStr(item.price ? String(item.price) : '');
     }
-  }, [item.price, priceStr]);
+  }, [item.price]);
 
   React.useEffect(() => {
-    const parsedLocal = parseNumericInput(quantityStr);
+    const parsedLocal = parseNumericInput(quantityStrRef.current);
     if (parsedLocal !== item.quantity) {
       setQuantityStr(item.quantity ? String(item.quantity) : '');
     }
-  }, [item.quantity, quantityStr]);
+  }, [item.quantity]);
+
   let unitPriceLabel = 'Preço por unidade: inválido';
 
   try {
