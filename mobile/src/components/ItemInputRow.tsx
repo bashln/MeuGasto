@@ -32,14 +32,14 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdat
     if (parsedLocal !== item.price) {
       setPriceStr(item.price ? String(item.price) : '');
     }
-  }, [item.price]);
+  }, [item.price, priceStr]);
 
   React.useEffect(() => {
     const parsedLocal = parseNumericInput(quantityStr);
     if (parsedLocal !== item.quantity) {
       setQuantityStr(item.quantity ? String(item.quantity) : '');
     }
-  }, [item.quantity]);
+  }, [item.quantity, quantityStr]);
 
   let unitPriceLabel = 'Preço por unidade: inválido';
 
