@@ -13,6 +13,7 @@ type ItemInputRowProps = {
   isCheapest?: boolean;
 };
 
+
 const parseNumericInput = (value: string): number => {
   const normalized = value.replace(',', '.').trim();
   if (!normalized) {
@@ -24,6 +25,28 @@ const parseNumericInput = (value: string): number => {
 };
 
 export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdate, onRemove, isCheapest = false }) => {
+  const [priceStr, setPriceStr] = React.useState(item.price ? String(item.price) : '');
+  const [quantityStr, setQuantityStr] = React.useState(item.quantity ? String(item.quantity) : '');
+
+  const priceStrRef = React.useRef(priceStr);
+  priceStrRef.current = priceStr;
+  const quantityStrRef = React.useRef(quantityStr);
+  quantityStrRef.current = quantityStr;
+
+  React.useEffect(() => {
+    const parsedLocal = parseNumericInput(priceStrRef.current);
+    if (parsedLocal !== item.price) {
+      setPriceStr(item.price ? String(item.price) : '');
+    }
+  }, [item.price]);
+
+  React.useEffect(() => {
+    const parsedLocal = parseNumericInput(quantityStrRef.current);
+    if (parsedLocal !== item.quantity) {
+      setQuantityStr(item.quantity ? String(item.quantity) : '');
+    }
+  }, [item.quantity]);
+
   let unitPriceLabel = 'Preço por unidade: inválido';
 
   try {
@@ -60,8 +83,11 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdat
 
       <View style={styles.row}>
         <TextInput
-          value={item.price ? String(item.price) : ''}
-          onChangeText={(value) => onUpdate({ price: parseNumericInput(value) })}
+          value={priceStr}
+          onChangeText={(value) => {
+            setPriceStr(value);
+            onUpdate({ price: parseNumericInput(value) });
+          }}
           placeholder="Preço"
           keyboardType="decimal-pad"
           style={[styles.input, styles.inputHalf]}
@@ -69,8 +95,11 @@ export const ItemInputRow: React.FC<ItemInputRowProps> = ({ item, index, onUpdat
           testID={`price-input-${item.id}`}
         />
         <TextInput
-          value={item.quantity ? String(item.quantity) : ''}
-          onChangeText={(value) => onUpdate({ quantity: parseNumericInput(value) })}
+          value={quantityStr}
+          onChangeText={(value) => {
+            setQuantityStr(value);
+            onUpdate({ quantity: parseNumericInput(value) });
+          }}
           placeholder="Quantidade"
           keyboardType="decimal-pad"
           style={[styles.input, styles.inputHalf]}

@@ -45,6 +45,8 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
   const [content, setContent] = useState('');
   const [items, setItems] = useState<DraftItem[]>([]);
   const [newItem, setNewItem] = useState<DraftItem>({ name: '', quantity: 1, unit: 'un', price: 0 });
+  const [newQuantityStr, setNewQuantityStr] = useState('1');
+  const [newPriceStr, setNewPriceStr] = useState('');
   const [unitPickerVisible, setUnitPickerVisible] = useState(false);
 
   const isNewDraft = draftId === 0 || draftId === undefined;
@@ -157,6 +159,8 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
     }
     setItems([...items, newItem]);
     setNewItem({ name: '', quantity: 1, unit: 'un', price: 0 });
+    setNewQuantityStr('1');
+    setNewPriceStr('');
   };
 
   const removeItem = (index: number) => {
@@ -244,8 +248,13 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
           <View style={styles.row}>
             <TextInput
               label="Qtd"
-              value={newItem.quantity.toString()}
-              onChangeText={(text) => setNewItem({ ...newItem, quantity: parseFloat(text) || 0 })}
+              value={newQuantityStr}
+              onChangeText={(text) => {
+                setNewQuantityStr(text);
+                const normalized = text.replace(',', '.').trim();
+                const val = parseFloat(normalized);
+                setNewItem({ ...newItem, quantity: isNaN(val) ? 0 : val });
+              }}
               mode="outlined"
               keyboardType="numeric"
               style={[styles.input, styles.smallInput]}
@@ -259,8 +268,13 @@ export const DraftDetailScreen: React.FC<DraftDetailScreenProps> = ({ navigation
             </TouchableOpacity>
             <TextInput
               label="Preço"
-              value={newItem.price === 0 ? '' : newItem.price.toString()}
-              onChangeText={(text) => setNewItem({ ...newItem, price: parseFloat(text) || 0 })}
+              value={newPriceStr}
+              onChangeText={(text) => {
+                setNewPriceStr(text);
+                const normalized = text.replace(',', '.').trim();
+                const val = parseFloat(normalized);
+                setNewItem({ ...newItem, price: isNaN(val) ? 0 : val });
+              }}
               placeholder="0,00"
               mode="outlined"
               keyboardType="numeric"
