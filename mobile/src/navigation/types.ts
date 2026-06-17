@@ -19,6 +19,9 @@ export type RootStackParamList = {
   EditProfile: undefined;
   ShoppingList: undefined;
   ShoppingListComparison: { comparison: ComparisonResult };
+  Planning: undefined;
+  SavedComparison: undefined;
+  ComparisonSessionDetail: { sessionId: number };
 };
 
 export type MainTabParamList = {

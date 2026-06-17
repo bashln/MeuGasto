@@ -172,28 +172,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionCardSecondary}
-            onPress={() => navigation.navigate('Drafts')}
+            style={styles.actionCardPrimary}
+            onPress={() => navigation.navigate('Planning')}
           >
-            <View style={[styles.actionIconContainer, styles.actionIconPurple]}>
-              <MaterialCommunityIcons name="note-multiple" size={22} color={colors.primaryText} />
+            <View style={[styles.actionIconContainer, { backgroundColor: colors.secondary }]}>
+              <MaterialCommunityIcons name="clipboard-list" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.actionContent}>
-              <RNText style={styles.actionTitleSecondary}>Rascunhos</RNText>
-              <RNText style={styles.actionDescSecondary}>Listas de compras e planejamento</RNText>
+              <RNText style={styles.actionTitle}>Planejamento</RNText>
+              <RNText style={styles.actionDesc}>Rascunhos e lista preditiva em um só lugar</RNText>
             </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionCardSecondary}
-            onPress={() => navigation.navigate('ShoppingList')}
-          >
-            <View style={[styles.actionIconContainer, styles.actionIconOrange]}>
-              <MaterialCommunityIcons name="playlist-check" size={22} color={colors.primaryText} />
-            </View>
-            <View style={styles.actionContent}>
-              <RNText style={styles.actionTitleSecondary}>Lista de Compras</RNText>
-              <RNText style={styles.actionDescSecondary}>Planejamento preditivo baseado no histórico</RNText>
+            <View style={styles.actionButton}>
+              <RNText style={styles.actionButtonText}>Abrir</RNText>
             </View>
           </TouchableOpacity>
         </View>

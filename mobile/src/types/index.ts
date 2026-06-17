@@ -156,6 +156,39 @@ export interface ShoppingListItem {
   createdAt: string;
 }
 
+export interface PriceComparisonSession {
+  id: number;
+  userId: string;
+  title: string;
+  sourceShoppingListId?: number;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  quotes?: PriceComparisonQuote[];
+}
+
+export interface PriceComparisonQuote {
+  id: number;
+  sessionId: number;
+  supermarketId?: number;
+  marketNameSnapshot: string;
+  notes?: string;
+  totalPrice: number;
+  createdAt: string;
+  items?: PriceComparisonQuoteItem[];
+}
+
+export interface PriceComparisonQuoteItem {
+  id: number;
+  quoteId: number;
+  name: string;
+  normalizedName?: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  createdAt: string;
+}
+
 export interface ComparisonResult {
   estimatedTotal: number;
   realTotal: number;

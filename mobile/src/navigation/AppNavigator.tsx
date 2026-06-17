@@ -24,6 +24,9 @@ import {
   PriceComparatorScreen,
   ShoppingListScreen,
   ShoppingListComparisonScreen,
+  PlanningScreen,
+  SavedComparisonScreen,
+  ComparisonSessionDetailScreen,
 } from '../screens';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors } from '../theme/colors';
@@ -189,6 +192,21 @@ export const AppNavigator: React.FC = () => {
             <Stack.Screen
               name="ShoppingListComparison"
               component={ShoppingListComparisonScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Planning"
+              component={PlanningScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SavedComparison"
+              component={SavedComparisonScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ComparisonSessionDetail"
+              component={ComparisonSessionDetailScreen}
               options={{ headerShown: false }}
             />
           </>
