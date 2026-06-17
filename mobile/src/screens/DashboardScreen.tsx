@@ -183,6 +183,19 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) 
               <RNText style={styles.actionDescSecondary}>Listas de compras e planejamento</RNText>
             </View>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCardSecondary}
+            onPress={() => navigation.navigate('ShoppingList')}
+          >
+            <View style={[styles.actionIconContainer, styles.actionIconOrange]}>
+              <MaterialCommunityIcons name="playlist-check" size={22} color={colors.primaryText} />
+            </View>
+            <View style={styles.actionContent}>
+              <RNText style={styles.actionTitleSecondary}>Lista de Compras</RNText>
+              <RNText style={styles.actionDescSecondary}>Planejamento preditivo baseado no histórico</RNText>
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.insightsCard}>
@@ -355,6 +368,9 @@ const styles = StyleSheet.create({
   },
   actionIconPurple: {
     backgroundColor: colors.secondary,
+  },
+  actionIconOrange: {
+    backgroundColor: colors.primary,
   },
   actionContent: {
     flex: 1,

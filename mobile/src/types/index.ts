@@ -135,3 +135,49 @@ export interface DashboardStats {
   itemCount: number;
   savings: number;
 }
+
+export interface ShoppingList {
+  id: number;
+  userId: string;
+  name: string;
+  status: 'active' | 'completed' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+  items?: ShoppingListItem[];
+}
+
+export interface ShoppingListItem {
+  id: number;
+  shoppingListId: number;
+  name: string;
+  quantity: number;
+  unit: string;
+  estimatedPrice: number;
+  createdAt: string;
+}
+
+export interface ComparisonResult {
+  estimatedTotal: number;
+  realTotal: number;
+  economyOrLoss: number;
+  matchedItems: Array<{
+    planned: ShoppingListItem;
+    real: {
+      name: string;
+      quantity: number;
+      price: number;
+      unit: string;
+    };
+    quantityDiff: number;
+    priceDiff: number;
+    unitIncompatible: boolean;
+  }>;
+  forgottenItems: ShoppingListItem[];
+  extraItems: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    unit: string;
+  }>;
+}
+

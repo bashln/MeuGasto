@@ -13,3 +13,6 @@ export { ProfileScreen } from './ProfileScreen';
 export { ScanQRCodeScreen } from './ScanQRCodeScreen';
 export { EditProfileScreen } from './EditProfileScreen';
 export { PriceComparatorScreen } from './PriceComparatorScreen';
+export { ShoppingListScreen } from './ShoppingListScreen';
+export { ShoppingListComparisonScreen } from './ShoppingListComparisonScreen';
+

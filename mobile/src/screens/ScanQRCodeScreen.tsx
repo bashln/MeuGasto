@@ -3,24 +3,54 @@ import { View, StyleSheet, Alert, TouchableOpacity, Text, ActivityIndicator } fr
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NFCeWebView, QRCodeScanner, Header } from '../components';
 import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
-import { nfceService } from '../services';
+import { nfceService, shoppingListService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
 import { nfceHttpImportService } from '../services/nfceHttpImportService';
 import { colors } from '../theme/colors';
+import { compareListWithReceipt } from '../utils';
 
 type ScanQRCodeScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ScanQRCode'>;
+  route: RouteProp<RootStackParamList, 'ScanQRCode'>;
 };
 
-export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }) => {
+export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, route }) => {
+  const fromShoppingList = route.params && 'fromShoppingList' in route.params && route.params.fromShoppingList === true;
+  const shoppingListId = route.params && 'shoppingListId' in route.params ? route.params.shoppingListId : undefined;
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
   const [currentAccessKey, setCurrentAccessKey] = useState('');
   const importSettledRef = useRef(false);
+
+  const handlePurchaseCreated = async (scrapedData: NFCeScrapedData, purchaseId: number) => {
+    if (fromShoppingList && shoppingListId) {
+      try {
+        const detailedList = await shoppingListService.getShoppingListById(shoppingListId);
+        if (detailedList.items && detailedList.items.length > 0) {
+          const matchableItems = scrapedData.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.unityPrice ?? (item.totalPrice && item.quantity ? item.totalPrice / item.quantity : 0),
+            unit: item.unit,
+          }));
+
+          const comparison = compareListWithReceipt(detailedList.items, matchableItems);
+          await shoppingListService.updateShoppingListStatus(detailedList.id, 'completed');
+
+          navigation.navigate('ShoppingListComparison', { comparison });
+          return;
+        }
+      } catch (e) {
+        console.warn('[ScanQRCodeScreen] Falha ao cruzar dados com lista de compras:', e);
+      }
+    }
+    navigation.navigate('PurchaseDetail', { purchaseId });
+  };
 
   const handleScan = async (data: string) => {
     if (isProcessing) return;
@@ -91,7 +121,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
         setIsProcessing(false);
         Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
-        navigation.navigate('PurchaseDetail', { purchaseId: result.purchaseId });
+        await handlePurchaseCreated(httpResult.data, result.purchaseId);
         return;
       }
 
@@ -140,7 +170,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
       setIsProcessing(false);
 
       Alert.alert('Sucesso', 'Nota fiscal importada com sucesso.');
-      navigation.navigate('PurchaseDetail', { purchaseId: result.purchaseId });
+      await handlePurchaseCreated(scrapedData, result.purchaseId);
     } catch (error: unknown) {
       if (__DEV__) {
         console.warn('Erro ao salvar compra:', error);
