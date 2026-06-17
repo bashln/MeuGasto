@@ -1,4 +1,4 @@
-import { calculateSimilarity, getDynamicThreshold, findBestMatch, expandAbbreviations } from '../stringMatcher';
+import { calculateSimilarity, findBestMatch, expandAbbreviations } from '../stringMatcher';
 
 describe('expandAbbreviations', () => {
   it('should correctly expand common Brazilian fiscal abbreviations', () => {

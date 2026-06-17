@@ -56,7 +56,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
         setActiveList(newList);
         setItems([]);
       }
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar ou criar a lista de compras.');
       console.error(error);
     } finally {
@@ -89,7 +89,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
       setItemName('');
       setItemQuantity('1');
       setItemUnit('UN');
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert('Erro', 'Não foi possível adicionar o item.');
       console.error(error);
     } finally {
@@ -101,7 +101,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
     try {
       await shoppingListService.deleteShoppingListItem(itemId);
       setItems(prev => prev.filter(item => item.id !== itemId));
-    } catch (error: any) {
+    } catch (error) {
       Alert.alert('Erro', 'Não foi possível excluir o item.');
       console.error(error);
     }
