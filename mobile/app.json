@@ -3,7 +3,7 @@
     "name": "MeuGasto",
     "slug": "meugasto",
     "owner": "bashln",
-    "version": "0.3.2.2",
+    "version": "0.3.2.3",
     "scheme": "com.prati.meugasto",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,12 +14,12 @@
       "backgroundColor": "#1976d2"
     },
     "ios": {
-      "buildNumber": "67",
+      "buildNumber": "68",
       "supportsTablet": true,
       "bundleIdentifier": "com.prati.meugasto"
     },
     "android": {
-      "versionCode": 67,
+      "versionCode": 68,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#1976d2"
@@ -43,7 +43,15 @@
       "expo-secure-store",
       "expo-font",
       "expo-asset",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "meugasto",
+          "organization": "leonamduarte"
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -57,7 +57,11 @@ Thumbs.db
 
 # AI agents & tooling
 .ralph-tui/
+.claude/
 docs/ai/
+
+# Supabase CLI temp files
+mobile/supabase/.temp/
 
 # Coverage artifacts
 mobile/coverage/

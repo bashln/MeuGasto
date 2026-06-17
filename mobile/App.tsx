@@ -7,6 +7,22 @@ import { AppNavigator } from './src/navigation';
 import { colors } from './src/theme/colors';
 import { useUpdateCheck } from './src/hooks';
 import { UpdateDialog } from './src/components';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://4b1ab5dc065445ec86934a7c27917bc1@o4511272174157824.ingest.de.sentry.io/4511577484820560',
+
+  // Privacy: no PII, no logs, no session replay
+  sendDefaultPii: false,
+  enableLogs: false,
+
+  // Session replay fully disabled for privacy
+  replaysSessionSampleRate: 0,
+  replaysOnErrorSampleRate: 0,
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 const theme = {
   ...MD3LightTheme,
@@ -45,7 +61,7 @@ const UpdateChecker: React.FC = () => {
   return <UpdateDialog updateInfo={updateInfo} onDismiss={dismiss} />;
 };
 
-export default function App() {
+export default Sentry.wrap(function App() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
@@ -61,4 +77,4 @@ export default function App() {
       </PaperProvider>
     </SafeAreaProvider>
   );
-}
+});
