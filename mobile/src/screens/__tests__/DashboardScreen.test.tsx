@@ -2,6 +2,24 @@ jest.mock('@expo/vector-icons', () => ({
   MaterialCommunityIcons: 'MaterialCommunityIcons',
 }));
 
+jest.mock('react-native', () => {
+  const React = jest.requireActual('react');
+  const RN = jest.requireActual('react-native');
+
+  const MockScrollView = ({ children, ...props }: { children?: React.ReactNode }) =>
+    React.createElement('ScrollView', props, children);
+  const MockRefreshControl = (props: Record<string, unknown>) =>
+    React.createElement('RefreshControl', props);
+
+  return new Proxy(RN, {
+    get(target, prop) {
+      if (prop === 'ScrollView') return MockScrollView;
+      if (prop === 'RefreshControl') return MockRefreshControl;
+      return target[prop];
+    },
+  });
+});
+
 const mockUseDashboard = jest.fn();
 
 jest.mock('../../hooks/useDashboard', () => ({
@@ -25,7 +43,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DashboardScreen } from '../DashboardScreen';
 
 const wrap = (ui: React.ReactElement) => (
-  <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, bottom: 0, right: 0 } }}>
+  <SafeAreaProvider
+    initialMetrics={{
+      frame: { x: 0, y: 0, width: 390, height: 844 },
+      insets: { top: 0, left: 0, bottom: 0, right: 0 },
+    }}
+  >
     {ui}
   </SafeAreaProvider>
 );

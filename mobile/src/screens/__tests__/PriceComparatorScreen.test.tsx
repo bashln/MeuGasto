@@ -2,6 +2,24 @@ jest.mock('@expo/vector-icons', () => ({
   MaterialCommunityIcons: 'MaterialCommunityIcons',
 }));
 
+jest.mock('react-native', () => {
+  const React = jest.requireActual('react');
+  const RN = jest.requireActual('react-native');
+
+  const MockScrollView = ({ children, ...props }: { children?: React.ReactNode }) =>
+    React.createElement('ScrollView', props, children);
+  const MockModal = ({ children, ...props }: { children?: React.ReactNode }) =>
+    React.createElement('Modal', props, children);
+
+  return new Proxy(RN, {
+    get(target, prop) {
+      if (prop === 'ScrollView') return MockScrollView;
+      if (prop === 'Modal') return MockModal;
+      return target[prop];
+    },
+  });
+});
+
 jest.mock('../../components', () => {
   return {
     Header: () => null,
@@ -19,7 +37,7 @@ describe('PriceComparatorScreen', () => {
 
     act(() => {
       renderer = TestRenderer.create(
-        <PriceComparatorScreen navigation={{ goBack: jest.fn() } as never} />,
+        <PriceComparatorScreen navigation={{ goBack: jest.fn() } as never} />
       );
     });
 
@@ -44,7 +62,7 @@ describe('PriceComparatorScreen', () => {
 
     act(() => {
       renderer = TestRenderer.create(
-        <PriceComparatorScreen navigation={{ goBack: jest.fn() } as never} />,
+        <PriceComparatorScreen navigation={{ goBack: jest.fn() } as never} />
       );
     });
 

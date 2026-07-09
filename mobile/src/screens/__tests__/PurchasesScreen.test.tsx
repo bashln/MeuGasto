@@ -2,6 +2,51 @@ jest.mock('@expo/vector-icons', () => ({
   MaterialCommunityIcons: 'MaterialCommunityIcons',
 }));
 
+jest.mock('react-native', () => {
+  const React = jest.requireActual('react');
+  const RN = jest.requireActual('react-native');
+
+  const MockFlatList = ({
+    data = [],
+    renderItem,
+    keyExtractor,
+    ListEmptyComponent,
+    ListFooterComponent,
+    ...props
+  }: {
+    data?: unknown[];
+    renderItem?: ({ item, index }: { item: unknown; index: number }) => React.ReactNode;
+    keyExtractor?: (item: unknown, index: number) => string;
+    ListEmptyComponent?: React.ReactNode;
+    ListFooterComponent?: React.ReactNode;
+  }) =>
+    React.createElement(
+      'FlatList',
+      props,
+      data.length > 0 && renderItem
+        ? data.map((item, index) =>
+            React.createElement(
+              React.Fragment,
+              { key: keyExtractor ? keyExtractor(item, index) : String(index) },
+              renderItem({ item, index })
+            )
+          )
+        : ListEmptyComponent,
+      ListFooterComponent
+    );
+
+  const MockRefreshControl = (props: Record<string, unknown>) =>
+    React.createElement('RefreshControl', props);
+
+  return new Proxy(RN, {
+    get(target, prop) {
+      if (prop === 'FlatList') return MockFlatList;
+      if (prop === 'RefreshControl') return MockRefreshControl;
+      return target[prop];
+    },
+  });
+});
+
 jest.mock('react-native-paper', () => ({
   FAB: () => {
     return null;
@@ -16,18 +61,36 @@ jest.mock('../../context', () => ({
 
 jest.mock('../../components', () => ({
   ...(() => {
-    const { TouchableOpacity } = jest.requireActual('react-native');
+    const React = jest.requireActual('react');
+    const MockTouchableOpacity = ({ testID, onPress }: { testID: string; onPress: () => void }) =>
+      React.createElement('TouchableOpacity', { testID, onPress });
     return {
-  Header: () => null,
-  Loading: () => null,
-  ErrorMessage: ({ message }: { message: string }) => message,
-  PurchaseCard: ({ purchase, onPress, onDelete, onEdit }: { purchase: { id: number }; onPress: (p: { id: number }) => void; onDelete: (p: { id: number }) => void; onEdit: (p: { id: number }) => void }) => (
-    <>
-      <TouchableOpacity testID={`purchase-${purchase.id}`} onPress={() => onPress(purchase)} />
-      <TouchableOpacity testID={`delete-${purchase.id}`} onPress={() => onDelete(purchase)} />
-      <TouchableOpacity testID={`edit-${purchase.id}`} onPress={() => onEdit(purchase)} />
-    </>
-  ),
+      Header: () => null,
+      Loading: () => null,
+      ErrorMessage: ({ message }: { message: string }) => message,
+      PurchaseCard: ({
+        purchase,
+        onPress,
+        onDelete,
+        onEdit,
+      }: {
+        purchase: { id: number };
+        onPress: (p: { id: number }) => void;
+        onDelete: (p: { id: number }) => void;
+        onEdit: (p: { id: number }) => void;
+      }) => (
+        <>
+          <MockTouchableOpacity
+            testID={`purchase-${purchase.id}`}
+            onPress={() => onPress(purchase)}
+          />
+          <MockTouchableOpacity
+            testID={`delete-${purchase.id}`}
+            onPress={() => onDelete(purchase)}
+          />
+          <MockTouchableOpacity testID={`edit-${purchase.id}`} onPress={() => onEdit(purchase)} />
+        </>
+      ),
     };
   })(),
 }));
@@ -39,7 +102,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PurchasesScreen } from '../PurchasesScreen';
 
 const wrap = (ui: React.ReactElement) => (
-  <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, bottom: 0, right: 0 } }}>
+  <SafeAreaProvider
+    initialMetrics={{
+      frame: { x: 0, y: 0, width: 390, height: 844 },
+      insets: { top: 0, left: 0, bottom: 0, right: 0 },
+    }}
+  >
     {ui}
   </SafeAreaProvider>
 );
@@ -88,7 +156,9 @@ describe('PurchasesScreen', () => {
     let renderer: ReturnType<typeof TestRenderer.create>;
 
     act(() => {
-      renderer = TestRenderer.create(wrap(<PurchasesScreen navigation={{ navigate: jest.fn() } as never} />));
+      renderer = TestRenderer.create(
+        wrap(<PurchasesScreen navigation={{ navigate: jest.fn() } as never} />)
+      );
     });
 
     act(() => {
