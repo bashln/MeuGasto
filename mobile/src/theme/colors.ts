@@ -1,6 +1,10 @@
 export const colors = {
-  primary: '#FF6B35',
-  primaryDark: '#8C3A1D',
+  // Keep the brand orange available, but use an accessible contrast-safe orange
+  // for interactive surfaces that carry light text.
+  primary: '#C2410C',
+  primaryBrand: '#FF6B35',
+  primaryLight: '#FFF0E8',
+  primaryDark: '#7C2D12',
   primaryText: '#FFFFFF',
   backgroundApp: '#EAF2F4',
   backgroundAuth: '#FFFFFF',
@@ -9,12 +13,12 @@ export const colors = {
   border: '#E6E6E6',
   text: '#1F2937',
   mutedText: '#6B7280',
-  subtitleText: '#7A7A7A',
+  subtitleText: '#6B7280',
   inputBackground: '#F7F7F7',
   inputAltBackground: '#EFEFEF',
   success: '#1E8E3E',
   secondary: '#5B46CC',
-  warning: '#F59E0B',
+  warning: '#B45309',
   info: '#1D5FBF',
   danger: '#FF3B30',
   dangerBackground: '#FFEBEE',

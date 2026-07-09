@@ -1,41 +1,46 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { ComparisonResult } from '../types';
 import { colors } from '../theme/colors';
 import { formatMoney } from '../utils';
+import { Header } from '../components';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ShoppingListComparison'>;
 
 export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigation }) => {
-  const insets = useSafeAreaInsets();
   const comparison: ComparisonResult = route.params.comparison;
 
   const isEconomy = comparison.economyOrLoss >= 0;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Análise da Compra</Text>
-        <TouchableOpacity style={styles.doneButton} onPress={() => navigation.navigate('Main')}>
-          <Text style={styles.doneButtonText}>Concluir</Text>
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="Análise da Compra"
+        iconName="clipboard-check-outline"
+        onBack={() => navigation.navigate('Main')}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Card Resumo Financeiro */}
-        <View style={[styles.summaryCard, isEconomy ? styles.summaryCardSuccess : styles.summaryCardDanger]}>
+        <View
+          style={[
+            styles.summaryCard,
+            isEconomy ? styles.summaryCardSuccess : styles.summaryCardDanger,
+          ]}
+        >
           <View style={styles.summaryHeader}>
             <MaterialCommunityIcons
               name={isEconomy ? 'trending-down' : 'trending-up'}
               size={28}
               color={isEconomy ? colors.success : colors.danger}
             />
-            <Text style={[styles.summaryTitle, { color: isEconomy ? colors.success : colors.danger }]}>
+            <Text
+              style={[styles.summaryTitle, { color: isEconomy ? colors.success : colors.danger }]}
+            >
               {isEconomy ? 'Economia Realizada!' : 'Orçamento Excedido!'}
             </Text>
           </View>
@@ -45,7 +50,9 @@ export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigatio
             {formatMoney(comparison.economyOrLoss)}
           </Text>
           <Text style={styles.summarySubtext}>
-            {isEconomy ? 'Você gastou menos do que a média esperada.' : 'Você gastou mais do que o planejado.'}
+            {isEconomy
+              ? 'Você gastou menos do que a média esperada.'
+              : 'Você gastou mais do que o planejado.'}
           </Text>
 
           <View style={styles.divider} />
@@ -57,7 +64,9 @@ export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigatio
             </View>
             <View style={styles.priceCol}>
               <Text style={styles.priceLabel}>Pago (Real)</Text>
-              <Text style={[styles.priceVal, styles.boldVal]}>{formatMoney(comparison.realTotal)}</Text>
+              <Text style={[styles.priceVal, styles.boldVal]}>
+                {formatMoney(comparison.realTotal)}
+              </Text>
             </View>
           </View>
         </View>
@@ -66,13 +75,18 @@ export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigatio
         {comparison.matchedItems.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="check-circle-outline" size={20} color={colors.success} />
+              <MaterialCommunityIcons
+                name="check-circle-outline"
+                size={20}
+                color={colors.success}
+              />
               <Text style={styles.sectionTitle}>Comprados (Conforme Planejado)</Text>
               <Text style={styles.sectionCount}>{comparison.matchedItems.length}</Text>
             </View>
 
             {comparison.matchedItems.map((match, index) => {
-              const totalSavings = (match.planned.estimatedPrice - match.real.price) * match.real.quantity;
+              const totalSavings =
+                (match.planned.estimatedPrice - match.real.price) * match.real.quantity;
               const isPriceSaving = totalSavings >= 0;
               return (
                 <View key={index} style={styles.itemRow}>
@@ -82,7 +96,8 @@ export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigatio
                       Fisco: {match.real.name}
                     </Text>
                     <Text style={styles.itemDetailText}>
-                      Qtd: {match.planned.quantity} {match.planned.unit} → {match.real.quantity} {match.real.unit}
+                      Qtd: {match.planned.quantity} {match.planned.unit} → {match.real.quantity}{' '}
+                      {match.real.unit}
                     </Text>
                     {match.unitIncompatible && (
                       <Text style={styles.unitWarning}>
@@ -91,8 +106,15 @@ export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigatio
                     )}
                   </View>
                   <View style={styles.itemPriceDetail}>
-                    <Text style={styles.itemRealPrice}>{formatMoney(match.real.price * match.real.quantity)}</Text>
-                    <Text style={[styles.itemPriceDiff, { color: isPriceSaving ? colors.success : colors.danger }]}>
+                    <Text style={styles.itemRealPrice}>
+                      {formatMoney(match.real.price * match.real.quantity)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.itemPriceDiff,
+                        { color: isPriceSaving ? colors.success : colors.danger },
+                      ]}
+                    >
                       {isPriceSaving ? '-' : '+'}
                       {formatMoney(Math.abs(totalSavings))}
                     </Text>
@@ -148,7 +170,9 @@ export const ShoppingListComparisonScreen: React.FC<Props> = ({ route, navigatio
                   </Text>
                 </View>
                 <View style={styles.itemPriceDetail}>
-                  <Text style={styles.itemRealPrice}>{formatMoney(item.price * item.quantity)}</Text>
+                  <Text style={styles.itemRealPrice}>
+                    {formatMoney(item.price * item.quantity)}
+                  </Text>
                   <Text style={styles.extraTag}>Impulso</Text>
                 </View>
               </View>

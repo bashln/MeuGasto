@@ -19,6 +19,7 @@ import { shoppingListService } from '../services';
 import { ShoppingList, ShoppingListItem } from '../types';
 import { colors } from '../theme/colors';
 import { formatMoney } from '../utils';
+import { Header } from '../components';
 
 type ShoppingListScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ShoppingList'>;
@@ -29,7 +30,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
   const [loading, setLoading] = useState(true);
   const [activeList, setActiveList] = useState<ShoppingList | null>(null);
   const [items, setItems] = useState<ShoppingListItem[]>([]);
-  
+
   // Form fields
   const [itemName, setItemName] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
@@ -44,7 +45,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
     try {
       setLoading(true);
       const lists = await shoppingListService.getShoppingLists('active');
-      
+
       if (lists.length > 0) {
         // Load existing active list
         const detailedList = await shoppingListService.getShoppingListById(lists[0].id);
@@ -84,8 +85,8 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
         qty,
         itemUnit
       );
-      
-      setItems(prev => [...prev, newItem]);
+
+      setItems((prev) => [...prev, newItem]);
       setItemName('');
       setItemQuantity('1');
       setItemUnit('UN');
@@ -100,14 +101,14 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
   const handleDeleteItem = async (itemId: number) => {
     try {
       await shoppingListService.deleteShoppingListItem(itemId);
-      setItems(prev => prev.filter(item => item.id !== itemId));
+      setItems((prev) => prev.filter((item) => item.id !== itemId));
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível excluir o item.');
       console.error(error);
     }
   };
 
-  const estimatedTotal = items.reduce((acc, item) => acc + (item.quantity * item.estimatedPrice), 0);
+  const estimatedTotal = items.reduce((acc, item) => acc + item.quantity * item.estimatedPrice, 0);
 
   if (loading) {
     return (
@@ -121,18 +122,28 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={styles.container}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Lista de Compras</Text>
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('ScanQRCode', { fromShoppingList: true, shoppingListId: activeList?.id })}>
-          <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
+      <Header
+        title="Lista de Compras"
+        iconName="clipboard-list"
+        onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('ScanQRCode', {
+                fromShoppingList: true,
+                shoppingListId: activeList?.id,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Escanear nota fiscal para comparar"
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primaryText} />
+          </TouchableOpacity>
+        }
+      />
 
       {/* Estimativa de Preço Total */}
       <View style={styles.budgetCard}>
@@ -173,11 +184,7 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
           >
             <Text style={styles.unitSelectorText}>{itemUnit}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddItem}
-            disabled={addingItem}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={addingItem}>
             {addingItem ? (
               <ActivityIndicator size="small" color={colors.primaryText} />
             ) : (
@@ -190,21 +197,27 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
       {/* Items List */}
       <FlatList
         data={items}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={styles.itemRow}>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemDetails}>
-                {item.quantity} {item.unit} • {item.estimatedPrice > 0 ? `Méd. Histórica: ${formatMoney(item.estimatedPrice)}` : 'Sem histórico de preço'}
+                {item.quantity} {item.unit} •{' '}
+                {item.estimatedPrice > 0
+                  ? `Méd. Histórica: ${formatMoney(item.estimatedPrice)}`
+                  : 'Sem histórico de preço'}
               </Text>
             </View>
             <View style={styles.itemPriceArea}>
               <Text style={styles.itemSubtotal}>
                 {formatMoney(item.quantity * item.estimatedPrice)}
               </Text>
-              <TouchableOpacity onPress={() => handleDeleteItem(item.id)} style={styles.deleteButton}>
+              <TouchableOpacity
+                onPress={() => handleDeleteItem(item.id)}
+                style={styles.deleteButton}
+              >
                 <MaterialCommunityIcons name="trash-can-outline" size={20} color={colors.danger} />
               </TouchableOpacity>
             </View>
@@ -214,7 +227,9 @@ export const ShoppingListScreen: React.FC<ShoppingListScreenProps> = ({ navigati
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="playlist-plus" size={64} color={colors.mutedText} />
             <Text style={styles.emptyTitle}>Sua lista está vazia</Text>
-            <Text style={styles.emptyText}>Adicione itens que pretende comprar para obter o custo total estimado.</Text>
+            <Text style={styles.emptyText}>
+              Adicione itens que pretende comprar para obter o custo total estimado.
+            </Text>
           </View>
         }
       />

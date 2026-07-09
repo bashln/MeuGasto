@@ -40,16 +40,17 @@ const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.primaryDark,
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.7)',
+        tabBarActiveTintColor: colors.primaryText,
+        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.72)',
         tabBarStyle: {
-          backgroundColor: colors.primary,
+          backgroundColor: colors.primaryDark,
           borderTopLeftRadius: 28,
           borderTopRightRadius: 28,
           height: 62 + insets.bottom,
           paddingBottom: Math.max(insets.bottom, 8),
           paddingTop: 8,
           borderTopWidth: 0,
+          paddingHorizontal: 8,
         },
         headerShown: false,
       }}
@@ -123,11 +124,7 @@ export const AppNavigator: React.FC = () => {
           />
         ) : !isAuthenticated ? (
           <>
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="Register"
               component={RegisterScreen}
@@ -141,11 +138,7 @@ export const AppNavigator: React.FC = () => {
           </>
         ) : (
           <>
-            <Stack.Screen
-              name="Main"
-              component={MainTabs}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen
               name="PurchaseDetail"
               component={PurchaseDetailScreen}
@@ -156,11 +149,7 @@ export const AppNavigator: React.FC = () => {
               component={PurchaseEditScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="Drafts"
-              component={DraftsScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Drafts" component={DraftsScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="DraftDetail"
               component={DraftDetailScreen}
@@ -171,7 +160,7 @@ export const AppNavigator: React.FC = () => {
               component={ScanQRCodeScreen}
               options={{
                 headerShown: false,
-                presentation: 'fullScreenModal'
+                presentation: 'fullScreenModal',
               }}
             />
             <Stack.Screen

@@ -15,7 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ title, iconName, onBack, rightEl
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 12 }] }>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) + 12 }]}>
       <View style={styles.content}>
         <View style={styles.leftSection}>
           {onBack ? (
@@ -24,20 +24,20 @@ export const Header: React.FC<HeaderProps> = ({ title, iconName, onBack, rightEl
               style={styles.backButton}
               accessibilityRole="button"
               accessibilityLabel="Voltar"
+              accessibilityHint="Retorna para a tela anterior"
+              hitSlop={8}
             >
               <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primaryText} />
             </TouchableOpacity>
           ) : (
             <MaterialCommunityIcons name={iconName} size={22} color={colors.primaryText} />
           )}
-          <RNText style={styles.title} numberOfLines={1}>{title}</RNText>
+          <RNText accessibilityRole="header" style={styles.title} numberOfLines={1}>
+            {title}
+          </RNText>
         </View>
 
-        {rightElement && (
-          <View style={styles.rightSection}>
-            {rightElement}
-          </View>
-        )}
+        {rightElement && <View style={styles.rightSection}>{rightElement}</View>}
       </View>
     </View>
   );
