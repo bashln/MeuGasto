@@ -9,7 +9,7 @@ Arquitetura preparada para evolução para modelo SaaS.
 
 Baixe a versão mais recente diretamente na seção de [Releases](https://github.com/bashln/MeuGasto/releases).
 
-Os APKs são gerados automaticamente via GitHub Actions a cada nova tag de versão (`v*`).
+Os APKs são gerados automaticamente via GitHub Actions para tags no formato `vX.Y.Z.W`.
 
 ## Stack
 
@@ -73,7 +73,13 @@ EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Schema do banco (referência): `mobile/supabase_schema.sql`
+Schema do banco (referência): `mobile/supabase_schema.sql`.
+
+Para uma instalação nova, aplique `mobile/supabase_schema.sql`,
+`mobile/supabase_privacy_migration.sql`, `mobile/supabase_price_comparison_migration.sql`
+e, por último, `mobile/supabase_security_hardening_migration.sql`. O hardening restringe
+referências entre usuários, acesso aos analytics, escrita no log de auditoria e abuso
+de recursos.
 
 ## Build Android (Preview)
 

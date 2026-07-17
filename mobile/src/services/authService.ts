@@ -72,7 +72,10 @@ const normalizeAuthError = (error: unknown, action: 'login' | 'register'): Error
 
 export const getCurrentUserId = async (): Promise<string> => {
   const supabase = getClient();
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
   if (error) throw new Error(error.message);
   if (!session?.user?.id) throw new Error('User not authenticated');
   return session.user.id;
@@ -176,17 +179,23 @@ export const authService = {
 
   async logout(): Promise<void> {
     const supabase = getClient();
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw new Error(error.message);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw new Error(error.message);
+      }
+    } finally {
+      await clearSupabaseSessionStorage();
     }
-    await clearSupabaseSessionStorage();
   },
 
   async getSession(): Promise<{ user: AuthUser | null }> {
     const supabase = getClient();
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
     if (error) {
       throw new Error(error.message);
     }
@@ -213,7 +222,10 @@ export const authService = {
 
   async getSessionFast(): Promise<{ user: AuthUser | null }> {
     const supabase = getClient();
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
 
     if (error || !session?.user) {
       return { user: null };
@@ -229,7 +241,11 @@ export const authService = {
       user: {
         id: session.user.id,
         email: session.user.email || '',
-        name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+        name:
+          profile?.name ||
+          session.user.user_metadata?.name ||
+          session.user.email?.split('@')[0] ||
+          '',
         role: profile?.role || 'user',
       },
     };
@@ -255,7 +271,10 @@ export const authService = {
 
   async updateProfile(name: string): Promise<void> {
     const supabase = getClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
     if (userError || !user) {
       throw new Error(userError?.message || 'Usuário não autenticado');
     }
@@ -270,7 +289,8 @@ export const checkSupabaseConfiguration = (): { configured: boolean; message: st
   if (!isSupabaseConfigured()) {
     return {
       configured: false,
-      message: 'Configuração do Supabase ausente. Verifique as variáveis de ambiente no aplicativo.',
+      message:
+        'Configuração do Supabase ausente. Verifique as variáveis de ambiente no aplicativo.',
     };
   }
   return {

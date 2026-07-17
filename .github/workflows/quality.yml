@@ -21,6 +21,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Security and privacy guardrails
+        run: bash scripts/privacy-check.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

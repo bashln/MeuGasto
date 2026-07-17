@@ -6,6 +6,12 @@ import { NFCeScrapedData, validateAndSanitizeNFCePayload } from '../lib/nfcePayl
 import { isAllowedNfceUrl } from '../services/nfceService';
 import { parseRjHtml } from '../services/nfceHttpImportService';
 import { getNfceScrapeScript, getNfceScrapeScriptByAccessKey } from '../utils/nfceScraperScript';
+import {
+  createNfceMessageBridgeBootstrap,
+  createNfceMessageNonce,
+  hasValidNfceMessageNonce,
+  validateNfceAccessKeyMatch,
+} from '../lib/nfceWebViewSecurity';
 
 const DEBUG = __DEV__ || false;
 const RJ_COMPAT_USER_AGENT =
@@ -68,9 +74,14 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   const rjSnapshotIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scraperInjectedRef = useRef(false);
   const emergencyExtractionTriggeredRef = useRef(false);
+  const messageNonceRef = useRef('');
+
+  const secureInjectedScript = (script: string): string =>
+    `${createNfceMessageBridgeBootstrap(messageNonceRef.current)}\n${script}`;
 
   const injectRjHtmlSnapshot = () => {
-    webViewRef.current?.injectJavaScript(`
+    webViewRef.current?.injectJavaScript(
+      secureInjectedScript(`
       (function () {
         try {
           window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -81,7 +92,8 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         } catch (e) {}
       })();
       true;
-    `);
+    `)
+    );
   };
 
   const startRjFinalExtraction = () => {
@@ -97,7 +109,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
 
     if (!emergencyExtractionTriggeredRef.current && webViewRef.current) {
       emergencyExtractionTriggeredRef.current = true;
-      webViewRef.current.injectJavaScript(buildEmergencyExtractionScript());
+      webViewRef.current.injectJavaScript(secureInjectedScript(buildEmergencyExtractionScript()));
     }
   };
 
@@ -225,6 +237,15 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         return;
       }
 
+      try {
+        messageNonceRef.current = createNfceMessageNonce();
+      } catch (error) {
+        onError(
+          error instanceof Error ? error.message : 'Falha ao proteger a importacao da NFC-e.'
+        );
+        return;
+      }
+
       setStatusMessage('Isso pode levar alguns segundos.');
       scraperInjectedRef.current = false;
       emergencyExtractionTriggeredRef.current = false;
@@ -236,11 +257,15 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
           setStatusMessage('Tempo limite excedido. Tente novamente.');
           if (!emergencyExtractionTriggeredRef.current) {
             emergencyExtractionTriggeredRef.current = true;
-            webViewRef.current.injectJavaScript(buildEmergencyExtractionScript());
+            webViewRef.current.injectJavaScript(
+              secureInjectedScript(buildEmergencyExtractionScript())
+            );
           }
           errorDelayTimeoutRef.current = setTimeout(() => {
             if (scraperInjectedRef.current) {
-              onError('Tempo limite excedido ao carregar a nota fiscal. Verifique sua conexão e tente novamente.');
+              onError(
+                'Tempo limite excedido ao carregar a nota fiscal. Verifique sua conexão e tente novamente.'
+              );
             }
           }, 5000);
         }
@@ -259,26 +284,50 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     };
   }, [visible, timeout, onError, url]);
 
-  const handleMessage = (event: { nativeEvent: { data?: string } }) => {
-    try {
-      const message = JSON.parse(event.nativeEvent.data ?? '{}');
-      
+  const handleMessage = (event: { nativeEvent: { data?: string; url?: string } }) => {
+    const sourceUrl = event.nativeEvent.url ?? '';
+    if (!isAllowedNfceUrl(sourceUrl, { requireExpectedPath: true })) {
       if (DEBUG) {
-        console.warn('[NFCeWebView] Mensagem recebida:', message.type);
+        console.warn('[NFCeWebView] Mensagem ignorada por origem nao permitida.');
       }
+      return;
+    }
 
+    let message: Record<string, unknown>;
+    try {
+      message = JSON.parse(event.nativeEvent.data ?? '{}') as Record<string, unknown>;
+    } catch {
+      if (DEBUG) {
+        console.warn('[NFCeWebView] Mensagem nao JSON ignorada.');
+      }
+      return;
+    }
+
+    if (!hasValidNfceMessageNonce(message, messageNonceRef.current)) {
+      if (DEBUG) {
+        console.warn('[NFCeWebView] Mensagem ignorada por nonce invalido.');
+      }
+      return;
+    }
+
+    try {
       if (message.type === 'NFCE_DEBUG' && DEBUG) {
-        console.warn('[NFCeWebView] Debug:', message.message);
-        setStatusMessage(message.message);
+        console.warn('[NFCeWebView] Mensagem de diagnostico recebida.');
+        setStatusMessage('Aguardando o conteúdo final da nota...');
       } else if (message.type === 'NFCE_SCRAPE_RESULT') {
         scraperInjectedRef.current = false;
         emergencyExtractionTriggeredRef.current = false;
         clearAllTimeouts();
         if (message.ok) {
           const sanitizedPayload = validateAndSanitizeNFCePayload(message.data);
+          validateNfceAccessKeyMatch(sanitizedPayload.accessKey, accessKey);
           onSuccess(sanitizedPayload);
         } else {
-          onError(message.error || 'Erro ao extrair dados da nota fiscal');
+          onError(
+            typeof message.error === 'string'
+              ? message.error
+              : 'Erro ao extrair dados da nota fiscal'
+          );
         }
       } else if (message.type === 'NFCE_HTML_SNAPSHOT') {
         const html = typeof message.html === 'string' ? message.html : '';
@@ -295,13 +344,15 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         emergencyExtractionTriggeredRef.current = false;
         clearAllTimeouts();
         const sanitizedPayload = validateAndSanitizeNFCePayload(parsed);
+        validateNfceAccessKeyMatch(sanitizedPayload.accessKey, accessKey);
         onSuccess(sanitizedPayload);
       }
     } catch (e) {
       if (__DEV__) {
         console.error('[NFCeWebView] Erro ao parsear mensagem:', e);
       }
-      const detailedMessage = e instanceof Error ? e.message : 'Falha ao validar dados da NFC-e. Tente novamente.';
+      const detailedMessage =
+        e instanceof Error ? e.message : 'Falha ao validar dados da NFC-e. Tente novamente.';
       onError(detailedMessage);
     }
   };
@@ -322,7 +373,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         const script = hasValidAccessKey
           ? getNfceScrapeScriptByAccessKey(accessKey)
           : getNfceScrapeScript(url);
-        const wrappedScript = `window.NFCE_SCRAPE_DONE = false; ${script}`;
+        const wrappedScript = secureInjectedScript(`window.NFCE_SCRAPE_DONE = false; ${script}`);
         webViewRef.current?.injectJavaScript(wrappedScript);
 
         // Alguns portais carregam conteúdo de forma tardia; reinjeta periodicamente até obter resultado.
@@ -345,7 +396,9 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
       setStatusMessage('Processando dados...');
 
       const currentUrl = navState.url || '';
-      const isRjFinalPage = /consultadfe\.fazenda\.rj\.gov\.br/i.test(currentUrl) && /resultadoQRCode2\.faces/i.test(currentUrl);
+      const isRjFinalPage =
+        /consultadfe\.fazenda\.rj\.gov\.br/i.test(currentUrl) &&
+        /resultadoQRCode2\.faces/i.test(currentUrl);
       if (isRjFinalPage && webViewRef.current) {
         startRjFinalExtraction();
       }
@@ -358,7 +411,9 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
       if (__DEV__) {
         console.warn('[NFCeWebView] Upgrade HTTP->HTTPS:', request.url, '=>', upgradedUrl);
       }
-      webViewRef.current?.injectJavaScript(`window.location.replace(${JSON.stringify(upgradedUrl)}); true;`);
+      webViewRef.current?.injectJavaScript(
+        `window.location.replace(${JSON.stringify(upgradedUrl)}); true;`
+      );
       return false;
     }
 
@@ -373,12 +428,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={false}
-      onRequestClose={onCancel}
-    >
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onCancel}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Importando nota fiscal...</Text>
@@ -430,11 +480,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         />
 
         <View style={styles.footer}>
-            <Button
-              title="Cancelar"
-              onPress={onCancel}
-              color={colors.danger}
-            />
+          <Button title="Cancelar" onPress={onCancel} color={colors.danger} />
         </View>
       </View>
     </Modal>

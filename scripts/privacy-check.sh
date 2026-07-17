@@ -8,6 +8,7 @@ FAIL=0
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
+HARDENING_MIGRATION='mobile/supabase_security_hardening_migration.sql'
 
 check_file() {
   local file="$1"
@@ -30,15 +31,25 @@ check_file() {
   done
 }
 
+require_hardening_pattern() {
+  local pattern="$1"
+  local description="$2"
+
+  if ! grep -qP "$pattern" "$HARDENING_MIGRATION" 2>/dev/null; then
+    echo -e "${RED}FAIL${NC}: hardening ausente — $description"
+    FAIL=1
+  fi
+}
+
 # Verificar schema principal
 if [[ -f "mobile/supabase_schema.sql" ]]; then
   check_file "mobile/supabase_schema.sql" "schema principal"
 fi
 
-# Verificar arquivos de migration
-for f in mobile/supabase_privacy_migration.sql; do
-  [[ -f "$f" ]] && check_file "$f" "migration"
-done
+# Verificar migration de privacidade
+if [[ -f "mobile/supabase_privacy_migration.sql" ]]; then
+  check_file "mobile/supabase_privacy_migration.sql" "migration"
+fi
 
 if ls mobile/supabase_migrations/*.sql > /dev/null 2>&1; then
   for f in mobile/supabase_migrations/*.sql; do
@@ -59,8 +70,24 @@ if grep -A5 "return {" mobile/src/services/nfceService.ts 2>/dev/null | grep -q 
   FAIL=1
 fi
 
+# Verificar controles que impedem inferência por Sybil, escrita em auditoria e
+# exposição acidental das tabelas agregadas pelo cliente público.
+if [[ ! -f "$HARDENING_MIGRATION" ]]; then
+  echo -e "${RED}FAIL${NC}: migration de hardening não encontrada ($HARDENING_MIGRATION)"
+  FAIL=1
+else
+  require_hardening_pattern 'can_reference_supermarket' 'referências de supermercado devem respeitar ownership'
+  for analytics_table in analytics_item_prices analytics_market_baskets analytics_price_trends; do
+    require_hardening_pattern "REVOKE SELECT, INSERT, UPDATE, DELETE ON public\\.${analytics_table} FROM PUBLIC, anon, authenticated" "${analytics_table} não deve ser legível por anon/authenticated"
+  done
+  require_hardening_pattern 'FOR SELECT TO analytics_reader' 'analytics deve ser restrito à role agregadora'
+  require_hardening_pattern 'REVOKE ALL ON public\.sensitive_access_audit FROM PUBLIC, anon, authenticated' 'clientes não devem escrever no log de auditoria'
+  require_hardening_pattern 'enforce_items_per_purchase_limit' 'compras precisam limitar itens mesmo fora do RPC'
+  require_hardening_pattern 'enforce_owned_row_quota' 'tabelas por usuário precisam de quota defensiva'
+fi
+
 if [[ $FAIL -eq 0 ]]; then
-  echo -e "${GREEN}OK${NC}: Nenhuma violação de privacidade detectada."
+  echo -e "${GREEN}OK${NC}: Guardrails de privacidade e hardening verificados."
 fi
 
 exit $FAIL

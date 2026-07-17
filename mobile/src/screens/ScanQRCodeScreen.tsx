@@ -7,7 +7,11 @@ import { nfceService, shoppingListService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
-import { buildNFCeUrl, extractAccessKeyFromQRCode, isAllowedNfceUrl } from '../services/nfceService';
+import {
+  buildNFCeUrl,
+  extractAccessKeyFromQRCode,
+  isAllowedNfceUrl,
+} from '../services/nfceService';
 import { nfceHttpImportService } from '../services/nfceHttpImportService';
 import { colors } from '../theme/colors';
 import { compareListWithReceipt } from '../utils';
@@ -18,8 +22,10 @@ type ScanQRCodeScreenProps = {
 };
 
 export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, route }) => {
-  const fromShoppingList = route.params && 'fromShoppingList' in route.params && route.params.fromShoppingList === true;
-  const shoppingListId = route.params && 'shoppingListId' in route.params ? route.params.shoppingListId : undefined;
+  const fromShoppingList =
+    route.params && 'fromShoppingList' in route.params && route.params.fromShoppingList === true;
+  const shoppingListId =
+    route.params && 'shoppingListId' in route.params ? route.params.shoppingListId : undefined;
   const [showCamera, setShowCamera] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
@@ -32,10 +38,12 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
       try {
         const detailedList = await shoppingListService.getShoppingListById(shoppingListId);
         if (detailedList.items && detailedList.items.length > 0) {
-          const matchableItems = scrapedData.items.map(item => ({
+          const matchableItems = scrapedData.items.map((item) => ({
             name: item.name,
             quantity: item.quantity,
-            price: item.unityPrice ?? (item.totalPrice && item.quantity ? item.totalPrice / item.quantity : 0),
+            price:
+              item.unityPrice ??
+              (item.totalPrice && item.quantity ? item.totalPrice / item.quantity : 0),
             unit: item.unit,
           }));
 
@@ -54,16 +62,12 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
 
   const handleScan = async (data: string) => {
     if (isProcessing) return;
-    
+
     setIsProcessing(true);
     setShowCamera(false);
     importSettledRef.current = false;
 
     try {
-      if (__DEV__) {
-        console.warn('QR Code data:', data);
-      }
-
       let url = '';
       let accessKey = '';
 
@@ -96,20 +100,18 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
       if (!isAllowedNfceUrl(url)) {
         throw new Error('URL de consulta NFC-e não permitida');
       }
-      if (__DEV__) {
-        console.warn('URL SEFAZ:', url);
-      }
-      if (__DEV__) {
-        console.warn('Chave extraída:', accessKey);
-      }
-
       setCurrentUrl(url);
       setCurrentAccessKey(accessKey);
 
       // GET-first: tenta importar sem WebView (mais estavel para alguns portais, como RJ).
       const httpResult = await nfceHttpImportService.tryImport(url);
       if (httpResult.ok) {
-        const effectiveAccessKey = (accessKey || httpResult.accessKey || httpResult.data.accessKey || '').trim();
+        const effectiveAccessKey = (
+          accessKey ||
+          httpResult.accessKey ||
+          httpResult.data.accessKey ||
+          ''
+        ).trim();
         if (!/^\d{44}$/.test(effectiveAccessKey)) {
           throw new Error('Não foi possível identificar a chave de acesso da NFC-e');
         }
@@ -148,10 +150,6 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
     importSettledRef.current = true;
 
     try {
-      if (__DEV__) {
-        console.warn('Dados extraídos:', scrapedData);
-      }
-
       const effectiveAccessKey = (currentAccessKey || scrapedData.accessKey || '').trim();
       if (!/^\d{44}$/.test(effectiveAccessKey)) {
         throw new Error('Não foi possível identificar a chave de acesso da NFC-e');
@@ -161,10 +159,6 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
         scrapedData,
         effectiveAccessKey
       );
-
-      if (__DEV__) {
-        console.warn('Compra salva:', result);
-      }
 
       setShowWebView(false);
       setIsProcessing(false);
@@ -227,10 +221,15 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
         lower.includes('erro de rede') ||
         lower.includes('handshake')
       ) {
-        message = 'Falha de conexão com a SEFAZ no momento. Você pode tentar novamente ou salvar manualmente.';
+        message =
+          'Falha de conexão com a SEFAZ no momento. Você pode tentar novamente ou salvar manualmente.';
       } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
         message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
-      } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
+      } else if (
+        lower.includes('tempo limite') ||
+        lower.includes('timeout') ||
+        lower.includes('servid')
+      ) {
         message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
       } else if (
         lower.includes('duplicate') ||
@@ -250,22 +249,18 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
       }
     }
 
-    Alert.alert(
-      'Não foi possível importar esta nota.',
-      message,
-      [
-        {
-          text: 'Tentar novamente',
-          onPress: () => {
-            setShowCamera(true);
-          },
+    Alert.alert('Não foi possível importar esta nota.', message, [
+      {
+        text: 'Tentar novamente',
+        onPress: () => {
+          setShowCamera(true);
         },
-        {
-          text: 'Salvar manualmente',
-          onPress: () => navigation.navigate('PurchaseEdit', { purchaseId: 0 }),
-        },
-      ]
-    );
+      },
+      {
+        text: 'Salvar manualmente',
+        onPress: () => navigation.navigate('PurchaseEdit', { purchaseId: 0 }),
+      },
+    ]);
   };
 
   // Se estiver mostrando a câmera, mostrar o QRCodeScanner
@@ -295,21 +290,25 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation, 
             <Text style={styles.cardTitle}>Ler QR Code</Text>
             <Text style={styles.cardSubtitle}>Escaneie o QR Code da NFC-e</Text>
 
-            <TouchableOpacity
-              style={[styles.button, styles.photoButton]}
-              onPress={handleTakePhoto}
-            >
-              <MaterialCommunityIcons name="qrcode-scan" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
+            <TouchableOpacity style={[styles.button, styles.photoButton]} onPress={handleTakePhoto}>
+              <MaterialCommunityIcons
+                name="qrcode-scan"
+                size={20}
+                color={colors.primaryText}
+                style={{ marginRight: 8 }}
+              />
               <Text style={styles.buttonText}>Escanear QR Code</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        <TouchableOpacity
-          style={styles.manualButton}
-          onPress={handleManualRegister}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
+        <TouchableOpacity style={styles.manualButton} onPress={handleManualRegister}>
+          <MaterialCommunityIcons
+            name="plus"
+            size={20}
+            color={colors.primaryText}
+            style={{ marginRight: 8 }}
+          />
           <Text style={styles.manualText}>Cadastrar Manualmente</Text>
         </TouchableOpacity>
       </View>
