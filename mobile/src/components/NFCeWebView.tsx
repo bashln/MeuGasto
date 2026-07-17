@@ -10,6 +10,7 @@ import {
   createNfceMessageBridgeBootstrap,
   createNfceMessageNonce,
   hasValidNfceMessageNonce,
+  isNfceMessageSourceForImport,
   validateNfceAccessKeyMatch,
 } from '../lib/nfceWebViewSecurity';
 
@@ -182,12 +183,10 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         var chave = (((document.body.innerText||'').match(/(?:\\d\\s*){44}/)||[''])[0] || '').replace(/\\D/g,'');
 
         if(items.length===0){
-          var bodyText = (document.body && (document.body.innerText || document.body.textContent) || '').replace(/\\s+/g, ' ').trim();
           var rowCount = document.querySelectorAll('#tabResult tr[id^="Item"]').length;
-          var preview = bodyText.slice(0, 240);
           post({
             type: 'NFCE_DEBUG',
-            message:'Aguardando DOM final. url=' + (window.location && window.location.href ? window.location.href : '') + ' rowCount=' + rowCount + ' preview=' + preview
+            message:'Aguardando DOM final. rowCount=' + rowCount
           });
           return;
         }
@@ -286,7 +285,10 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
 
   const handleMessage = (event: { nativeEvent: { data?: string; url?: string } }) => {
     const sourceUrl = event.nativeEvent.url ?? '';
-    if (!isAllowedNfceUrl(sourceUrl, { requireExpectedPath: true })) {
+    if (
+      !isAllowedNfceUrl(sourceUrl, { requireExpectedPath: true }) ||
+      !isNfceMessageSourceForImport(sourceUrl, url)
+    ) {
       if (DEBUG) {
         console.warn('[NFCeWebView] Mensagem ignorada por origem nao permitida.');
       }
@@ -409,7 +411,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
     if (/^http:\/\//i.test(request.url)) {
       const upgradedUrl = request.url.replace(/^http:\/\//i, 'https://');
       if (__DEV__) {
-        console.warn('[NFCeWebView] Upgrade HTTP->HTTPS:', request.url, '=>', upgradedUrl);
+        console.warn('[NFCeWebView] Navegação HTTP atualizada para HTTPS.');
       }
       webViewRef.current?.injectJavaScript(
         `window.location.replace(${JSON.stringify(upgradedUrl)}); true;`
@@ -447,7 +449,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
             const err = event.nativeEvent;
             const message = `Erro de rede na NFC-e (${err.code}): ${err.description || 'falha ao carregar'}`;
             if (__DEV__) {
-              console.warn('[NFCeWebView] onError:', err);
+              console.warn('[NFCeWebView] Falha de rede.', { code: err.code });
             }
             onError(message);
           }}
@@ -455,7 +457,7 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
             const err = event.nativeEvent;
             const message = `Erro HTTP ${err.statusCode} na NFC-e`;
             if (__DEV__) {
-              console.warn('[NFCeWebView] onHttpError:', err);
+              console.warn('[NFCeWebView] Falha HTTP.', { statusCode: err.statusCode });
             }
             onError(message);
           }}

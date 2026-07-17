@@ -2,6 +2,7 @@ import {
   createNfceMessageNonce,
   createNfceMessageBridgeBootstrap,
   hasValidNfceMessageNonce,
+  isNfceMessageSourceForImport,
   validateNfceAccessKeyMatch,
 } from '../nfceWebViewSecurity';
 
@@ -40,6 +41,24 @@ describe('nfceWebViewSecurity', () => {
     expect(first).toMatch(/^[a-f0-9]{32}$/);
     expect(second).toMatch(/^[a-f0-9]{32}$/);
     expect(first).not.toBe(second);
+  });
+
+  it('aceita mensagens apenas da origem da importacao atual', () => {
+    const importUrl = 'https://nfce.sefaz.rs.gov.br/consulta?p=123';
+
+    expect(
+      isNfceMessageSourceForImport(
+        'https://nfce.sefaz.rs.gov.br/consulta/resultado?token=abc',
+        importUrl
+      )
+    ).toBe(true);
+    expect(
+      isNfceMessageSourceForImport(
+        'https://consultadfe.fazenda.rj.gov.br/consultaNFCe/paginas/resultado.faces',
+        importUrl
+      )
+    ).toBe(false);
+    expect(isNfceMessageSourceForImport('not-a-url', importUrl)).toBe(false);
   });
 
   it('rejeita uma nota cuja chave difere do QR Code escaneado', () => {

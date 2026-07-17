@@ -28,6 +28,17 @@ export const hasValidNfceMessageNonce = (
   return (message as NfceMessageEnvelope)[MESSAGE_NONCE_FIELD] === expectedNonce;
 };
 
+export const isNfceMessageSourceForImport = (sourceUrl: string, importUrl: string): boolean => {
+  try {
+    const source = new URL(sourceUrl);
+    const expected = new URL(importUrl);
+
+    return source.protocol === 'https:' && source.origin === expected.origin;
+  } catch {
+    return false;
+  }
+};
+
 export const validateNfceAccessKeyMatch = (
   scrapedAccessKey: string | undefined,
   expectedAccessKey: string
@@ -42,6 +53,8 @@ export const validateNfceAccessKeyMatch = (
 
 export const createNfceMessageBridgeBootstrap = (nonce: string): string => `
   (function () {
+    if (window.top !== window.self) return;
+
     var bridge = window.ReactNativeWebView;
     if (!bridge || typeof bridge.postMessage !== 'function') return;
 
