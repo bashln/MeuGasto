@@ -236,8 +236,7 @@ ALTER TABLE public.sensitive_access_audit ADD CONSTRAINT sensitive_access_audit_
 ) NOT VALID;
 
 -- -------------------------------------------------------------
--- Row quotas. These are last-line database guardrails; API/gateway
--- rate limits should still be configured in production.
+-- Row quotas. These are last-line database guardrails.
 -- -------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.enforce_owned_row_quota()
 RETURNS TRIGGER
@@ -312,6 +311,137 @@ DROP TRIGGER IF EXISTS enforce_learned_reclassifications_owned_row_quota ON publ
 CREATE TRIGGER enforce_learned_reclassifications_owned_row_quota
   BEFORE INSERT ON public.learned_reclassifications
   FOR EACH ROW EXECUTE FUNCTION public.enforce_owned_row_quota();
+
+-- -------------------------------------------------------------
+-- Authenticated write rate limits. Counters live outside exposed schemas
+-- and are updated atomically to remain effective under concurrency.
+-- Gateway/IP limits are still recommended for unauthenticated endpoints.
+-- -------------------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS private.authenticated_write_rate_limits (
+  user_id UUID NOT NULL,
+  action TEXT NOT NULL,
+  window_started_at TIMESTAMPTZ NOT NULL,
+  request_count INTEGER NOT NULL CHECK (request_count > 0),
+  PRIMARY KEY (user_id, action)
+);
+
+ALTER TABLE private.authenticated_write_rate_limits ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON private.authenticated_write_rate_limits FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION private.enforce_authenticated_write_rate_limit()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, private
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_action TEXT := TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME || ':' || TG_OP;
+  v_max_requests INTEGER;
+  v_now TIMESTAMPTZ := statement_timestamp();
+  v_request_count INTEGER;
+BEGIN
+  -- Service operations have no end-user JWT. RLS remains responsible for
+  -- rejecting unauthenticated writes made through the public API.
+  IF v_user_id IS NULL THEN
+    IF TG_OP = 'DELETE' THEN
+      RETURN OLD;
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  CASE TG_TABLE_NAME
+    WHEN 'supermarkets' THEN v_max_requests := 240;
+    WHEN 'purchases' THEN v_max_requests := 120;
+    WHEN 'drafts' THEN v_max_requests := 240;
+    WHEN 'shopping_lists' THEN v_max_requests := 240;
+    WHEN 'price_comparison_sessions' THEN v_max_requests := 240;
+    WHEN 'price_comparison_quotes' THEN v_max_requests := 600;
+    WHEN 'learned_reclassifications' THEN v_max_requests := 1000;
+    ELSE
+      RAISE EXCEPTION 'Tabela sem rate limit configurado: %', TG_TABLE_NAME;
+  END CASE;
+
+  INSERT INTO private.authenticated_write_rate_limits AS limits (
+    user_id,
+    action,
+    window_started_at,
+    request_count
+  ) VALUES (
+    v_user_id,
+    v_action,
+    v_now,
+    1
+  )
+  ON CONFLICT (user_id, action) DO UPDATE
+  SET
+    window_started_at = CASE
+      WHEN limits.window_started_at <= v_now - INTERVAL '1 hour' THEN v_now
+      ELSE limits.window_started_at
+    END,
+    request_count = CASE
+      WHEN limits.window_started_at <= v_now - INTERVAL '1 hour' THEN 1
+      ELSE limits.request_count + 1
+    END
+  RETURNING request_count INTO v_request_count;
+
+  IF v_request_count > v_max_requests THEN
+    RAISE EXCEPTION 'Rate limit de % operacoes por hora excedido para %',
+      v_max_requests,
+      v_action
+      USING ERRCODE = 'program_limit_exceeded';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.enforce_authenticated_write_rate_limit()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS enforce_supermarkets_write_rate_limit ON public.supermarkets;
+CREATE TRIGGER enforce_supermarkets_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.supermarkets
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
+
+DROP TRIGGER IF EXISTS enforce_purchases_write_rate_limit ON public.purchases;
+CREATE TRIGGER enforce_purchases_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.purchases
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
+
+DROP TRIGGER IF EXISTS enforce_drafts_write_rate_limit ON public.drafts;
+CREATE TRIGGER enforce_drafts_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.drafts
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
+
+DROP TRIGGER IF EXISTS enforce_shopping_lists_write_rate_limit ON public.shopping_lists;
+CREATE TRIGGER enforce_shopping_lists_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.shopping_lists
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
+
+DROP TRIGGER IF EXISTS enforce_price_comparison_sessions_write_rate_limit
+  ON public.price_comparison_sessions;
+CREATE TRIGGER enforce_price_comparison_sessions_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.price_comparison_sessions
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
+
+DROP TRIGGER IF EXISTS enforce_price_comparison_quotes_write_rate_limit
+  ON public.price_comparison_quotes;
+CREATE TRIGGER enforce_price_comparison_quotes_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.price_comparison_quotes
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
+
+DROP TRIGGER IF EXISTS enforce_learned_reclassifications_write_rate_limit
+  ON public.learned_reclassifications;
+CREATE TRIGGER enforce_learned_reclassifications_write_rate_limit
+  BEFORE INSERT OR UPDATE OR DELETE ON public.learned_reclassifications
+  FOR EACH ROW EXECUTE FUNCTION private.enforce_authenticated_write_rate_limit();
 
 CREATE OR REPLACE FUNCTION public.enforce_items_per_purchase_limit()
 RETURNS TRIGGER

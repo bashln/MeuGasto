@@ -84,6 +84,10 @@ else
   require_hardening_pattern 'REVOKE ALL ON public\.sensitive_access_audit FROM PUBLIC, anon, authenticated' 'clientes não devem escrever no log de auditoria'
   require_hardening_pattern 'enforce_items_per_purchase_limit' 'compras precisam limitar itens mesmo fora do RPC'
   require_hardening_pattern 'enforce_owned_row_quota' 'tabelas por usuário precisam de quota defensiva'
+  require_hardening_pattern 'CREATE SCHEMA IF NOT EXISTS private' 'contadores de rate limit devem ficar fora do schema exposto'
+  require_hardening_pattern 'private\.authenticated_write_rate_limits' 'escritas autenticadas precisam de contadores atomicos'
+  require_hardening_pattern 'enforce_authenticated_write_rate_limit' 'escritas autenticadas precisam de rate limit no banco'
+  require_hardening_pattern 'REVOKE ALL ON FUNCTION private\.enforce_authenticated_write_rate_limit' 'função privilegiada de rate limit não pode ser chamada pelo cliente'
 fi
 
 if [[ $FAIL -eq 0 ]]; then

@@ -79,7 +79,17 @@ Para uma instalação nova, aplique `mobile/supabase_schema.sql`,
 `mobile/supabase_privacy_migration.sql`, `mobile/supabase_price_comparison_migration.sql`
 e, por último, `mobile/supabase_security_hardening_migration.sql`. O hardening restringe
 referências entre usuários, acesso aos analytics, escrita no log de auditoria e abuso
-de recursos.
+de recursos com quotas e limites horários de escrita por usuário. Valide a sequência
+completa primeiro em uma branch de staging do Supabase; nunca use o banco de produção
+como ambiente de ensaio.
+
+Depois de aplicar o hardening em staging, execute
+`mobile/supabase_security_hardening_smoke_test.sql` com `ON_ERROR_STOP=1` para
+confirmar RLS, privilégios e todos os triggers de rate limit antes da promoção.
+
+O plano para cumprir literalmente a promessa de administração sem acesso aos gastos
+está em `docs/adr/0001-admin-blind-e2ee.md`. Ele exige migração gradual e novo APK;
+não é uma alteração compatível apenas com OTA.
 
 ## Build Android (Preview)
 
