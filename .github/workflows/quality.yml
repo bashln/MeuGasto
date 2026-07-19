@@ -41,6 +41,18 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
+      - name: Dependency vulnerability audit
+        working-directory: ./mobile
+        run: npm audit --audit-level=high
+
+      - name: Pull request size advisory
+        if: github.event_name == 'pull_request'
+        env:
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+        run: bash scripts/check-pr-size.sh "$CHANGED_FILES" "$ADDITIONS" "$DELETIONS"
+
       - name: Lint
         working-directory: ./mobile
         run: npm run lint

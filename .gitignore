@@ -90,3 +90,5 @@ render.experimental.xml
 !CHANGELOG.md
 !SECURITY.md
 !LICENSE
+!.github/pull_request_template.md
+!docs/adr/*.md
