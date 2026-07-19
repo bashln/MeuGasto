@@ -39,18 +39,18 @@ const logUpdateError = (message: string, error: unknown) => {
 export const compareVersions = (a: string, b: string): number => {
   const partsA = a.split('.').map(Number);
   const partsB = b.split('.').map(Number);
-  
+
   const maxLength = Math.max(partsA.length, partsB.length);
-  
+
   for (let i = 0; i < maxLength; i++) {
     const numA = partsA[i] || 0;
     const numB = partsB[i] || 0;
-    
+
     if (numA !== numB) {
       return numA - numB;
     }
   }
-  
+
   return 0;
 };
 
@@ -70,7 +70,7 @@ const extractMinVersion = (body: string | null): string | null => {
  * Extract APK download URL from release assets
  */
 const extractApkUrl = (release: GitHubRelease): string | null => {
-  const apkAsset = release.assets.find(asset => asset.name.endsWith('.apk'));
+  const apkAsset = release.assets.find((asset) => asset.name.endsWith('.apk'));
   return apkAsset?.browser_download_url || null;
 };
 
@@ -81,10 +81,10 @@ const shouldSkipCheck = async (): Promise<boolean> => {
   try {
     const lastChecked = await SecureStore.getItemAsync(LAST_CHECKED_KEY);
     if (!lastChecked) return false;
-    
+
     const lastCheckTime = parseInt(lastChecked, 10);
     const now = Date.now();
-    
+
     return now - lastCheckTime < CHECK_INTERVAL_MS;
   } catch {
     return false;
@@ -108,6 +108,8 @@ export const updateService = {
    * Returns null on error or if no update is needed
    */
   async checkForUpdate(currentVersion: string): Promise<UpdateInfo | null> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
       // Skip if checked recently
       if (await shouldSkipCheck()) {
@@ -122,17 +124,15 @@ export const updateService = {
 
       // Fetch latest release from GitHub
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
       const response = await fetch(GITHUB_API_URL, {
         signal: controller.signal,
         headers: {
-          'Accept': 'application/vnd.github.v3+json',
+          Accept: 'application/vnd.github.v3+json',
           'User-Agent': 'MeuGasto-App',
         },
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         logUpdateError('[Update] GitHub API error', { status: response.status });
@@ -156,7 +156,7 @@ export const updateService = {
 
       // Compare versions
       const comparison = compareVersions(latestVersion, currentVersion);
-      
+
       if (comparison <= 0) {
         return null; // No update available
       }
@@ -184,6 +184,10 @@ export const updateService = {
         logUpdateError('[Update] Failed to check for updates', error);
       }
       return null;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   },
 

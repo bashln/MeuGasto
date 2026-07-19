@@ -19,6 +19,7 @@ describe('updateService', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    jest.useRealTimers();
   });
 
   describe('compareVersions', () => {
@@ -82,12 +83,12 @@ describe('updateService', () => {
       });
 
       const result = await updateService.checkForUpdate('1.2.3');
-      
+
       expect(fetch).toHaveBeenCalledWith(
         'https://api.github.com/repos/bashln/MeuGasto/releases/latest',
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Accept': 'application/vnd.github.v3+json',
+            Accept: 'application/vnd.github.v3+json',
           }),
         })
       );
@@ -179,7 +180,9 @@ describe('updateService', () => {
         ok: true,
         json: async () => ({
           ...mockRelease,
-          assets: [{ name: 'source.zip', browser_download_url: 'https://github.com/.../source.zip' }],
+          assets: [
+            { name: 'source.zip', browser_download_url: 'https://github.com/.../source.zip' },
+          ],
         }),
       });
 
@@ -189,11 +192,13 @@ describe('updateService', () => {
     });
 
     it('returns null on network error', async () => {
+      jest.useFakeTimers();
       mockGetItemAsync.mockResolvedValue(null);
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const result = await updateService.checkForUpdate('1.2.3');
       expect(result).toBeNull();
+      expect(jest.getTimerCount()).toBe(0);
     });
 
     it('returns null on HTTP error', async () => {
@@ -209,7 +214,7 @@ describe('updateService', () => {
 
     it('handles timeout gracefully', async () => {
       mockGetItemAsync.mockResolvedValue(null);
-      
+
       // Use AbortError which is what happens when AbortController times out
       (global.fetch as jest.Mock).mockImplementationOnce(() => {
         const error = new Error('The operation was aborted');
@@ -225,7 +230,7 @@ describe('updateService', () => {
   describe('clearCache', () => {
     it('clears stored cache keys', async () => {
       await updateService.clearCache();
-      
+
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('update.last_checked');
       expect(mockDeleteItemAsync).toHaveBeenCalledWith('update.latest_version');
     });
