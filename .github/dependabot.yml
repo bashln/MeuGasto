@@ -1,24 +1,9 @@
 version: 2
 
 updates:
-  # Security updates must target GitHub's default branch. Version updates are
-  # disabled in this entry so routine dependency work still follows dev -> main.
-  - package-ecosystem: npm
-    directory: /mobile
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: America/Sao_Paulo
-    open-pull-requests-limit: 0
-    groups:
-      npm-security:
-        applies-to: security-updates
-        patterns:
-          - "*"
-    commit-message:
-      prefix: chore(deps-security)
-
+  # GitHub security updates always target the default branch and cannot honor
+  # target-branch. Keep alerts enabled, but remediate them manually through dev;
+  # CI blocks high/critical advisories before merge and release.
   - package-ecosystem: npm
     directory: /mobile
     target-branch: dev

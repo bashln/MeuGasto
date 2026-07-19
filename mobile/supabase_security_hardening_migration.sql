@@ -6,6 +6,133 @@
 
 BEGIN;
 
+CREATE OR REPLACE FUNCTION public.set_price_comparison_session_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.set_price_comparison_session_updated_at()
+  FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS set_updated_at_price_comparison_sessions
+  ON public.price_comparison_sessions;
+CREATE TRIGGER set_updated_at_price_comparison_sessions
+  BEFORE UPDATE ON public.price_comparison_sessions
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_price_comparison_session_updated_at();
+
+-- -------------------------------------------------------------
+-- Existing function surface. Supabase exposes executable public functions as
+-- RPCs, including legacy overloads left by earlier deployments. Pin every
+-- application function search_path and remove anonymous/default execution.
+-- Trigger/event-trigger functions are never client-callable.
+-- -------------------------------------------------------------
+DO $$
+DECLARE
+  v_function RECORD;
+BEGIN
+  FOR v_function IN
+    SELECT
+      p.proname,
+      format(
+        '%I.%I(%s)',
+        n.nspname,
+        p.proname,
+        pg_catalog.pg_get_function_identity_arguments(p.oid)
+      ) AS signature
+    FROM pg_catalog.pg_proc p
+    INNER JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN (
+        'create_purchase_with_items',
+        'get_item_average_price',
+        'get_items_average_prices_bulk',
+        'is_valid_draft_content',
+        'is_valid_draft_items',
+        'normalize_draft_content',
+        'report_expenses_by_supermarket',
+        'report_top_items'
+      )
+  LOOP
+    EXECUTE format(
+      'ALTER FUNCTION %s SET search_path = pg_catalog, public',
+      v_function.signature
+    );
+    EXECUTE format(
+      'REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon',
+      v_function.signature
+    );
+    EXECUTE format(
+      'GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role',
+      v_function.signature
+    );
+  END LOOP;
+
+  FOR v_function IN
+    SELECT
+      p.proname,
+      format(
+        '%I.%I(%s)',
+        n.nspname,
+        p.proname,
+        pg_catalog.pg_get_function_identity_arguments(p.oid)
+      ) AS signature
+    FROM pg_catalog.pg_proc p
+    INNER JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN (
+        'handle_new_user',
+        'prevent_imported_purchase_updates',
+        'prevent_role_escalation',
+        'rls_auto_enable',
+        'run_analytics_aggregation',
+        'set_price_comparison_session_updated_at'
+      )
+  LOOP
+    IF v_function.proname = 'rls_auto_enable' THEN
+      EXECUTE format(
+        'ALTER FUNCTION %s SET search_path = pg_catalog',
+        v_function.signature
+      );
+    ELSE
+      EXECUTE format(
+        'ALTER FUNCTION %s SET search_path = pg_catalog, public',
+        v_function.signature
+      );
+    END IF;
+
+    IF v_function.proname IN (
+      'prevent_imported_purchase_updates',
+      'prevent_role_escalation'
+    ) THEN
+      EXECUTE format(
+        'ALTER FUNCTION %s SECURITY INVOKER',
+        v_function.signature
+      );
+    END IF;
+
+    EXECUTE format(
+      'REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated',
+      v_function.signature
+    );
+
+    IF v_function.proname = 'run_analytics_aggregation' THEN
+      EXECUTE format(
+        'GRANT EXECUTE ON FUNCTION %s TO service_role',
+        v_function.signature
+      );
+    END IF;
+  END LOOP;
+END;
+$$;
+
 -- -------------------------------------------------------------
 -- Cross-user reference protection
 -- A purchase/draft/quote may reference only a global supermarket
@@ -331,6 +458,67 @@ CREATE TABLE IF NOT EXISTS private.authenticated_write_rate_limits (
 ALTER TABLE private.authenticated_write_rate_limits ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON private.authenticated_write_rate_limits FROM PUBLIC, anon, authenticated;
 
+CREATE OR REPLACE FUNCTION private.consume_authenticated_write_budget(
+  p_user_id UUID,
+  p_action TEXT,
+  p_max_requests INTEGER,
+  p_now TIMESTAMPTZ DEFAULT statement_timestamp()
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, private
+AS $$
+DECLARE
+  v_request_count INTEGER;
+BEGIN
+  IF p_user_id IS NULL
+    OR p_action IS NULL
+    OR char_length(p_action) NOT BETWEEN 1 AND 200
+    OR p_max_requests NOT BETWEEN 1 AND 10000 THEN
+    RAISE EXCEPTION 'Configuração de rate limit inválida'
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  INSERT INTO private.authenticated_write_rate_limits AS limits (
+    user_id,
+    action,
+    window_started_at,
+    request_count
+  ) VALUES (
+    p_user_id,
+    p_action,
+    p_now,
+    1
+  )
+  ON CONFLICT (user_id, action) DO UPDATE
+  SET
+    window_started_at = CASE
+      WHEN limits.window_started_at <= p_now - INTERVAL '1 hour' THEN p_now
+      ELSE limits.window_started_at
+    END,
+    request_count = CASE
+      WHEN limits.window_started_at <= p_now - INTERVAL '1 hour' THEN 1
+      ELSE limits.request_count + 1
+    END
+  RETURNING request_count INTO v_request_count;
+
+  IF v_request_count > p_max_requests THEN
+    RAISE EXCEPTION 'Rate limit de % operacoes por hora excedido para %',
+      p_max_requests,
+      p_action
+      USING ERRCODE = 'program_limit_exceeded';
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION private.consume_authenticated_write_budget(
+  UUID,
+  TEXT,
+  INTEGER,
+  TIMESTAMPTZ
+) FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION private.enforce_authenticated_write_rate_limit()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -341,8 +529,6 @@ DECLARE
   v_user_id UUID := auth.uid();
   v_action TEXT := TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME || ':' || TG_OP;
   v_max_requests INTEGER;
-  v_now TIMESTAMPTZ := statement_timestamp();
-  v_request_count INTEGER;
 BEGIN
   -- Service operations have no end-user JWT. RLS remains responsible for
   -- rejecting unauthenticated writes made through the public API.
@@ -365,35 +551,12 @@ BEGIN
       RAISE EXCEPTION 'Tabela sem rate limit configurado: %', TG_TABLE_NAME;
   END CASE;
 
-  INSERT INTO private.authenticated_write_rate_limits AS limits (
-    user_id,
-    action,
-    window_started_at,
-    request_count
-  ) VALUES (
+  PERFORM private.consume_authenticated_write_budget(
     v_user_id,
     v_action,
-    v_now,
-    1
-  )
-  ON CONFLICT (user_id, action) DO UPDATE
-  SET
-    window_started_at = CASE
-      WHEN limits.window_started_at <= v_now - INTERVAL '1 hour' THEN v_now
-      ELSE limits.window_started_at
-    END,
-    request_count = CASE
-      WHEN limits.window_started_at <= v_now - INTERVAL '1 hour' THEN 1
-      ELSE limits.request_count + 1
-    END
-  RETURNING request_count INTO v_request_count;
-
-  IF v_request_count > v_max_requests THEN
-    RAISE EXCEPTION 'Rate limit de % operacoes por hora excedido para %',
-      v_max_requests,
-      v_action
-      USING ERRCODE = 'program_limit_exceeded';
-  END IF;
+    v_max_requests,
+    statement_timestamp()
+  );
 
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;

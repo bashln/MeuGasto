@@ -88,6 +88,10 @@ else
   require_hardening_pattern 'private\.authenticated_write_rate_limits' 'escritas autenticadas precisam de contadores atomicos'
   require_hardening_pattern 'enforce_authenticated_write_rate_limit' 'escritas autenticadas precisam de rate limit no banco'
   require_hardening_pattern 'REVOKE ALL ON FUNCTION private\.enforce_authenticated_write_rate_limit' 'função privilegiada de rate limit não pode ser chamada pelo cliente'
+  require_hardening_pattern "'handle_new_user'" 'funções SECURITY DEFINER existentes precisam ser removidas da superfície RPC'
+  require_hardening_pattern "'run_analytics_aggregation'" 'agregação administrativa não pode ficar exposta como RPC de cliente'
+  require_hardening_pattern "'REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated'" 'funções privilegiadas não podem ser executadas por clientes'
+  require_hardening_pattern "'ALTER FUNCTION %s SET search_path = pg_catalog, public'" 'funções públicas precisam de search_path imutável'
 fi
 
 if [[ $FAIL -eq 0 ]]; then

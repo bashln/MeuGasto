@@ -153,8 +153,24 @@ CREATE POLICY "Users can delete comparison quote items" ON price_comparison_quot
     )
   );
 
--- trigger for updated_at
+-- Dedicated trigger for updated_at. Keeping it in this migration makes the
+-- price-comparison schema independently reproducible on a fresh database.
+CREATE OR REPLACE FUNCTION public.set_price_comparison_session_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.set_price_comparison_session_updated_at()
+  FROM PUBLIC, anon, authenticated;
+
 DROP TRIGGER IF EXISTS set_updated_at_price_comparison_sessions ON price_comparison_sessions;
 CREATE TRIGGER set_updated_at_price_comparison_sessions
   BEFORE UPDATE ON price_comparison_sessions
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION public.set_price_comparison_session_updated_at();
