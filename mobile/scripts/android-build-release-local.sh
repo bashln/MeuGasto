@@ -39,7 +39,16 @@ done
 
 # ── Java ──────────────────────────────────────────────────────────────────────
 if [[ -z "${JAVA_HOME:-}" || ! -x "$JAVA_HOME/bin/java" ]]; then
-  JAVA_HOME="$(java -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.home =/ { print $2; exit }')"
+  MISE_JAVA_HOME=""
+  if command -v mise > /dev/null 2>&1; then
+    MISE_JAVA_HOME="$(mise where java@17 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$MISE_JAVA_HOME" && -x "$MISE_JAVA_HOME/bin/java" ]]; then
+    JAVA_HOME="$MISE_JAVA_HOME"
+  else
+    JAVA_HOME="$(java -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.home =/ { print $2; exit }')"
+  fi
 fi
 
 if [[ ! -x "$JAVA_HOME/bin/java" ]]; then
