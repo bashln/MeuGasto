@@ -37,6 +37,18 @@ for arg in "$@"; do
   esac
 done
 
+# ── Java ──────────────────────────────────────────────────────────────────────
+if [[ -z "${JAVA_HOME:-}" || ! -x "$JAVA_HOME/bin/java" ]]; then
+  JAVA_HOME="$(java -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.home =/ { print $2; exit }')"
+fi
+
+if [[ ! -x "$JAVA_HOME/bin/java" ]]; then
+  echo "ERROR: unable to resolve a valid JAVA_HOME" >&2
+  exit 1
+fi
+
+export JAVA_HOME
+
 # ── expo prebuild ─────────────────────────────────────────────────────────────
 if [[ "$CLEAN" == true || ! -f android/gradlew || ! -f android/app/build.gradle ]]; then
   echo "Android project is missing, incomplete, or marked clean — running expo prebuild --clean ..."
@@ -47,9 +59,6 @@ else
 fi
 
 # ── Gradle build ──────────────────────────────────────────────────────────────
-JAVA_HOME="${JAVA_HOME:-/tmp/jdk21}"
-export JAVA_HOME
-
 cd android
 
 ./gradlew assembleRelease \
