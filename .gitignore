@@ -11,6 +11,8 @@ dist-ssr/
 mobile/.env
 mobile/.env.local
 mobile/.env.*.local
+mobile/.env.release
+mobile/.env.release.local
 
 # Logs
 logs/

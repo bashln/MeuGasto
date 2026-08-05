@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set -euo pipefail
 
 # Usage:
@@ -7,7 +8,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# ── Load .env ────────────────────────────────────────────────────────────────
+# ── Load public configuration and local signing credentials ───────────────────
 if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -15,13 +16,21 @@ if [[ -f .env ]]; then
   set +a
 fi
 
+RELEASE_ENV_FILE="${MEUGASTO_RELEASE_ENV:-$HOME/.config/meugasto/release.env}"
+if [[ -f "$RELEASE_ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$RELEASE_ENV_FILE"
+  set +a
+fi
+
 # ── Validate required vars ────────────────────────────────────────────────────
 : "${EXPO_PUBLIC_SUPABASE_URL:?Missing EXPO_PUBLIC_SUPABASE_URL in .env}"
 : "${EXPO_PUBLIC_SUPABASE_ANON_KEY:?Missing EXPO_PUBLIC_SUPABASE_ANON_KEY in .env}"
-: "${MEUGASTO_STORE_FILE:?Missing MEUGASTO_STORE_FILE in .env}"
-: "${MEUGASTO_STORE_PASSWORD:?Missing MEUGASTO_STORE_PASSWORD in .env}"
-: "${MEUGASTO_KEY_ALIAS:?Missing MEUGASTO_KEY_ALIAS in .env}"
-: "${MEUGASTO_KEY_PASSWORD:?Missing MEUGASTO_KEY_PASSWORD in .env}"
+: "${MEUGASTO_STORE_FILE:?Missing MEUGASTO_STORE_FILE in $RELEASE_ENV_FILE}"
+: "${MEUGASTO_STORE_PASSWORD:?Missing MEUGASTO_STORE_PASSWORD in $RELEASE_ENV_FILE}"
+: "${MEUGASTO_KEY_ALIAS:?Missing MEUGASTO_KEY_ALIAS in $RELEASE_ENV_FILE}"
+: "${MEUGASTO_KEY_PASSWORD:?Missing MEUGASTO_KEY_PASSWORD in $RELEASE_ENV_FILE}"
 
 case "$EXPO_PUBLIC_SUPABASE_URL" in
   https://*) ;;

@@ -8,6 +8,7 @@ Esta pasta reúne a documentação versionada do projeto. Documentos duráveis d
 - [ADRs](adr/): decisões arquiteturais registradas e seus contextos.
 - [Produto](product/): roadmap e backlogs de produto.
 - [Segurança](security/): planos e documentação de privacidade e segurança.
+- [Desenvolvimento](development/): guias locais de build e assinatura.
 
 ## Fontes de verdade
 

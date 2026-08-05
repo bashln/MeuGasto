@@ -9,19 +9,49 @@ import { useUpdateCheck } from './src/hooks';
 import { UpdateDialog } from './src/components';
 import * as Sentry from '@sentry/react-native';
 
+const sanitizeTelemetryText = (value: string | undefined): string | undefined => {
+  if (!value) return value;
+
+  return value
+    .replace(/https?:\/\/\S+/gi, '[redacted-url]')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[redacted-token]')
+    .replace(/\bBearer\s+[^\s]+/gi, '[redacted-token]')
+    .replace(/\b\d{44}\b/g, '[redacted-nfce-key]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted-email]');
+};
+
 Sentry.init({
   dsn: 'https://4b1ab5dc065445ec86934a7c27917bc1@o4511272174157824.ingest.de.sentry.io/4511577484820560',
-
-  // Privacy: no PII, no logs, no session replay
   sendDefaultPii: false,
   enableLogs: false,
-
-  // Session replay fully disabled for privacy
+  maxBreadcrumbs: 0,
+  tracesSampleRate: 0,
+  profilesSampleRate: 0,
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 0,
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
+  beforeBreadcrumb: () => null,
+  beforeSend: (event) => ({
+    ...event,
+    breadcrumbs: undefined,
+    contexts: undefined,
+    extra: undefined,
+    fingerprint: undefined,
+    modules: undefined,
+    request: undefined,
+    tags: undefined,
+    threads: undefined,
+    transaction: undefined,
+    user: undefined,
+    message: sanitizeTelemetryText(event.message),
+    exception: event.exception
+      ? {
+          values: event.exception.values?.map(({ type, value }) => ({
+            type,
+            value: sanitizeTelemetryText(value),
+          })),
+        }
+      : undefined,
+  }),
 });
 
 const theme = {

@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
+set +x
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source ./.env
-  set +a
-fi
 
 if [[ -z "${JAVA_HOME:-}" || ! -x "$JAVA_HOME/bin/java" ]]; then
   MISE_JAVA_HOME=""
