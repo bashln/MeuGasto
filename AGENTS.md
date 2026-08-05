@@ -149,9 +149,9 @@ Run `npm audit` before every push to `dev` or `main`. Track findings in commits.
 | Package | Reason |
 |---------|--------|
 | `jest`, `jest-expo`, `jest-*` | Dev-only, fix requires downgrading jest major version |
-| `js-yaml` | Dev-only (jest coverage), fix requires react-native 0.86.0 |
 | `react-native` | Fix requires Expo SDK upgrade (breaking change) |
 | `@expo/*`, `expo-*` | Transitive, fix blocked by Expo SDK release cycle |
+| `undici` | Moderate and transitive via Expo/Sentry CLIs; the available fix requires a major update, so no global override is applied |
 
 ### Exceptions
 

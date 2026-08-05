@@ -38,16 +38,12 @@ for arg in "$@"; do
 done
 
 # ── expo prebuild ─────────────────────────────────────────────────────────────
-if [[ "$CLEAN" == true ]]; then
-  echo "Running expo prebuild --clean ..."
+if [[ "$CLEAN" == true || ! -f android/gradlew || ! -f android/app/build.gradle ]]; then
+  echo "Android project is missing, incomplete, or marked clean — running expo prebuild --clean ..."
   npx expo prebuild --clean --platform android
   echo "sdk.dir=${ANDROID_HOME:-$HOME/Android/Sdk}" > android/local.properties
-elif [[ ! -d android ]]; then
-  echo "android/ not found, running expo prebuild ..."
-  npx expo prebuild --platform android
-  echo "sdk.dir=${ANDROID_HOME:-$HOME/Android/Sdk}" > android/local.properties
 else
-  echo "android/ exists — skipping prebuild (use --clean to regenerate)"
+  echo "Android project is complete — skipping prebuild (use --clean to regenerate)"
 fi
 
 # ── Gradle build ──────────────────────────────────────────────────────────────

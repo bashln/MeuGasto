@@ -2,8 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Release tags follow the project format `vMAJOR.MINOR.PATCH.BUILD`; GitHub Releases are the authoritative record of published APKs.
+
+## [Unreleased] — 0.3.2.3
+
+Changes below are present after the latest published tag, `v0.3.2.1`. This version must not be treated as a published APK until a matching `v0.3.2.3` GitHub release exists.
+
+### Added
+
+- Shopping lists, historical price estimates and saved price-comparison sessions.
+- Planning hub with top tabs for lists and price comparison.
+- Sentry integration with privacy-oriented configuration.
+- Shared UI header, accessibility refinements and color-token improvements.
+- Pre-commit formatting, lint and type-check guardrails.
+
+### Changed
+
+- Dependency audit fixes and security overrides.
+- CI guardrails for dependency auditing, privacy checks and pull-request size.
+- Android native project is generated from Expo configuration during local and CI builds, preventing stale generated metadata.
+
+### Fixed
+
+- NFC-e import messages are bound to their expected origin.
+- Update-check request timeouts are cleared after failures.
+- Inputs, date picker behaviour and password-reset navigation.
+
+### Security
+
+- Hardened privacy controls, database rate limiting and database RPC exposure.
+
+## [0.3.2.1] - 2026-05-17
+
+### Fixed
+
+- Configured the EAS `production` channel in installed APKs so they can receive compatible OTA updates.
+- Ignored invalid non-version GitHub release tags in the APK update checker.
+- Corrected the local release script after changing into the Android directory.
+
+### Changed
+
+- Bumped the application to version `0.3.2.1` with Android/iOS build number `66`.
+- Documented OTA channel and runtime-version invariants in `AGENTS.md`.
+
 
 ## [1.2.3] - 2026-03-07
 

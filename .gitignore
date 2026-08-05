@@ -2,8 +2,7 @@
 node_modules/
 dist/
 dist-ssr/
-# Tracked .md files are in docs/, root stubs, and standard root files (README.md, CHANGELOG.md, SECURITY.md)
-# Ignore any other stray .md files not explicitly tracked
+# Documentation is versioned by default. Keep only generated agent output out of docs/.
 
 # Environment variables
 .env
@@ -83,12 +82,3 @@ mobile/ios/
 local.properties
 deploymentTargetDropDown.xml
 render.experimental.xml
-*.md
-!README.md
-!AGENTS.md
-!CLAUDE.md
-!CHANGELOG.md
-!SECURITY.md
-!LICENSE
-!.github/pull_request_template.md
-!docs/adr/*.md

@@ -277,4 +277,4 @@ Versao curta:
 
 ## Plano de Implementacao
 
-O plano executavel esta em [Plano de Implementacao de Privacidade](privacy-implementation-plan.md).
+O plano executavel esta em [Plano de Implementacao de Privacidade](../security/privacy-implementation-plan.md).
