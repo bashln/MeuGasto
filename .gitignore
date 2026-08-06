@@ -62,6 +62,7 @@ Thumbs.db
 docs/ai/
 
 # Supabase CLI temp files
+supabase/.temp/
 mobile/supabase/.temp/
 
 # Coverage artifacts
