@@ -5,6 +5,81 @@
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "unaccent";
+
+-- =============================================
+-- NAME NORMALIZATION FUNCTION
+-- =============================================
+CREATE OR REPLACE FUNCTION public.normalize_item_name(p_name TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  v_result TEXT;
+  v_abbreviations JSONB := '{
+    "det": "detergente",
+    "pao": "pao",
+    "refri": "refrigerante",
+    "refrig": "refrigerante",
+    "lavat": "sabao",
+    "cond": "condensado",
+    "desc": "descartavel",
+    "shamp": "shampoo",
+    "sab": "sabonete",
+    "crem": "creme",
+    "pct": "pacote",
+    "un": "unidade",
+    "kg": "quilo",
+    "g": "grama",
+    "ml": "mililitro",
+    "l": "litro",
+    "ipe": "ipe",
+    "tb": "tirol",
+    "pr": "prata"
+  }';
+  v_word TEXT;
+  v_words TEXT[];
+  v_normalized_words TEXT[];
+BEGIN
+  IF p_name IS NULL OR btrim(p_name) = '' THEN
+    RETURN '';
+  END IF;
+
+  -- Lowercase and remove accents
+  v_result := LOWER(unaccent(btrim(p_name)));
+  -- Remove special characters
+  v_result := REGEXP_REPLACE(v_result, '[^a-z0-9\s]', '', 'g');
+  -- Collapse whitespace
+  v_result := REGEXP_REPLACE(v_result, '\s+', ' ', 'g');
+  v_result := TRIM(v_result);
+
+  -- Expand abbreviations
+  v_words := string_to_array(v_result, ' ');
+  v_normalized_words := ARRAY[]::TEXT[];
+  FOREACH v_word IN ARRAY v_words LOOP
+    IF v_word = '' THEN CONTINUE; END IF;
+    IF v_abbreviations ? v_word THEN
+      v_normalized_words := array_append(v_normalized_words, v_abbreviations->>v_word);
+    ELSE
+      v_normalized_words := array_append(v_normalized_words, v_word);
+    END IF;
+  END LOOP;
+
+  RETURN array_to_string(v_normalized_words, ' ');
+END;
+$$;
+
+-- =============================================
+-- TRIGGERS FOR NORMALIZED_NAME
+-- =============================================
+CREATE OR REPLACE FUNCTION public.set_normalized_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.normalized_name := public.normalize_item_name(NEW.name);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- =============================================
 -- PROFILES TABLE (extends auth.users)
@@ -72,6 +147,7 @@ CREATE TABLE IF NOT EXISTS items (
   quantity DECIMAL(10,3) DEFAULT 1,
   unit TEXT,
   price DECIMAL(10,2) DEFAULT 0,
+  normalized_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -96,6 +172,12 @@ ALTER TABLE items ADD CONSTRAINT items_quantity_range_check
 ALTER TABLE items DROP CONSTRAINT IF EXISTS items_price_range_check;
 ALTER TABLE items ADD CONSTRAINT items_price_range_check
   CHECK (price >= 0 AND price <= 99999999.99);
+
+-- Trigger for normalized_name on items
+DROP TRIGGER IF EXISTS items_set_normalized_name ON items;
+CREATE TRIGGER items_set_normalized_name
+  BEFORE INSERT OR UPDATE OF name ON items
+  FOR EACH ROW EXECUTE FUNCTION public.set_normalized_name();
 
 -- =============================================
 -- DRAFTS TABLE
@@ -162,7 +244,10 @@ BEGIN
   NEW.created_at := OLD.created_at;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER
+SET search_path = pg_catalog, public;
+
+REVOKE ALL ON FUNCTION public.prevent_role_escalation() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS protect_profile_immutable_fields ON profiles;
 CREATE TRIGGER protect_profile_immutable_fields
@@ -284,7 +369,10 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, public;
+
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -534,4 +622,202 @@ AS $$
   GROUP BY COALESCE(i.name, 'Sem nome')
   ORDER BY total DESC
   LIMIT GREATEST(COALESCE(p_limit, 10), 1);
+$$;
+
+-- Enable trigram extension for optimized partial string indexing
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- =============================================
+-- SHOPPING LISTS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS shopping_lists (
+  id SERIAL PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================
+-- SHOPPING LIST ITEMS TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS shopping_list_items (
+  id SERIAL PRIMARY KEY,
+  shopping_list_id INTEGER REFERENCES shopping_lists(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  quantity DECIMAL(10,3) DEFAULT 1 CHECK (quantity > 0),
+  unit TEXT DEFAULT 'UN',
+  estimated_price DECIMAL(10,2) DEFAULT 0 CHECK (estimated_price >= 0),
+  normalized_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Trigger for normalized_name on shopping_list_items
+DROP TRIGGER IF EXISTS shopping_list_items_set_normalized_name ON shopping_list_items;
+CREATE TRIGGER shopping_list_items_set_normalized_name
+  BEFORE INSERT OR UPDATE OF name ON shopping_list_items
+  FOR EACH ROW EXECUTE FUNCTION public.set_normalized_name();
+
+-- Habilitar RLS
+ALTER TABLE shopping_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shopping_list_items ENABLE ROW LEVEL SECURITY;
+
+-- Políticas para shopping_lists
+CREATE POLICY "Users can view own shopping lists" ON shopping_lists
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own shopping lists" ON shopping_lists
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own shopping lists" ON shopping_lists
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own shopping lists" ON shopping_lists
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Políticas para shopping_list_items
+CREATE POLICY "Users can view own shopping list items" ON shopping_list_items
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM shopping_lists
+      WHERE shopping_lists.id = shopping_list_items.shopping_list_id
+      AND shopping_lists.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert own shopping list items" ON shopping_list_items
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM shopping_lists
+      WHERE shopping_lists.id = shopping_list_items.shopping_list_id
+      AND shopping_lists.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update own shopping list items" ON shopping_list_items
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM shopping_lists
+      WHERE shopping_lists.id = shopping_list_items.shopping_list_id
+      AND shopping_lists.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM shopping_lists
+      WHERE shopping_lists.id = shopping_list_items.shopping_list_id
+      AND shopping_lists.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own shopping list items" ON shopping_list_items
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM shopping_lists
+      WHERE shopping_lists.id = shopping_list_items.shopping_list_id
+      AND shopping_lists.user_id = auth.uid()
+    )
+  );
+
+-- Índices de performance
+CREATE INDEX IF NOT EXISTS idx_shopping_lists_user_id ON shopping_lists(user_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_list_id ON shopping_list_items(shopping_list_id);
+
+-- Constraint: apenas uma lista ativa por usuário
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shopping_lists_one_active_per_user
+  ON shopping_lists(user_id)
+  WHERE status = 'active';
+
+-- GIN Trigram Index on items(name) for fast ILIKE searches
+CREATE INDEX IF NOT EXISTS idx_items_name_trgm ON items USING gin (name gin_trgm_ops);
+
+-- Index on normalized_name for abbreviation-aware price lookups
+CREATE INDEX IF NOT EXISTS idx_items_normalized_name ON items(normalized_name);
+
+-- =============================================
+-- FUNCTION: get_item_average_price
+-- =============================================
+CREATE OR REPLACE FUNCTION public.get_item_average_price(p_item_name TEXT)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_avg_price NUMERIC;
+  v_normalized_name TEXT;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Autenticação necessária';
+  END IF;
+
+  IF p_item_name IS NULL OR btrim(p_item_name) = '' THEN
+    RETURN 0.00;
+  END IF;
+
+  v_normalized_name := public.normalize_item_name(p_item_name);
+
+  -- Match using normalized_name for abbreviation-aware lookup
+  SELECT 
+    CASE 
+      WHEN SUM(i.quantity) > 0 THEN ROUND(SUM(i.price * i.quantity) / SUM(i.quantity), 2)
+      ELSE 0.00
+    END
+  INTO v_avg_price
+  FROM items i
+  INNER JOIN purchases p ON p.id = i.purchase_id
+  WHERE p.user_id = v_user_id
+    AND (
+      i.normalized_name ILIKE v_normalized_name || '%' 
+      OR i.normalized_name ILIKE '% ' || v_normalized_name || '%'
+      OR i.name ILIKE btrim(p_item_name) || '%' 
+      OR i.name ILIKE '% ' || btrim(p_item_name) || '%'
+    );
+
+  RETURN COALESCE(v_avg_price, 0.00);
+END;
+$$;
+
+-- =============================================
+-- FUNCTION: get_items_average_prices_bulk
+-- =============================================
+CREATE OR REPLACE FUNCTION public.get_items_average_prices_bulk(p_item_names TEXT[])
+RETURNS TABLE(item_name TEXT, avg_price NUMERIC)
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_normalized_name TEXT;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Autenticação necessária';
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    name_param AS item_name,
+    COALESCE(
+      (
+        SELECT CASE 
+          WHEN name_param IS NULL OR btrim(name_param) = '' THEN 0.00
+          WHEN SUM(i.quantity) > 0 THEN ROUND(SUM(i.price * i.quantity) / SUM(i.quantity), 2)
+          ELSE 0.00
+        END
+        FROM items i
+        INNER JOIN purchases p ON p.id = i.purchase_id
+        WHERE p.user_id = v_user_id
+          AND name_param IS NOT NULL AND btrim(name_param) <> ''
+          AND (
+            i.normalized_name ILIKE public.normalize_item_name(name_param) || '%' 
+            OR i.normalized_name ILIKE '% ' || public.normalize_item_name(name_param) || '%'
+            OR i.name ILIKE btrim(name_param) || '%' 
+            OR i.name ILIKE '% ' || btrim(name_param) || '%'
+          )
+      ), 
+      0.00
+    ) AS avg_price
+  FROM unnest(p_item_names) AS name_param;
+END;
 $$;

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set +x
 set -euo pipefail
 
 # Usage:
@@ -7,7 +8,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# ── Load .env ────────────────────────────────────────────────────────────────
+# ── Load public configuration and local signing credentials ───────────────────
 if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -15,13 +16,21 @@ if [[ -f .env ]]; then
   set +a
 fi
 
+RELEASE_ENV_FILE="${MEUGASTO_RELEASE_ENV:-$HOME/.config/meugasto/release.env}"
+if [[ -f "$RELEASE_ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$RELEASE_ENV_FILE"
+  set +a
+fi
+
 # ── Validate required vars ────────────────────────────────────────────────────
 : "${EXPO_PUBLIC_SUPABASE_URL:?Missing EXPO_PUBLIC_SUPABASE_URL in .env}"
 : "${EXPO_PUBLIC_SUPABASE_ANON_KEY:?Missing EXPO_PUBLIC_SUPABASE_ANON_KEY in .env}"
-: "${MEUGASTO_STORE_FILE:?Missing MEUGASTO_STORE_FILE in .env}"
-: "${MEUGASTO_STORE_PASSWORD:?Missing MEUGASTO_STORE_PASSWORD in .env}"
-: "${MEUGASTO_KEY_ALIAS:?Missing MEUGASTO_KEY_ALIAS in .env}"
-: "${MEUGASTO_KEY_PASSWORD:?Missing MEUGASTO_KEY_PASSWORD in .env}"
+: "${MEUGASTO_STORE_FILE:?Missing MEUGASTO_STORE_FILE in $RELEASE_ENV_FILE}"
+: "${MEUGASTO_STORE_PASSWORD:?Missing MEUGASTO_STORE_PASSWORD in $RELEASE_ENV_FILE}"
+: "${MEUGASTO_KEY_ALIAS:?Missing MEUGASTO_KEY_ALIAS in $RELEASE_ENV_FILE}"
+: "${MEUGASTO_KEY_PASSWORD:?Missing MEUGASTO_KEY_PASSWORD in $RELEASE_ENV_FILE}"
 
 case "$EXPO_PUBLIC_SUPABASE_URL" in
   https://*) ;;
@@ -37,23 +46,37 @@ for arg in "$@"; do
   esac
 done
 
+# ── Java ──────────────────────────────────────────────────────────────────────
+if [[ -z "${JAVA_HOME:-}" || ! -x "$JAVA_HOME/bin/java" ]]; then
+  MISE_JAVA_HOME=""
+  if command -v mise > /dev/null 2>&1; then
+    MISE_JAVA_HOME="$(mise where java@17 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$MISE_JAVA_HOME" && -x "$MISE_JAVA_HOME/bin/java" ]]; then
+    JAVA_HOME="$MISE_JAVA_HOME"
+  else
+    JAVA_HOME="$(java -XshowSettings:properties -version 2>&1 | awk -F'= ' '/java.home =/ { print $2; exit }')"
+  fi
+fi
+
+if [[ ! -x "$JAVA_HOME/bin/java" ]]; then
+  echo "ERROR: unable to resolve a valid JAVA_HOME" >&2
+  exit 1
+fi
+
+export JAVA_HOME
+
 # ── expo prebuild ─────────────────────────────────────────────────────────────
-if [[ "$CLEAN" == true ]]; then
-  echo "Running expo prebuild --clean ..."
+if [[ "$CLEAN" == true || ! -f android/gradlew || ! -f android/app/build.gradle ]]; then
+  echo "Android project is missing, incomplete, or marked clean — running expo prebuild --clean ..."
   npx expo prebuild --clean --platform android
   echo "sdk.dir=${ANDROID_HOME:-$HOME/Android/Sdk}" > android/local.properties
-elif [[ ! -d android ]]; then
-  echo "android/ not found, running expo prebuild ..."
-  npx expo prebuild --platform android
-  echo "sdk.dir=${ANDROID_HOME:-$HOME/Android/Sdk}" > android/local.properties
 else
-  echo "android/ exists — skipping prebuild (use --clean to regenerate)"
+  echo "Android project is complete — skipping prebuild (use --clean to regenerate)"
 fi
 
 # ── Gradle build ──────────────────────────────────────────────────────────────
-JAVA_HOME="${JAVA_HOME:-/tmp/jdk21}"
-export JAVA_HOME
-
 cd android
 
 ./gradlew assembleRelease \

@@ -9,4 +9,9 @@ export const typography = {
   heading: 20,
   display: 24,
   hero: 32,
+  lineHeights: {
+    tight: 20,
+    body: 22,
+    relaxed: 24,
+  },
 };

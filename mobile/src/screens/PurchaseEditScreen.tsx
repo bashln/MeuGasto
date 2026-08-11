@@ -1,7 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, Text as RNText } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  TouchableOpacity,
+  Text as RNText,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, TextInput, Menu } from 'react-native-paper';
 import { purchaseService, supermarketService } from '../services';
 import { Purchase, Supermarket } from '../types';
@@ -9,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { Header } from '../components';
 
 const isoToDisplay = (iso: string): string => {
   const [y, m, d] = iso.split('-');
@@ -39,7 +46,6 @@ type PurchaseEditScreenProps = {
 export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigation, route }) => {
   const { purchaseId } = route.params;
   const isNewPurchase = purchaseId === 0;
-  const insets = useSafeAreaInsets();
   const headerTitle = isNewPurchase ? 'Compra Manual' : 'Editar Compra';
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [supermarkets, setSupermarkets] = useState<Supermarket[]>([]);
@@ -136,13 +142,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
-          <RNText style={styles.headerTitle}>{headerTitle}</RNText>
-          <View style={styles.headerSpacer} />
-        </View>
+        <Header title={headerTitle} iconName="cart-check" onBack={() => navigation.goBack()} />
         <View style={styles.loadingContainer}>
           <Text>Carregando...</Text>
         </View>
@@ -152,13 +152,7 @@ export const PurchaseEditScreen: React.FC<PurchaseEditScreenProps> = ({ navigati
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-        <RNText style={styles.headerTitle}>{headerTitle}</RNText>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title={headerTitle} iconName="cart-check" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Dados da compra</Text>

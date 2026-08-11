@@ -8,16 +8,15 @@ import {
   Text as RNText,
   ActivityIndicator,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { TextInput } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList, MainTabParamList } from '../navigation/types';
 import { useAuth } from '../context';
 import { authService } from '../services';
 import { colors } from '../theme/colors';
+import { Header } from '../components';
 
 type EditProfileScreenProps = {
   navigation: CompositeNavigationProp<
@@ -27,7 +26,6 @@ type EditProfileScreenProps = {
 };
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { user, updateUser } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
   const [isSaving, setIsSaving] = useState(false);
@@ -58,18 +56,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-        >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-        <RNText style={styles.headerTitle}>Editar Perfil</RNText>
-        <View style={styles.headerSpacer} />
-      </View>
+      <Header title="Editar Perfil" iconName="account-edit" onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.content}>
         <TextInput

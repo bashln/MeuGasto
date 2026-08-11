@@ -10,3 +10,6 @@ export * from './onboardingService';
 export * from './draftContent';
 export * from './productCategorizerService';
 export * from './productCategoryRules';
+export * from './shoppingListService';
+export * from './priceComparisonService';
+

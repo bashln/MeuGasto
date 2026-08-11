@@ -81,9 +81,19 @@ describe('authService', () => {
     expect(mockDeleteItemAsync).toHaveBeenCalledWith('supabase.auth.token');
   });
 
+  it('remove sessao local mesmo quando a revogacao remota falha', async () => {
+    mockSignOut.mockResolvedValue({ error: new Error('Network error') });
+
+    await expect(authService.logout()).rejects.toThrow('Network error');
+
+    expect(mockDeleteItemAsync).toHaveBeenCalledWith('supabase.auth.token');
+  });
+
   it('traduz erro de resposta HTML inesperada no login', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockSignInWithPassword.mockRejectedValue(new Error('JSON Parse error: Unexpected character: <'));
+    mockSignInWithPassword.mockRejectedValue(
+      new Error('JSON Parse error: Unexpected character: <')
+    );
 
     await expect(
       authService.login({ email: 'user@example.com', password: 'secret' })

@@ -128,6 +128,36 @@ Polls `https://api.github.com/repos/bashln/MeuGasto/releases/latest` to detect n
 - Never manually push non-`v*` tags to GitHub or mark a non-versioned release as "Latest"
 - Check interval is 24h — this is intentional to avoid rate-limiting the GitHub API
 
+## Security: Dependency vulnerability audit
+
+Run `npm audit` before every push to `dev` or `main`. Track findings in commits.
+
+### Workflow
+
+1. **Run** `npm audit` from `mobile/` directory
+2. **Classify** severity:
+   - `critical` / `high` — must fix before push
+   - `moderate` — fix if semver-safe; document if blocked
+   - `low` — acceptable risk
+3. **Apply fixes:**
+   - `npm audit fix` — safe auto-fix for transitive deps
+   - Add `overrides` in `mobile/package.json` if safe fix exists but auto-resolve fails (e.g. `"uuid": ">=11.1.1"`, `"ws": "^8.21.0"`)
+   - `npm audit fix --force` — NEVER use (breaks peer deps)
+
+### Known accepted vulnerabilities (all moderate, dev-only, blocked by Expo SDK)
+
+| Package | Reason |
+|---------|--------|
+| `jest`, `jest-expo`, `jest-*` | Dev-only, fix requires downgrading jest major version |
+| `react-native` | Fix requires Expo SDK upgrade (breaking change) |
+| `@expo/*`, `expo-*` | Transitive, fix blocked by Expo SDK release cycle |
+| `undici` | Moderate and transitive via Expo/Sentry CLIs; the available fix requires a major update, so no global override is applied |
+
+### Exceptions
+
+- If `npm audit fix` requires `--force`, STOP. Only add `overrides` in `package.json` after testing that the override does not break `npm install` or the app build.
+- Dependabot alerts on GitHub can be closed as "accepted risk" for the known list above. Re-verify on each Expo SDK upgrade.
+
 ## Progresso de implementação de notas fiscais
 
 - [ ] Acre

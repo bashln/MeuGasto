@@ -390,7 +390,7 @@ CREATE OR REPLACE FUNCTION public.run_analytics_aggregation(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public
 AS $$
 DECLARE
   v_min_contributors INTEGER := 5;
@@ -510,8 +510,10 @@ BEGIN
 END;
 $$;
 
--- Revogar execução pública; somente roles autorizados chamam
-REVOKE EXECUTE ON FUNCTION public.run_analytics_aggregation FROM PUBLIC;
+-- Revogar execução do cliente; somente o backend administrativo chama.
+REVOKE ALL ON FUNCTION public.run_analytics_aggregation(DATE)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.run_analytics_aggregation(DATE) TO service_role;
 
 -- Agendar via pg_cron (executar após habilitar extensão no Supabase):
 -- SELECT cron.schedule('aggregate-analytics-daily', '0 3 * * *', $$SELECT public.run_analytics_aggregation()$$);
