@@ -69,7 +69,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@7c5672355aaa8fde5f97a91aa9a99616d1ace6bc # v2
+        uses: android-actions/setup-android@7c5672355aaa8fde5f97a91aa9a99616d1ace6bc # v2.0.10
 
       - name: Cache Android SDK
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
