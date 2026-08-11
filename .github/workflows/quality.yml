@@ -44,9 +44,11 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
+      - name: Dependency audit policy tests
+        run: node --test scripts/dependency-audit.test.mjs
+
       - name: Dependency vulnerability audit
-        working-directory: ./mobile
-        run: npm audit --audit-level=high
+        run: node scripts/dependency-audit.mjs
 
       - name: Pull request size advisory
         if: github.event_name == 'pull_request'
