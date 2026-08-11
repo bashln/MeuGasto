@@ -11,6 +11,8 @@ DECLARE
   v_test_action TEXT := 'smoke_test:INSERT';
   v_test_window TIMESTAMPTZ := '2026-01-01T00:00:00Z';
   v_request_count INTEGER;
+  v_function_signature TEXT;
+  v_relation REGCLASS;
 BEGIN
   IF to_regclass('private.authenticated_write_rate_limits') IS NULL THEN
     RAISE EXCEPTION 'Rate limit table was not created';
@@ -105,6 +107,38 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'A public SECURITY DEFINER function is client-executable';
   END IF;
+
+  IF has_function_privilege(
+    'anon',
+    'public.can_reference_supermarket(integer)',
+    'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'anon can execute the supermarket policy helper';
+  END IF;
+
+  FOREACH v_function_signature IN ARRAY ARRAY[
+    'public.enforce_comparison_quote_items_limit()'::TEXT,
+    'public.enforce_comparison_quotes_limit()'::TEXT,
+    'public.enforce_items_per_purchase_limit()'::TEXT,
+    'public.enforce_owned_row_quota()'::TEXT,
+    'public.enforce_shopping_list_items_limit()'::TEXT
+  ] LOOP
+    IF has_function_privilege('anon', v_function_signature, 'EXECUTE')
+      OR has_function_privilege('authenticated', v_function_signature, 'EXECUTE') THEN
+      RAISE EXCEPTION 'Client role can execute internal trigger function %', v_function_signature;
+    END IF;
+  END LOOP;
+
+  FOREACH v_relation IN ARRAY ARRAY[
+    'public.analytics_item_prices'::REGCLASS,
+    'public.analytics_market_baskets'::REGCLASS,
+    'public.analytics_price_trends'::REGCLASS
+  ] LOOP
+    IF has_table_privilege('anon', v_relation, 'REFERENCES, TRIGGER, TRUNCATE')
+      OR has_table_privilege('authenticated', v_relation, 'REFERENCES, TRIGGER, TRUNCATE') THEN
+      RAISE EXCEPTION 'Client role has non-data privileges on analytics table %', v_relation;
+    END IF;
+  END LOOP;
 
   IF EXISTS (
     SELECT 1
