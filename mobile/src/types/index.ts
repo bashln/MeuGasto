@@ -5,24 +5,6 @@ export interface AuthUser {
   role: string;
 }
 
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: AuthUser;
-}
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface CreateUserRequest {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  name: string;
-}
-
 export interface Supermarket {
   id: number;
   name: string;
@@ -128,7 +110,6 @@ export interface UpdateDraftRequest {
   }>;
 }
 
-
 export interface DashboardStats {
   totalSpent: number;
   purchaseCount: number;
@@ -213,4 +194,3 @@ export interface ComparisonResult {
     unit: string;
   }>;
 }
-

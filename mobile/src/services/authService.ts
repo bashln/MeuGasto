@@ -284,17 +284,3 @@ export const authService = {
     }
   },
 };
-
-export const checkSupabaseConfiguration = (): { configured: boolean; message: string } => {
-  if (!isSupabaseConfigured()) {
-    return {
-      configured: false,
-      message:
-        'Configuração do Supabase ausente. Verifique as variáveis de ambiente no aplicativo.',
-    };
-  }
-  return {
-    configured: true,
-    message: 'Supabase configurado corretamente.',
-  };
-};

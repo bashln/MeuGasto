@@ -13,21 +13,24 @@ Os APKs são gerados automaticamente via GitHub Actions para tags no formato `vX
 
 ## Stack
 
-- Mobile: Expo + React Native + TypeScript
-- Backend: Supabase (Auth, Postgres, RLS)
-- Build Android: GitHub Actions (APK Standalone) / EAS Build
+- **Mobile Nativo:** Kotlin 2.x + Jetpack Compose (Material 3 / Material You) + Room DB
+- **Modos de Operação (Dual Mode):**
+  - _Modo Nuvem:_ Supabase (Auth, Postgres, RLS)
+  - _Modo Local-First:_ Banco local criptografado + sincronização pessoal via WebDAV (Nextcloud/ownCloud), Google Drive ou Dropbox
+- **Hardware & Fiscais:** CameraX + Google ML Kit (Leitor QR Code) + Motor de Scraping NFC-e (GET-first)
+- **Build & CI/CD:** Gradle 8.9 + GitHub Actions (Release de APK standalone assinado)
 
 ## Estrutura
 
 ```
 .
 ├── docs/                      # Documentação do projeto
-│   ├── index.md               # Índice da documentação
-│   ├── architecture/
-│   ├── audits/
-│   ├── status/
-│   ├── process/
-│   └── ai/
+│   ├── README.md              # Índice da documentação
+│   ├── adr/                   # Decisões arquiteturais registradas
+│   ├── architecture/          # Desenho e diretrizes de arquitetura
+│   ├── development/           # Guias de desenvolvimento e build
+│   ├── product/               # Roadmap e backlogs de produto
+│   └── security/              # Políticas e planos de segurança/privacidade
 ├── mobile/                    # Aplicativo Expo
 │   ├── src/
 │   │   ├── components/        # Componentes reutilizáveis

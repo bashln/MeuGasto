@@ -35,6 +35,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -64,7 +65,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/package-lock.json', 'mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/gradle/wrapper/gradle-wrapper.properties', 'mobile/gradle/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
@@ -133,37 +134,26 @@ jobs:
           fi
           echo "✅ Environment variables are configured"
 
-      - name: Generate native project
-        working-directory: ./mobile
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-          ANDROID_KEYSTORE_FILE: meugasto-release.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: npx expo prebuild --clean --platform android
-
       - name: Decode keystore
-        working-directory: ./mobile/android
+        working-directory: ./mobile
         run: python3 -c "import base64,os,re; d=re.sub(r'[^A-Za-z0-9+/=]','',os.environ['ANDROID_KEYSTORE_BASE64']); open('app/meugasto-release.jks','wb').write(base64.b64decode(d))"
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
       - name: Build Android APK
-        working-directory: ./mobile/android
+        working-directory: ./mobile
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --no-daemon --parallel --build-cache -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+        run: ./gradlew assembleRelease --no-daemon --parallel --build-cache
 
       - name: Validate APK size
         run: |
-          APK_SIZE=$(stat -c%s mobile/android/app/build/outputs/apk/release/app-release.apk)
-          MIN_SIZE=40000000
+          APK_SIZE=$(stat -c%s mobile/app/build/outputs/apk/release/app-release.apk)
+          MIN_SIZE=30000000
           if [ $APK_SIZE -lt $MIN_SIZE ]; then
             echo "⚠️ APK muito pequeno ($APK_SIZE bytes). Possível problema no build."
             exit 1
@@ -173,12 +163,12 @@ jobs:
       - name: Prepare release asset
         run: |
           VERSION_NAME="${RELEASE_TAG#v}"
-          cp mobile/android/app/build/outputs/apk/release/app-release.apk "mobile/android/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
+          cp mobile/app/build/outputs/apk/release/app-release.apk "mobile/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
 
       - name: Create Release
         run: |
           VERSION_NAME="${RELEASE_TAG#v}"
-          ASSET_PATH="mobile/android/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
+          ASSET_PATH="mobile/app/build/outputs/apk/release/meugastov${VERSION_NAME}.apk"
           TAG_NAME="$RELEASE_TAG"
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             echo "Release $TAG_NAME already exists — uploading asset"
