@@ -17,6 +17,7 @@ import com.prati.meugasto.ui.screens.onboarding.OnboardingScreen
 import com.prati.meugasto.ui.screens.planning.ShoppingListScreen
 import com.prati.meugasto.ui.screens.purchases.PurchaseDetailScreen
 import com.prati.meugasto.ui.screens.purchases.PurchasesScreen
+import com.prati.meugasto.ui.screens.reports.ReportsScreen
 import com.prati.meugasto.ui.screens.scanner.ScanQrCodeScreen
 import com.prati.meugasto.ui.screens.settings.SettingsScreen
 import com.prati.meugasto.ui.theme.MeuGastoTheme
@@ -88,7 +89,8 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToScanner = { navController.navigate(Screen.Scanner.route) },
                                 onNavigateToPurchaseDetail = { purchaseId ->
                                     navController.navigate("purchase_detail/$purchaseId")
-                                }
+                                },
+                                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                             )
                         }
 
@@ -118,7 +120,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(Screen.Reports.route) {
-                            SettingsScreen(preferences = preferences)
+                            ReportsScreen()
                         }
 
                         composable(Screen.Settings.route) {
@@ -139,4 +141,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

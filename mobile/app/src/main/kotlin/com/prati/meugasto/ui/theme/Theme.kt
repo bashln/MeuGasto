@@ -2,47 +2,61 @@ package com.prati.meugasto.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-val PrimaryBlue = Color(0xFF1976D2)
-val PrimaryBlueDark = Color(0xFF1565C0)
-val SecondaryTeal = Color(0xFF00897B)
-val BackgroundLight = Color(0xFFF8F9FA)
-val SurfaceLight = Color(0xFFFFFFFF)
-val TextPrimary = Color(0xFF1A1C1E)
-val TextSecondary = Color(0xFF5F6368)
-val AccentGreen = Color(0xFF2E7D32)
-val AccentRed = Color(0xFFC62828)
-
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryBlue,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFD1E4FF),
-    onPrimaryContainer = Color(0xFF001D36),
-    secondary = SecondaryTeal,
-    onSecondary = Color.White,
-    background = BackgroundLight,
-    surface = SurfaceLight,
-    onSurface = TextPrimary,
-    onSurfaceVariant = TextSecondary,
-    error = AccentRed,
-    onError = Color.White
+    primary = Primary,
+    onPrimary = OnPrimary,
+    primaryContainer = PrimaryContainer,
+    onPrimaryContainer = OnPrimaryContainer,
+    secondary = Secondary,
+    onSecondary = OnSecondary,
+    secondaryContainer = SecondaryContainer,
+    onSecondaryContainer = OnSecondaryContainer,
+    tertiary = Tertiary,
+    onTertiary = OnTertiary,
+    tertiaryContainer = TertiaryContainer,
+    onTertiaryContainer = OnTertiaryContainer,
+    background = Background,
+    onBackground = OnBackground,
+    surface = Surface,
+    onSurface = OnSurface,
+    surfaceVariant = SurfaceVariant,
+    onSurfaceVariant = OnSurfaceVariant,
+    outline = Outline,
+    outlineVariant = OutlineVariant,
+    error = Negative,
+    onError = OnPrimary
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF9ECAFF),
-    onPrimary = Color(0xFF003258),
-    primaryContainer = PrimaryBlueDark,
-    onPrimaryContainer = Color(0xFFD1E4FF),
-    secondary = Color(0xFF80CBC4),
-    onSecondary = Color(0xFF003731),
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E),
-    onSurface = Color(0xFFE2E2E2),
-    onSurfaceVariant = Color(0xFFA0A0A0),
+    primary = PrimaryDark,
+    onPrimary = OnPrimaryDark,
+    primaryContainer = PrimaryContainerDark,
+    onPrimaryContainer = OnPrimaryContainerDark,
+    secondary = SecondaryDark,
+    onSecondary = OnSecondaryDark,
+    secondaryContainer = SecondaryContainerDark,
+    onSecondaryContainer = OnSecondaryContainerDark,
+    tertiary = TertiaryDark,
+    onTertiary = OnTertiaryDark,
+    tertiaryContainer = TertiaryContainerDark,
+    onTertiaryContainer = OnTertiaryContainerDark,
+    background = BackgroundDark,
+    onBackground = OnBackgroundDark,
+    surface = SurfaceDark,
+    onSurface = OnSurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = OnSurfaceVariantDark,
+    outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005)
 )
@@ -64,7 +78,8 @@ fun MeuGastoTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = AppTypography.toMaterialTypography(),
+        shapes = AppShapes.toMaterialShapes(),
         content = content
     )
 }
-

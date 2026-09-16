@@ -7,12 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -31,6 +27,8 @@ import com.prati.meugasto.domain.model.Item
 import com.prati.meugasto.domain.model.Purchase
 import com.prati.meugasto.domain.model.Supermarket
 import com.prati.meugasto.domain.nfce.NfceScraperEngine
+import com.prati.meugasto.ui.theme.AppShapes
+import com.prati.meugasto.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
@@ -45,6 +43,16 @@ fun ScanQrCodeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
     val scraperEngine = remember { NfceScraperEngine() }
+
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+    val barcodeScanner = remember { BarcodeScanning.getClient() }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            cameraExecutor.shutdown()
+            barcodeScanner.close()
+        }
+    }
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -74,7 +82,7 @@ fun ScanQrCodeScreen(
                 title = { Text("Escanear NFC-e") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -95,15 +103,12 @@ fun ScanQrCodeScreen(
                     factory = { ctx ->
                         val previewView = PreviewView(ctx)
                         val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        val cameraExecutor = Executors.newSingleThreadExecutor()
 
                         cameraProviderFuture.addListener({
                             val cameraProvider = cameraProviderFuture.get()
                             val preview = Preview.Builder().build().also {
                                 it.setSurfaceProvider(previewView.surfaceProvider)
                             }
-
-                            val barcodeScanner = BarcodeScanning.getClient()
 
                             val imageAnalysis = ImageAnalysis.Builder()
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -179,36 +184,34 @@ fun ScanQrCodeScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Overlay de mira e status
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(AppSpacing.XL),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Bottom
                 ) {
                     Card(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = AppShapes.Medium,
                         colors = CardDefaults.cardColors(
                             containerColor = Color.Black.copy(alpha = 0.75f)
                         )
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(AppSpacing.LG),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             if (isProcessing) {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(AppSpacing.SM))
                             }
                             Text(
                                 text = statusMessage,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White,
-                                fontWeight = FontWeight.Medium
+                                color = Color.White
                             )
                             if (errorMessage != null) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(AppSpacing.SM))
                                 Text(
                                     text = errorMessage ?: "",
                                     style = MaterialTheme.typography.bodySmall,
@@ -217,7 +220,7 @@ fun ScanQrCodeScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(AppSpacing.XXL))
                 }
             } else {
                 Box(
@@ -229,7 +232,7 @@ fun ScanQrCodeScreen(
                             text = "Permissão de câmera necessária para ler QR Codes de NFC-e.",
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(AppSpacing.LG))
                         Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
                             Text("Conceder Permissão")
                         }
@@ -239,4 +242,3 @@ fun ScanQrCodeScreen(
         }
     }
 }
-
