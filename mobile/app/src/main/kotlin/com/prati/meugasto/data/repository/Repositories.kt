@@ -4,6 +4,8 @@ import com.prati.meugasto.data.local.database.AppDatabase
 import com.prati.meugasto.data.local.database.ItemEntity
 import com.prati.meugasto.data.local.database.PurchaseEntity
 import com.prati.meugasto.data.local.database.SupermarketEntity
+import com.prati.meugasto.data.local.database.ProductStats
+import com.prati.meugasto.data.local.database.ProductPriceEntry
 import com.prati.meugasto.data.local.preferences.UserPreferences
 import com.prati.meugasto.domain.model.*
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +20,11 @@ interface PurchaseRepository {
     suspend fun savePurchase(purchase: Purchase): Long
     suspend fun deletePurchase(purchaseId: Long)
     fun getDashboardStats(): Flow<DashboardStats>
+    fun getSpendingByMarket(): Flow<List<Pair<String, Double>>>
+    fun getSpendingByDate(): Flow<List<Pair<String, Double>>>
+    fun getTopProducts(limit: Int = 10): Flow<List<ProductStats>>
+    fun getProductPriceHistory(productName: String): Flow<List<ProductPriceEntry>>
+    fun getAllProductNames(): Flow<List<String>>
 }
 
 class LocalPurchaseRepository(
@@ -122,6 +129,30 @@ class LocalPurchaseRepository(
             )
         }
     }
+
+    override fun getSpendingByMarket(): Flow<List<Pair<String, Double>>> {
+        return database.purchaseDao().getSpendingByMarket().map { list ->
+            list.map { Pair(it.supermarketName, it.total) }
+        }
+    }
+
+    override fun getSpendingByDate(): Flow<List<Pair<String, Double>>> {
+        return database.purchaseDao().getSpendingByDate().map { list ->
+            list.map { Pair(it.date, it.total) }
+        }
+    }
+
+    override fun getTopProducts(limit: Int): Flow<List<ProductStats>> {
+        return database.purchaseDao().getTopProducts(limit)
+    }
+
+    override fun getProductPriceHistory(productName: String): Flow<List<ProductPriceEntry>> {
+        return database.purchaseDao().getProductPriceHistory(productName)
+    }
+
+    override fun getAllProductNames(): Flow<List<String>> {
+        return database.purchaseDao().getAllProductNames()
+    }
 }
 
 class UnifiedPurchaseRepository(
@@ -139,5 +170,10 @@ class UnifiedPurchaseRepository(
     override suspend fun savePurchase(purchase: Purchase): Long = activeRepo().savePurchase(purchase)
     override suspend fun deletePurchase(purchaseId: Long) = activeRepo().deletePurchase(purchaseId)
     override fun getDashboardStats(): Flow<DashboardStats> = activeRepo().getDashboardStats()
+    override fun getSpendingByMarket(): Flow<List<Pair<String, Double>>> = activeRepo().getSpendingByMarket()
+    override fun getSpendingByDate(): Flow<List<Pair<String, Double>>> = activeRepo().getSpendingByDate()
+    override fun getTopProducts(limit: Int): Flow<List<ProductStats>> = activeRepo().getTopProducts(limit)
+    override fun getProductPriceHistory(productName: String): Flow<List<ProductPriceEntry>> = activeRepo().getProductPriceHistory(productName)
+    override fun getAllProductNames(): Flow<List<String>> = activeRepo().getAllProductNames()
 }
 

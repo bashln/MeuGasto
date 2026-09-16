@@ -17,6 +17,7 @@ import com.prati.meugasto.ui.screens.onboarding.OnboardingScreen
 import com.prati.meugasto.ui.screens.planning.ShoppingListScreen
 import com.prati.meugasto.ui.screens.purchases.PurchaseDetailScreen
 import com.prati.meugasto.ui.screens.purchases.PurchasesScreen
+import com.prati.meugasto.ui.screens.reports.ProductHistoryScreen
 import com.prati.meugasto.ui.screens.reports.ReportsScreen
 import com.prati.meugasto.ui.screens.scanner.ScanQrCodeScreen
 import com.prati.meugasto.ui.screens.settings.SettingsScreen
@@ -120,7 +121,24 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(Screen.Reports.route) {
-                            ReportsScreen()
+                            ReportsScreen(
+                                repository = repository,
+                                onNavigateToProductHistory = { productName ->
+                                    navController.navigate("product_history/${java.net.URLEncoder.encode(productName, "UTF-8")}")
+                                }
+                            )
+                        }
+
+                        composable("product_history/{productName}") { backStackEntry ->
+                            val productName = java.net.URLDecoder.decode(
+                                backStackEntry.arguments?.getString("productName") ?: "",
+                                "UTF-8"
+                            )
+                            ProductHistoryScreen(
+                                productName = productName,
+                                repository = repository,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
                         }
 
                         composable(Screen.Settings.route) {

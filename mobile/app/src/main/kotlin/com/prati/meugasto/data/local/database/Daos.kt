@@ -17,6 +17,31 @@ data class ShoppingListWithItems(
     val items: List<ShoppingListItemEntity>
 )
 
+data class MarketSpending(
+    val supermarketName: String,
+    val total: Double
+)
+
+data class DateSpending(
+    val date: String,
+    val total: Double
+)
+
+data class ProductStats(
+    val name: String,
+    val totalQty: Double,
+    val totalSpent: Double,
+    val purchaseCount: Int
+)
+
+data class ProductPriceEntry(
+    val name: String,
+    val price: Double,
+    val unit: String,
+    val date: String,
+    val supermarketName: String
+)
+
 @Dao
 interface SupermarketDao {
     @Query("SELECT * FROM supermarkets WHERE name = :name LIMIT 1")
@@ -76,6 +101,21 @@ interface PurchaseDao {
 
     @Query("SELECT COUNT(*) FROM items")
     fun getItemCount(): Flow<Int>
+
+    @Query("SELECT s.name as supermarketName, SUM(p.totalPrice) as total FROM purchases p JOIN supermarkets s ON p.supermarketId = s.id GROUP BY p.supermarketId ORDER BY total DESC")
+    fun getSpendingByMarket(): Flow<List<MarketSpending>>
+
+    @Query("SELECT date, SUM(totalPrice) as total FROM purchases GROUP BY date ORDER BY date ASC")
+    fun getSpendingByDate(): Flow<List<DateSpending>>
+
+    @Query("SELECT name, SUM(quantity) as totalQty, SUM(price * quantity) as totalSpent, COUNT(DISTINCT purchaseId) as purchaseCount FROM items GROUP BY name ORDER BY totalSpent DESC LIMIT :limit")
+    fun getTopProducts(limit: Int = 10): Flow<List<ProductStats>>
+
+    @Query("SELECT i.name, i.price, i.unit, p.date, s.name as supermarketName FROM items i JOIN purchases p ON i.purchaseId = p.id JOIN supermarkets s ON p.supermarketId = s.id WHERE i.name = :productName ORDER BY p.date ASC")
+    fun getProductPriceHistory(productName: String): Flow<List<ProductPriceEntry>>
+
+    @Query("SELECT DISTINCT i.name FROM items i ORDER BY i.name ASC")
+    fun getAllProductNames(): Flow<List<String>>
 }
 
 @Dao
