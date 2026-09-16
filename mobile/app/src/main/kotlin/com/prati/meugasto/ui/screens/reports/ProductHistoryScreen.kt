@@ -13,11 +13,14 @@ import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.local.database.ProductPriceEntry
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.ui.components.AppTopBar
+import com.prati.meugasto.ui.components.DateFormatters
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.components.charts.LineChartData
 import com.prati.meugasto.ui.components.charts.SpendingTrendChart
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,9 +45,8 @@ fun ProductHistoryScreen(
         topBar = {
             AppTopBar(
                 title = productName,
-                actions = listOf(
-                    Icons.AutoMirrored.Filled.ArrowBack to onNavigateBack
-                )
+                navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                onNavigateBack = onNavigateBack
             )
         }
     ) { padding ->
@@ -66,7 +68,7 @@ fun ProductHistoryScreen(
                 ) {
                     Column(modifier = Modifier.padding(AppSpacing.LG)) {
                         Text(
-                            text = "Preço Atual",
+                            text = "Último Preço Pago",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -80,23 +82,24 @@ fun ProductHistoryScreen(
             }
 
             item {
+                val currency = remember { NumberFormat.getCurrencyInstance(Locale("pt", "BR")) }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
                 ) {
                     StatCard(
                         label = "Média",
-                        value = "R$ %.2f".format(avgPrice),
+                        value = currency.format(avgPrice),
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
                         label = "Menor",
-                        value = "R$ %.2f".format(minPrice),
+                        value = currency.format(minPrice),
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
                         label = "Maior",
-                        value = "R$ %.2f".format(maxPrice),
+                        value = currency.format(maxPrice),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -122,7 +125,7 @@ fun ProductHistoryScreen(
                             SpendingTrendChart(
                                 data = priceHistory.map { entry ->
                                     LineChartData(
-                                        label = entry.date.takeLast(5),
+                                        label = DateFormatters.chartLabel(entry.date),
                                         value = entry.price
                                     )
                                 }

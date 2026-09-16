@@ -3,16 +3,17 @@ package com.prati.meugasto.ui.components.charts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import com.prati.meugasto.ui.theme.ChartPrimary
+import com.prati.meugasto.ui.theme.extendedColors
+import kotlin.math.min
 
 data class LineChartData(
     val label: String,
@@ -23,12 +24,9 @@ data class LineChartData(
 fun SpendingTrendChart(
     data: List<LineChartData>,
     modifier: Modifier = Modifier,
-    lineColor: Color = ChartPrimary,
-    fillColor: Color = ChartPrimary.copy(alpha = 0.1f)
+    lineColor: Color = extendedColors().chartPrimary
 ) {
     if (data.isEmpty()) return
-
-    val maxValue = data.maxOf { it.value }.coerceAtLeast(1.0)
 
     Canvas(
         modifier = modifier
@@ -41,48 +39,86 @@ fun SpendingTrendChart(
         val chartWidth = width - padding * 2
         val chartHeight = height - padding * 2
 
-        val stepX = if (data.size > 1) chartWidth / (data.size - 1) else chartWidth
+        if (data.size == 1) {
+            val centerPoint = Offset(
+                x = width / 2f,
+                y = padding + chartHeight * 0.5f
+            )
+            // Linha guia sutil
+            drawLine(
+                color = lineColor.copy(alpha = 0.2f),
+                start = Offset(padding, centerPoint.y),
+                end = Offset(width - padding, centerPoint.y),
+                strokeWidth = 1.dp.toPx()
+            )
+            // Halo e ponto central
+            drawCircle(
+                color = lineColor.copy(alpha = 0.2f),
+                radius = 8.dp.toPx(),
+                center = centerPoint
+            )
+            drawCircle(
+                color = lineColor,
+                radius = 4.dp.toPx(),
+                center = centerPoint
+            )
+            return@Canvas
+        }
 
-        val path = Path()
-        val fillPath = Path()
+        val stepX = chartWidth / (data.size - 1)
 
-        data.forEachIndexed { index, point ->
-            val x = padding + index * stepX
-            val y = padding + chartHeight * (1 - point.value / maxValue).toFloat()
+        val points = data.mapIndexed { index, point ->
+            Offset(
+                x = padding + index * stepX,
+                y = padding + chartHeight * (1 - point.value / maxValue(data) * 0.88).toFloat()
+            )
+        }
 
+        // Linha suavizada (cubic) entre os pontos
+        val linePath = Path()
+        points.forEachIndexed { index, current ->
             if (index == 0) {
-                path.moveTo(x, y)
-                fillPath.moveTo(x, height - padding)
-                fillPath.lineTo(x, y)
+                linePath.moveTo(current.x, current.y)
             } else {
-                path.lineTo(x, y)
-                fillPath.lineTo(x, y)
+                val previous = points[index - 1]
+                val midX = (previous.x + current.x) / 2
+                linePath.cubicTo(midX, previous.y, midX, current.y, current.x, current.y)
             }
         }
 
-        fillPath.lineTo(padding + (data.size - 1) * stepX, height - padding)
-        fillPath.close()
-
+        // Área preenchida com gradiente vertical
+        val fillPath = Path().apply {
+            addPath(linePath)
+            lineTo(points.last().x, height - padding)
+            lineTo(points.first().x, height - padding)
+            close()
+        }
         drawPath(
             path = fillPath,
-            color = fillColor
+            brush = Brush.verticalGradient(
+                colors = listOf(lineColor.copy(alpha = 0.25f), Color.Transparent),
+                startY = padding,
+                endY = height - padding
+            )
         )
 
         drawPath(
-            path = path,
+            path = linePath,
             color = lineColor,
             style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
         )
 
-        data.forEachIndexed { index, point ->
-            val x = padding + index * stepX
-            val y = padding + chartHeight * (1 - point.value / maxValue).toFloat()
-
+        points.forEach { point ->
             drawCircle(
                 color = lineColor,
                 radius = 3.dp.toPx(),
-                center = Offset(x, y)
+                center = point
             )
         }
     }
+}
+
+private fun maxValue(data: List<LineChartData>): Double {
+    val max = data.maxOf { it.value }
+    return if (max <= 0.0) 1.0 else min(max, Double.MAX_VALUE)
 }

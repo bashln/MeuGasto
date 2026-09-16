@@ -38,6 +38,7 @@ local.properties
 
 # IDE
 .idea/
+.vscode/
 *.iml
 *.iws
 *.ipr

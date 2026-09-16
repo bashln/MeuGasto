@@ -7,17 +7,27 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -31,11 +41,13 @@ import com.prati.meugasto.domain.model.Purchase
 import com.prati.meugasto.domain.model.Supermarket
 import com.prati.meugasto.domain.nfce.NfceScrapedData
 import com.prati.meugasto.domain.nfce.NfceScraperEngine
+import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
+import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,18 +95,10 @@ fun ScanQrCodeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Escanear NFC-e") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Black.copy(alpha = 0.6f),
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+            AppTopBar(
+                title = "Escanear NFC-e",
+                navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                onNavigateBack = onNavigateBack
             )
         }
     ) { padding ->
@@ -274,6 +278,11 @@ fun CameraPreview(
                 modifier = Modifier.fillMaxSize()
             )
 
+            QrScanOverlay(
+                modifier = Modifier.fillMaxSize(),
+                frameColor = MaterialTheme.colorScheme.primary
+            )
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -298,13 +307,23 @@ fun CameraPreview(
             }
         } else {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(AppSpacing.XL),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoCamera,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(AppSpacing.LG))
                 Text(
                     text = "Permissão de câmera necessária para ler QR Codes de NFC-e.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(AppSpacing.LG))
                 Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
@@ -312,6 +331,74 @@ fun CameraPreview(
                 }
             }
         }
+    }
+}
+
+/**
+ * Overlay de guia de escaneamento: moldura com cantos destacados, escurecimento
+ * externo e linha de leitura pulsante.
+ */
+@Composable
+fun QrScanOverlay(
+    modifier: Modifier = Modifier,
+    frameColor: Color = Color.White
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "qr-scan-line")
+    val lineAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "qr-scan-line-alpha"
+    )
+
+    Canvas(modifier = modifier) {
+        val frameSize = min(size.width, size.height) * 0.64f
+        val left = (size.width - frameSize) / 2f
+        val top = (size.height - frameSize) / 2f - frameSize * 0.05f
+        val right = left + frameSize
+        val bottom = top + frameSize
+        val cornerLength = frameSize * 0.14f
+        val strokeWidth = 4.dp.toPx()
+        val scrimColor = Color.Black.copy(alpha = 0.45f)
+
+        // Escurece a área fora da moldura para direcionar o foco
+        drawRect(color = scrimColor, topLeft = Offset(0f, 0f), size = Size(size.width, top))
+        drawRect(color = scrimColor, topLeft = Offset(0f, bottom), size = Size(size.width, size.height - bottom))
+        drawRect(color = scrimColor, topLeft = Offset(0f, top), size = Size(left, frameSize))
+        drawRect(color = scrimColor, topLeft = Offset(right, top), size = Size(size.width - right, frameSize))
+
+        fun corner(x1: Float, y1: Float, x2: Float, y2: Float) {
+            drawLine(
+                color = frameColor,
+                start = Offset(x1, y1),
+                end = Offset(x2, y2),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        }
+
+        // Cantos da moldura
+        corner(left, top, left + cornerLength, top)
+        corner(left, top, left, top + cornerLength)
+        corner(right, top, right - cornerLength, top)
+        corner(right, top, right, top + cornerLength)
+        corner(left, bottom, left + cornerLength, bottom)
+        corner(left, bottom, left, bottom - cornerLength)
+        corner(right, bottom, right - cornerLength, bottom)
+        corner(right, bottom, right, bottom - cornerLength)
+
+        // Linha de leitura pulsante ao centro
+        val centerY = top + frameSize / 2f
+        drawLine(
+            color = frameColor.copy(alpha = lineAlpha),
+            start = Offset(left + cornerLength, centerY),
+            end = Offset(right - cornerLength, centerY),
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round
+        )
     }
 }
 

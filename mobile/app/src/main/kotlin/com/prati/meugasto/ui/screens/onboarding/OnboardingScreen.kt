@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
@@ -34,7 +35,7 @@ fun OnboardingScreen(
         OnboardingStep(
             icon = Icons.Default.Security,
             title = "Privacidade Primeiro",
-            description = "\"Nem nós sabemos quanto você gasta. Só você.\" seus dados ficam seguros no seu dispositivo."
+            description = "\"Nem nós sabemos quanto você gasta. Só você.\" Seus dados ficam seguros no seu dispositivo."
         ),
         OnboardingStep(
             icon = Icons.Default.CameraAlt,
@@ -56,7 +57,30 @@ fun OnboardingScreen(
                 .padding(AppSpacing.XL),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(AppSpacing.XXL))
+            Spacer(modifier = Modifier.height(AppSpacing.LG))
+
+            // Logo icônico MeuGasto (estilo original laranja com cupom fiscal)
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ReceiptLong,
+                    contentDescription = "MeuGasto Logo",
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(AppSpacing.SM))
+            Text(
+                text = "MeuGasto",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(AppSpacing.XL))
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)

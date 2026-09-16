@@ -4,14 +4,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.domain.model.Purchase
 import com.prati.meugasto.ui.components.AppTopBar
+import com.prati.meugasto.ui.components.DateFormatters
 import com.prati.meugasto.ui.components.EmptyState
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.screens.dashboard.PurchaseListItem
@@ -52,14 +55,28 @@ fun PurchasesScreen(
                 .padding(padding)
                 .padding(horizontal = AppSpacing.LG)
         ) {
+            Spacer(modifier = Modifier.height(AppSpacing.MD))
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Buscar por mercado ou produto...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Limpar")
+                        }
+                    }
+                },
                 singleLine = true,
-                shape = AppShapes.Small
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
             )
 
             if (filteredPurchases.isNotEmpty()) {
@@ -97,7 +114,7 @@ fun PurchasesScreen(
                     groupedPurchases.forEach { (date, dayPurchases) ->
                         item {
                             Text(
-                                text = formatDateHeader(date),
+                                text = DateFormatters.longLabel(date),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = AppSpacing.XS)
@@ -114,20 +131,4 @@ fun PurchasesScreen(
             }
         }
     }
-}
-
-private fun formatDateHeader(date: String): String {
-    return try {
-        val parts = date.split("-")
-        if (parts.size >= 3) {
-            val day = parts[2].toInt()
-            val month = parts[1].toInt()
-            val year = parts[0].toInt()
-            val monthNames = listOf(
-                "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-            )
-            "$day de ${monthNames[month - 1]} de $year"
-        } else date
-    } catch (_: Exception) { date }
 }

@@ -7,6 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,16 +17,19 @@ import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.domain.model.Purchase
 import com.prati.meugasto.ui.components.AppTopBar
+import com.prati.meugasto.ui.components.DateFormatters
 import com.prati.meugasto.ui.components.EmptyState
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.components.PeriodSelector
 import com.prati.meugasto.ui.components.SectionHeader
+import com.prati.meugasto.ui.components.TopBarAction
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
-import com.prati.meugasto.ui.theme.Primary
-import java.text.SimpleDateFormat
+import com.prati.meugasto.ui.theme.extendedColors
+import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.abs
 
 @Composable
 fun DashboardScreen(
@@ -41,31 +46,13 @@ fun DashboardScreen(
     val periods = listOf("Mês Atual", "Mês Anterior", "Todos")
     var selectedPeriod by remember { mutableStateOf(periods[0]) }
 
+    val currentMonthPurchases = remember(allPurchases) { filterByMonthOffset(allPurchases, 0) }
+    val previousMonthPurchases = remember(allPurchases) { filterByMonthOffset(allPurchases, 1) }
+
     val filteredPurchases = remember(allPurchases, selectedPeriod) {
         when (selectedPeriod) {
-            "Mês Atual" -> {
-                val cal = Calendar.getInstance()
-                val month = cal.get(Calendar.MONTH)
-                val year = cal.get(Calendar.YEAR)
-                allPurchases.filter { purchase ->
-                    try {
-                        val parts = purchase.date.split("-")
-                        parts.size >= 3 && parts[1].toInt() - 1 == month && parts[0].toInt() == year
-                    } catch (_: Exception) { false }
-                }
-            }
-            "Mês Anterior" -> {
-                val cal = Calendar.getInstance()
-                cal.add(Calendar.MONTH, -1)
-                val month = cal.get(Calendar.MONTH)
-                val year = cal.get(Calendar.YEAR)
-                allPurchases.filter { purchase ->
-                    try {
-                        val parts = purchase.date.split("-")
-                        parts.size >= 3 && parts[1].toInt() - 1 == month && parts[0].toInt() == year
-                    } catch (_: Exception) { false }
-                }
-            }
+            "Mês Atual" -> currentMonthPurchases
+            "Mês Anterior" -> previousMonthPurchases
             else -> allPurchases
         }
     }
@@ -76,12 +63,36 @@ fun DashboardScreen(
     val uniqueMarkets = filteredPurchases.map { it.supermarket.name }.distinct().size
     val avgPurchase = if (periodCount > 0) periodTotal / periodCount else 0.0
 
+    // Tendência do mês atual vs mês anterior: (gastouMais, rótulo)
+    val trendBadge = remember(currentMonthPurchases, previousMonthPurchases, selectedPeriod) {
+        if (selectedPeriod != "Mês Atual" || previousMonthPurchases.isEmpty()) {
+            null
+        } else {
+            val currentTotal = currentMonthPurchases.sumOf { it.totalPrice }
+            val previousTotal = previousMonthPurchases.sumOf { it.totalPrice }
+            if (previousTotal <= 0.0) {
+                null
+            } else {
+                val deltaPct = (currentTotal - previousTotal) / previousTotal * 100
+                when {
+                    abs(deltaPct) < 0.5 -> false to "Estável vs mês anterior"
+                    deltaPct > 0 -> true to "+%.0f%% vs mês anterior".format(deltaPct)
+                    else -> false to "−%.0f%% vs mês anterior".format(abs(deltaPct))
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             AppTopBar(
                 title = "MeuGasto",
                 actions = listOf(
-                    Icons.Default.Settings to onNavigateToSettings
+                    TopBarAction(
+                        icon = Icons.Default.Settings,
+                        contentDescription = "Ajustes",
+                        onClick = onNavigateToSettings
+                    )
                 )
             )
         },
@@ -116,21 +127,50 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = AppShapes.Large,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                 ) {
                     Column(modifier = Modifier.padding(AppSpacing.XL)) {
                         Text(
                             text = "Total Gasto",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
                         )
                         Spacer(modifier = Modifier.height(AppSpacing.SM))
                         MoneyText(
                             value = periodTotal,
                             style = MaterialTheme.typography.headlineLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = androidx.compose.ui.graphics.Color.White
                         )
+                        trendBadge?.let { (spentMore, label) ->
+                            Spacer(modifier = Modifier.height(AppSpacing.SM))
+                            Surface(
+                                shape = AppShapes.Full,
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(
+                                        horizontal = AppSpacing.MD,
+                                        vertical = AppSpacing.XS
+                                    ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.XS)
+                                ) {
+                                    Icon(
+                                        imageVector = if (spentMore) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = androidx.compose.ui.graphics.Color.White
+                                    )
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                                        color = androidx.compose.ui.graphics.Color.White
+                                    )
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(AppSpacing.LG))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -139,12 +179,12 @@ fun DashboardScreen(
                             Text(
                                 text = "$periodCount compras",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
                             )
                             Text(
                                 text = "$periodItems itens",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
                             )
                         }
                     }
@@ -152,13 +192,16 @@ fun DashboardScreen(
             }
 
             item {
+                val avgPurchaseFormatted = remember(avgPurchase) {
+                    NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(avgPurchase)
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
                 ) {
                     QuickMetricCard(
                         label = "Ticket Médio",
-                        value = "R$ %.2f".format(avgPurchase),
+                        value = avgPurchaseFormatted,
                         modifier = Modifier.weight(1f)
                     )
                     QuickMetricCard(
@@ -255,7 +298,7 @@ fun PurchaseListItem(purchase: Purchase, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(AppSpacing.XS))
                 Text(
-                    text = "${purchase.date} • ${purchase.products.size} itens",
+                    text = "${DateFormatters.friendly(purchase.date)} • ${purchase.products.size} itens",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -263,8 +306,24 @@ fun PurchaseListItem(purchase: Purchase, onClick: () -> Unit) {
             MoneyText(
                 value = purchase.totalPrice,
                 style = MaterialTheme.typography.titleMedium,
-                color = Primary
+                color = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+/** Filtra compras de um mês relativo ao atual (0 = atual, 1 = anterior). */
+private fun filterByMonthOffset(purchases: List<Purchase>, monthsAgo: Int): List<Purchase> {
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.MONTH, -monthsAgo)
+    val month = cal.get(Calendar.MONTH)
+    val year = cal.get(Calendar.YEAR)
+    return purchases.filter { purchase ->
+        try {
+            val parts = purchase.date.split("-")
+            parts.size >= 3 && parts[1].toInt() - 1 == month && parts[0].toInt() == year
+        } catch (_: Exception) {
+            false
         }
     }
 }

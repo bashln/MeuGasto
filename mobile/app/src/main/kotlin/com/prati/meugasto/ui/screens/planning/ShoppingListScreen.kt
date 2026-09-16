@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.local.database.AppDatabase
 import com.prati.meugasto.data.local.database.ShoppingListEntity
 import com.prati.meugasto.data.local.database.ShoppingListItemEntity
@@ -62,6 +63,7 @@ fun ShoppingListScreen(
                 .padding(padding)
                 .padding(horizontal = AppSpacing.LG)
         ) {
+            Spacer(modifier = Modifier.height(AppSpacing.MD))
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppShapes.Medium,
@@ -98,66 +100,82 @@ fun ShoppingListScreen(
 
             Spacer(modifier = Modifier.height(AppSpacing.LG))
 
-            Row(
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM),
-                verticalAlignment = Alignment.CenterVertically
+                shape = AppShapes.Medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                OutlinedTextField(
-                    value = newItemName,
-                    onValueChange = { newItemName = it },
-                    label = { Text("Novo item") },
-                    modifier = Modifier.weight(2f),
-                    singleLine = true,
-                    shape = AppShapes.Small
-                )
-                OutlinedTextField(
-                    value = newItemQtd,
-                    onValueChange = { newItemQtd = it },
-                    label = { Text("Qtd") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    shape = AppShapes.Small
-                )
-                OutlinedTextField(
-                    value = newItemPrice,
-                    onValueChange = { newItemPrice = it },
-                    label = { Text("Preço") },
-                    modifier = Modifier.weight(1.2f),
-                    singleLine = true,
-                    shape = AppShapes.Small,
-                    prefix = { Text("R$ ") }
-                )
-                IconButton(
-                    onClick = {
-                        if (newItemName.isNotBlank() && activeList != null) {
-                            val now = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                            val qtd = newItemQtd.replace(",", ".").toDoubleOrNull() ?: 1.0
-                            val price = newItemPrice.replace(",", ".").toDoubleOrNull() ?: 0.0
+                Column(modifier = Modifier.padding(AppSpacing.LG)) {
+                    OutlinedTextField(
+                        value = newItemName,
+                        onValueChange = { newItemName = it },
+                        label = { Text("Novo item") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = AppShapes.Small
+                    )
+                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = newItemQtd,
+                            onValueChange = { newItemQtd = it },
+                            label = { Text("Qtd") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            shape = AppShapes.Small
+                        )
+                        OutlinedTextField(
+                            value = newItemPrice,
+                            onValueChange = { newItemPrice = it },
+                            label = { Text("Preço") },
+                            modifier = Modifier.weight(1.4f),
+                            singleLine = true,
+                            shape = AppShapes.Small,
+                            prefix = { Text("R$ ") }
+                        )
+                        FilledIconButton(
+                            onClick = {
+                                if (newItemName.isNotBlank() && activeList != null) {
+                                    val now = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                    val qtd = newItemQtd.replace(",", ".").toDoubleOrNull() ?: 1.0
+                                    val price = newItemPrice.replace(",", ".").toDoubleOrNull() ?: 0.0
 
-                            coroutineScope.launch {
-                                database.shoppingListDao().insertItem(
-                                    ShoppingListItemEntity(
-                                        shoppingListId = activeList!!.id,
-                                        name = newItemName.trim(),
-                                        quantity = qtd,
-                                        unit = "UN",
-                                        estimatedPrice = price,
-                                        createdAt = now
-                                    )
-                                )
-                                newItemName = ""
-                                newItemQtd = "1"
-                                newItemPrice = ""
-                            }
+                                    coroutineScope.launch {
+                                        database.shoppingListDao().insertItem(
+                                            ShoppingListItemEntity(
+                                                shoppingListId = activeList!!.id,
+                                                name = newItemName.trim(),
+                                                quantity = qtd,
+                                                unit = "UN",
+                                                estimatedPrice = price,
+                                                createdAt = now
+                                            )
+                                        )
+                                        newItemName = ""
+                                        newItemQtd = "1"
+                                        newItemPrice = ""
+                                    }
+                                }
+                            },
+                            modifier = Modifier.size(56.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Adicionar item à lista"
+                            )
                         }
                     }
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "Adicionar",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
                 }
             }
 

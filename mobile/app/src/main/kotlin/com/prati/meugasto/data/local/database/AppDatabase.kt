@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
+import androidx.sqlite.db.SupportSQLiteDatabase
+
 @Database(
     entities = [
         SupermarketEntity::class,
@@ -33,7 +35,25 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "meugasto.db"
-                ).build()
+                ).addCallback(object : RoomDatabase.Callback() {
+                    override fun onOpen(db: SupportSQLiteDatabase) {
+                        super.onOpen(db)
+                        try {
+                            db.execSQL("""
+                                UPDATE purchases 
+                                SET totalPrice = (SELECT SUM(price) FROM items WHERE items.purchaseId = purchases.id)
+                                WHERE id IN (
+                                    SELECT p.id 
+                                    FROM purchases p 
+                                    JOIN items i ON p.id = i.purchaseId 
+                                    GROUP BY p.id 
+                                    HAVING COUNT(i.id) > 1 
+                                       AND p.totalPrice = (SELECT price FROM items WHERE items.purchaseId = p.id LIMIT 1)
+                                )
+                            """.trimIndent())
+                        } catch (_: Exception) {}
+                    }
+                }).build()
                 INSTANCE = instance
                 instance
             }

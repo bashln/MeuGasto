@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.local.database.ProductStats
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.ui.components.AppTopBar
+import com.prati.meugasto.ui.components.DateFormatters
 import com.prati.meugasto.ui.components.EmptyState
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.components.SectionHeader
@@ -89,7 +90,7 @@ fun ReportsScreen(
                                 SpendingTrendChart(
                                     data = spendingByDate.map { (date, total) ->
                                         LineChartData(
-                                            label = date.takeLast(5),
+                                            label = DateFormatters.chartLabel(date),
                                             value = total
                                         )
                                     }

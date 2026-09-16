@@ -4,19 +4,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.repository.PurchaseRepository
-import com.prati.meugasto.domain.model.Purchase
+import com.prati.meugasto.ui.components.AppTopBar
+import com.prati.meugasto.ui.components.DateFormatters
+import com.prati.meugasto.ui.components.MoneyText
+import com.prati.meugasto.ui.components.TopBarAction
+import com.prati.meugasto.ui.theme.AppShapes
+import com.prati.meugasto.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,8 +32,6 @@ fun PurchaseDetailScreen(
     val purchase = purchases.firstOrNull { it.id == purchaseId }
     val coroutineScope = rememberCoroutineScope()
     var showDeleteConfirm by remember { mutableStateOf(false) }
-
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -61,27 +62,27 @@ fun PurchaseDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Detalhes da Compra") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showDeleteConfirm = true }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Excluir",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
+            AppTopBar(
+                title = "Detalhes da Compra",
+                navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                onNavigateBack = onNavigateBack,
+                actions = listOf(
+                    TopBarAction(
+                        icon = Icons.Default.Delete,
+                        contentDescription = "Excluir compra",
+                        onClick = { showDeleteConfirm = true }
+                    )
+                )
             )
         }
     ) { padding ->
         if (purchase == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator()
             }
         } else {
@@ -89,39 +90,102 @@ fun PurchaseDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = AppSpacing.LG),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.MD)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(AppSpacing.XS))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        shape = AppShapes.Large,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(AppSpacing.XL)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = purchase.supermarket.name,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(AppSpacing.XS))
                             Text(
-                                text = purchase.supermarket.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Data: ${purchase.date}",
-                                style = MaterialTheme.typography.bodyMedium
+                                text = DateFormatters.friendly(purchase.date),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             if (!purchase.supermarket.cnpj.isNullOrBlank()) {
                                 Text(
                                     text = "CNPJ: ${purchase.supermarket.cnpj}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(AppSpacing.LG))
+
+                            val itemsSum = remember(purchase.products) { purchase.products.sumOf { it.price } }
+                            val discount = remember(itemsSum, purchase.totalPrice) {
+                                (itemsSum - purchase.totalPrice).coerceAtLeast(0.0)
+                            }
+
+                            if (discount > 0.05) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Subtotal",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                    )
+                                    MoneyText(
+                                        value = itemsSum,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(AppSpacing.XS))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Descontos",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                    )
+                                    val formattedDiscount = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("pt", "BR")).format(discount)
+                                    Text(
+                                        text = "- $formattedDiscount",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                    )
+                                }
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = AppSpacing.SM),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                                )
+                            }
+
                             Text(
-                                text = "Total: ${currencyFormat.format(purchase.totalPrice)}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = "Total Pago",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            MoneyText(
+                                value = purchase.totalPrice,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -131,28 +195,30 @@ fun PurchaseDetailScreen(
                     Text(
                         text = "Itens (${purchase.products.size})",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = AppSpacing.SM)
                     )
                 }
 
                 items(purchase.products) { item ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        shape = AppShapes.Small,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(AppSpacing.MD),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = item.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                                 Text(
                                     text = "${item.quantity} ${item.unit}",
@@ -160,13 +226,17 @@ fun PurchaseDetailScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Text(
-                                text = currencyFormat.format(item.price),
+                            MoneyText(
+                                value = item.price,
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(AppSpacing.XL))
                 }
             }
         }

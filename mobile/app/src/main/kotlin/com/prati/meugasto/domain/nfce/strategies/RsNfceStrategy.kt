@@ -64,10 +64,26 @@ class RsNfceStrategy : NfceStateStrategy {
                 )
             }
         }
-        // Extrair Total da compra (priorizar "Valor a pagar")
-        val totalRegex = Regex("(?i)(?:Valor a pagar|Valor total|Total|Vlr Total)[^0-9]*(\\d+[.,]\\d{2})")
-        val totalMatch = totalRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")
-        val total = totalMatch?.toDoubleOrNull() ?: items.sumOf { it.price }
+        // Extrair Total da compra (priorizar container oficial e "Valor a pagar")
+        val containerRegex = Regex("""(?is)<(?:div|tr)[^>]*id=["'](?:linhaTotal|totalNota)["'][^>]*>.*?<span[^>]*class=["'][^"']*totalNumb[^"']*["'][^>]*>(\d+[.,]\d{2})</span>""")
+        val containerTotal = containerRegex.findAll(html).lastOrNull()?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+
+        val valorPagarRegex = Regex("""(?i)Valor\s+a\s+pagar[^0-9]*(\d+[.,]\d{2})""")
+        val valorPagar = valorPagarRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+
+        val valorTotalRegex = Regex("""(?i)Valor\s+total[^0-9]*(\d+[.,]\d{2})""")
+        val valorTotal = valorTotalRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+
+        val itemsSum = items.sumOf { it.price }
+
+        // Validação defensiva: se o valor encontrado coincidir exatamente com o 1º item e houver múltiplos itens com soma superior,
+        // é um falso positivo capturado do cabeçalho ou célula de item da tabela
+        val candidateTotal = valorPagar ?: containerTotal ?: valorTotal
+        val total = when {
+            candidateTotal != null && candidateTotal > 0.0 && !(items.size > 1 && candidateTotal == items.first().price && candidateTotal < itemsSum) -> candidateTotal
+            itemsSum > 0.0 -> itemsSum
+            else -> candidateTotal ?: 0.0
+        }
 
         val dateRegex = Regex("(?i)Emissão:.*?(\\d{2}/\\d{2}/\\d{4})")
         val dateStr = dateRegex.find(html)?.groupValues?.get(1)

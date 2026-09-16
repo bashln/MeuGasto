@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.prati.meugasto.ui.navigation.BottomNavItems
@@ -33,7 +34,14 @@ class MainActivity : ComponentActivity() {
         val database = app.database
 
         setContent {
-            MeuGastoTheme {
+            val themeMode by preferences.themeMode.collectAsState()
+            val isDark = when (themeMode) {
+                com.prati.meugasto.data.local.preferences.ThemeMode.LIGHT -> false
+                com.prati.meugasto.data.local.preferences.ThemeMode.DARK -> true
+                com.prati.meugasto.data.local.preferences.ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+
+            MeuGastoTheme(darkTheme = isDark) {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
@@ -47,12 +55,22 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     bottomBar = {
                         if (shouldShowBottomBar) {
-                            NavigationBar {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 6.dp
+                            ) {
                                 BottomNavItems.forEach { screen ->
                                     NavigationBarItem(
                                         icon = { screen.icon?.let { Icon(it, contentDescription = screen.title) } },
                                         label = { Text(screen.title) },
                                         selected = currentDestination?.route == screen.route,
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
                                         onClick = {
                                             navController.navigate(screen.route) {
                                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -142,7 +160,10 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(Screen.Settings.route) {
-                            SettingsScreen(preferences = preferences)
+                            SettingsScreen(
+                                preferences = preferences,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
                         }
 
                         composable("purchase_detail/{purchaseId}") { backStackEntry ->

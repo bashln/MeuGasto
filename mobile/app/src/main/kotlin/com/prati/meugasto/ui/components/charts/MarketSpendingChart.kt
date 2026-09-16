@@ -3,24 +3,20 @@ package com.prati.meugasto.ui.components.charts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.prati.meugasto.ui.theme.ChartPrimary
-import com.prati.meugasto.ui.theme.ChartSecondary
-import com.prati.meugasto.ui.theme.ChartTertiary
+import com.prati.meugasto.ui.theme.extendedColors
 
 data class BarChartData(
     val label: String,
     val value: Double,
-    val color: Color = ChartPrimary
+    val color: Color = Color.Unspecified
 )
-
-private val chartColors = listOf(ChartPrimary, ChartSecondary, ChartTertiary)
 
 @Composable
 fun MarketSpendingChart(
@@ -29,10 +25,13 @@ fun MarketSpendingChart(
 ) {
     if (data.isEmpty()) return
 
-    val maxValue = data.maxOf { it.value }.coerceAtLeast(1.0)
+    val extended = extendedColors()
+    val chartPalette = listOf(extended.chartPrimary, extended.chartSecondary, extended.chartTertiary)
     val coloredData = data.mapIndexed { index, item ->
-        item.copy(color = chartColors[index % chartColors.size])
+        if (item.color == Color.Unspecified) item.copy(color = chartPalette[index % chartPalette.size]) else item
     }
+
+    val maxValue = coloredData.maxOf { it.value }.coerceAtLeast(1.0)
 
     Canvas(
         modifier = modifier
@@ -45,18 +44,22 @@ fun MarketSpendingChart(
         val chartWidth = width - padding * 2
         val chartHeight = height - padding * 2
 
-        val barWidth = (chartWidth / data.size) * 0.6f
-        val gap = (chartWidth / data.size) * 0.4f
+        val maxBarWidth = 44.dp.toPx()
+        val slot = chartWidth / coloredData.size
+        val barWidth = minOf(slot * 0.55f, maxBarWidth)
 
         coloredData.forEachIndexed { index, item ->
-            val barHeight = (chartHeight * item.value / maxValue).toFloat()
-            val x = padding + index * (barWidth + gap) + gap / 2
+            // Headroom visual para a barra não encostar no topo
+            val barHeight = (chartHeight * item.value / maxValue * 0.90).toFloat().coerceAtLeast(4.dp.toPx())
+            val slotCenterX = padding + index * slot + slot / 2f
+            val x = slotCenterX - barWidth / 2f
             val y = padding + chartHeight - barHeight
 
-            drawRect(
+            drawRoundRect(
                 color = item.color,
                 topLeft = Offset(x, y),
-                size = Size(barWidth, barHeight)
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
             )
         }
     }

@@ -82,11 +82,18 @@ class LocalPurchaseRepository(
             )
         )
 
+        val itemsSum = purchase.products.sumOf { it.price }
+        val safeTotalPrice = if (purchase.products.size > 1 && (purchase.totalPrice <= 0.0 || (purchase.totalPrice == purchase.products.first().price && itemsSum > purchase.totalPrice) || purchase.totalPrice < itemsSum * 0.4)) {
+            itemsSum
+        } else {
+            purchase.totalPrice
+        }
+
         val purchaseEntity = PurchaseEntity(
             id = purchase.id,
             supermarketId = marketId,
             date = purchase.date,
-            totalPrice = purchase.totalPrice,
+            totalPrice = safeTotalPrice,
             isManual = purchase.isManual,
             createdAt = purchase.createdAt ?: now,
             updatedAt = now

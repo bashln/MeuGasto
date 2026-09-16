@@ -59,7 +59,14 @@ class RjNfceStrategy : NfceStateStrategy {
 
         val totalRegex = Regex("(?i)(?:Valor a pagar|Valor total)[^0-9]*(\\d+[.,]\\d{2})")
         val totalMatch = totalRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")
-        val total = totalMatch?.toDoubleOrNull() ?: items.sumOf { it.price }
+        val candidateTotal = totalMatch?.toDoubleOrNull()
+        val itemsSum = items.sumOf { it.price }
+
+        val total = when {
+            candidateTotal != null && candidateTotal > 0.0 && !(items.size > 1 && candidateTotal == items.first().price && candidateTotal < itemsSum) -> candidateTotal
+            itemsSum > 0.0 -> itemsSum
+            else -> candidateTotal ?: 0.0
+        }
 
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 

@@ -3,7 +3,7 @@
     "name": "MeuGasto",
     "slug": "meugasto",
     "owner": "bashln",
-    "version": "0.4.0.0",
+    "version": "0.4.0.1",
     "scheme": "com.prati.meugasto",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,18 +11,18 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1976d2"
+      "backgroundColor": "#C2410C"
     },
     "ios": {
-      "buildNumber": "69",
+      "buildNumber": "70",
       "supportsTablet": true,
       "bundleIdentifier": "com.prati.meugasto"
     },
     "android": {
-      "versionCode": 69,
+      "versionCode": 70,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#1976d2"
+        "backgroundColor": "#C2410C"
       },
       "package": "com.prati.meugasto",
       "permissions": ["android.permission.CAMERA"],

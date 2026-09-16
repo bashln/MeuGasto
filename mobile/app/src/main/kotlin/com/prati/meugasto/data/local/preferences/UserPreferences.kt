@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class ThemeMode {
+    LIGHT,
+    DARK,
+    SYSTEM
+}
+
 class UserPreferences(context: Context) {
 
     private val plainPrefs: SharedPreferences =
@@ -36,6 +42,9 @@ class UserPreferences(context: Context) {
     private val _appMode = MutableStateFlow(getAppMode())
     val appMode: StateFlow<AppMode> = _appMode.asStateFlow()
 
+    private val _themeMode = MutableStateFlow(getThemeMode())
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
     fun getAppMode(): AppMode {
         val modeStr = plainPrefs.getString("app_mode", AppMode.LOCAL_FIRST.name)
         return try {
@@ -48,6 +57,20 @@ class UserPreferences(context: Context) {
     fun setAppMode(mode: AppMode) {
         plainPrefs.edit().putString("app_mode", mode.name).apply()
         _appMode.value = mode
+    }
+
+    fun getThemeMode(): ThemeMode {
+        val modeStr = plainPrefs.getString("theme_mode", ThemeMode.LIGHT.name)
+        return try {
+            ThemeMode.valueOf(modeStr ?: ThemeMode.LIGHT.name)
+        } catch (_: Exception) {
+            ThemeMode.LIGHT
+        }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        plainPrefs.edit().putString("theme_mode", mode.name).apply()
+        _themeMode.value = mode
     }
 
     fun isOnboardingCompleted(): Boolean {
