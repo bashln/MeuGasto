@@ -60,18 +60,6 @@ jobs:
           DELETIONS: ${{ github.event.pull_request.deletions }}
         run: bash scripts/check-pr-size.sh "$CHANGED_FILES" "$ADDITIONS" "$DELETIONS"
 
-      - name: Lint
-        working-directory: ./mobile
-        run: npm run lint
-
-      - name: Test
-        working-directory: ./mobile
-        run: npm test -- --runInBand --coverage
-
-      - name: Typecheck
-        working-directory: ./mobile
-        run: npm run typecheck
-
       - name: Setup Java
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:

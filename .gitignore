@@ -2,7 +2,6 @@
 node_modules/
 dist/
 dist-ssr/
-# Documentation is versioned by default. Keep only generated agent output out of docs/.
 
 # Environment variables
 .env
@@ -11,8 +10,6 @@ dist-ssr/
 mobile/.env
 mobile/.env.local
 mobile/.env.*.local
-mobile/.env.release
-mobile/.env.release.local
 
 # Logs
 logs/
@@ -28,60 +25,29 @@ target/
 .mvn/
 *.class
 
-# Gradle
-.gradle/
-build/
-
 # Android
 *.apk
 *.aab
-captures/
-output-metadata.json
-
-# Android Keystores (NEVER commit these!)
 *.jks
 *.keystore
+
+# Build
+build/
+.gradle/
+local.properties
 
 # IDE
 .idea/
 *.iml
-.vscode/
-*.swp
-*.swo
 *.iws
 *.ipr
-.misc.xml
 
 # OS
 .DS_Store
 Thumbs.db
 
-# AI agents & tooling
-.ralph-tui/
-.claude/
-docs/ai/
+# Kotlin
+.kotlin/
 
-# Supabase CLI temp files
-supabase/.temp/
-mobile/supabase/.temp/
-
-# Coverage artifacts
-mobile/coverage/
-
-# Misc
-*.local
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-
-# Mobile (Expo)
+# Expo (legacy - no longer used)
 .expo/
-expo-env.d.ts
-mobile/android/
-mobile/ios/
-
-# Misc
-local.properties
-deploymentTargetDropDown.xml
-render.experimental.xml
