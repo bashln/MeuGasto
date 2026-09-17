@@ -8,7 +8,15 @@ FAIL=0
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
-HARDENING_MIGRATION='mobile/supabase_security_hardening_migration.sql'
+HARDENING_MIGRATION=''
+for candidate in \
+  'mobile/supabase_security_hardening_migration.sql' \
+  'docs/supabase/supabase_security_hardening_migration.sql'; do
+  if [[ -f "$candidate" ]]; then
+    HARDENING_MIGRATION="$candidate"
+    break
+  fi
+done
 
 check_file() {
   local file="$1"
@@ -72,8 +80,8 @@ fi
 
 # Verificar controles que impedem inferência por Sybil, escrita em auditoria e
 # exposição acidental das tabelas agregadas pelo cliente público.
-if [[ ! -f "$HARDENING_MIGRATION" ]]; then
-  echo -e "${RED}FAIL${NC}: migration de hardening não encontrada ($HARDENING_MIGRATION)"
+if [[ -z "$HARDENING_MIGRATION" ]]; then
+  echo -e "${RED}FAIL${NC}: migration de hardening não encontrada (mobile/supabase_security_hardening_migration.sql ou docs/supabase/supabase_security_hardening_migration.sql)"
   FAIL=1
 else
   require_hardening_pattern 'can_reference_supermarket' 'referências de supermercado devem respeitar ownership'
