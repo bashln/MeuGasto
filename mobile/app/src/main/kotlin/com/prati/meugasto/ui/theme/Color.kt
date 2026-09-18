@@ -2,57 +2,57 @@ package com.prati.meugasto.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand palette — Laranja MeuGasto (Identidade Visual Original)
+// Brand palette — Laranja MeuGasto & Acentos Originais do React Native
 val Primary = Color(0xFFC2410C)              // Laranja profundo com contraste acessível (WCAG AA/AAA)
-val PrimaryBrand = Color(0xFFFF6B35)         // Laranja vivo característico da marca / ícone
+val PrimaryBrand = Color(0xFFFF6B35)         // Laranja vivo característico da marca / ícone original
 val OnPrimary = Color(0xFFFFFFFF)            // Texto branco sobre botões/cabeçalhos laranja
 val PrimaryContainer = Color(0xFFFFF0E8)     // Fundo suave de cards/destaques laranja
 val OnPrimaryContainer = Color(0xFF7C2D12)   // Texto e ícones de contraste em containers laranja
 
-val Secondary = Color(0xFF9A3412)            // Tom secundário quente
+val Secondary = Color(0xFF5B46CC)            // Roxo característico do app original (badges, ações secundárias)
 val OnSecondary = Color(0xFFFFFFFF)
-val SecondaryContainer = Color(0xFFFFEDD5)
-val OnSecondaryContainer = Color(0xFF431407)
+val SecondaryContainer = Color(0xFFEDE9FE)   // Fundo suave de chips e destaques secundários
+val OnSecondaryContainer = Color(0xFF2E1065)
 
-val Tertiary = Color(0xFF0284C7)             // Azul sutil para dados fiscais / gráficos
+val Tertiary = Color(0xFF1D5FBF)             // Azul original para dados fiscais / gráficos
 val OnTertiary = Color(0xFFFFFFFF)
 val TertiaryContainer = Color(0xFFE0F2FE)
 val OnTertiaryContainer = Color(0xFF0369A1)
 
 // Surface palette (Tema Claro — padrão da aplicação)
-val Background = Color(0xFFF4F7F9)           // Fundo limpo e suave (estilo do app original)
+val Background = Color(0xFFEAF2F4)           // Fundo azul-gelo sutil característico do app original
 val OnBackground = Color(0xFF1F2937)         // Texto principal escuro de alta legibilidade
 val Surface = Color(0xFFFFFFFF)              // Cartões e superfícies brancas
 val OnSurface = Color(0xFF1F2937)
-val SurfaceVariant = Color(0xFFF1F5F9)       // Superfície de contraste leve (inputs, divisores)
-val OnSurfaceVariant = Color(0xFF64748B)     // Texto secundário / legendas
-val Outline = Color(0xFFCBD5E1)              // Bordas sutis
+val SurfaceVariant = Color(0xFFF7F7F7)       // Superfície de contraste leve (inputs, divisores)
+val OnSurfaceVariant = Color(0xFF6B7280)     // Texto secundário / legendas
+val Outline = Color(0xFFE6E6E6)              // Bordas sutis de cartões
 val OutlineVariant = Color(0xFFE2E8F0)
 
 // Semantic colors
-val Positive = Color(0xFF16A34A)             // Verde para economia / saldo positivo
+val Positive = Color(0xFF1E8E3E)             // Verde original para economia / saldo positivo
 val PositiveContainer = Color(0xFFDCFCE7)
 val OnPositiveContainer = Color(0xFF14532D)
 
-val Negative = Color(0xFFDC2626)             // Vermelho para gastos / erros
-val NegativeContainer = Color(0xFFFEE2E2)
+val Negative = Color(0xFFFF3B30)             // Vermelho original para gastos / alertas
+val NegativeContainer = Color(0xFFFFEBEE)
 val OnNegativeContainer = Color(0xFF7F1D1D)
 
-val Warning = Color(0xFFD97706)              // Âmbar para alertas
+val Warning = Color(0xFFF59E0B)              // Âmbar para alertas
 val WarningContainer = Color(0xFFFEF3C7)
 val OnWarningContainer = Color(0xFF78350F)
 
-val Info = Color(0xFF0284C7)                 // Azul para informações fiscais
+val Info = Color(0xFF1D5FBF)                 // Azul para informações fiscais
 val InfoContainer = Color(0xFFE0F2FE)
 val OnInfoContainer = Color(0xFF075985)
 
-// Chart palette (Laranja Marca, Azul, Âmbar, Roxo, Verde, Vermelho, Cinza)
+// Chart palette (Laranja Marca, Roxo, Azul, Âmbar, Verde, Vermelho, Cinza)
 val ChartPrimary = Color(0xFFFF6B35)         // Laranja MeuGasto
-val ChartSecondary = Color(0xFF0284C7)       // Azul
-val ChartTertiary = Color(0xFFD97706)        // Âmbar
-val ChartQuaternary = Color(0xFF8B5CF6)      // Roxo
-val ChartPositive = Color(0xFF16A34A)        // Verde
-val ChartNegative = Color(0xFFDC2626)        // Vermelho
+val ChartSecondary = Color(0xFF5B46CC)       // Roxo MeuGasto
+val ChartTertiary = Color(0xFF1D5FBF)        // Azul
+val ChartQuaternary = Color(0xFFF59E0B)      // Âmbar
+val ChartPositive = Color(0xFF1E8E3E)        // Verde
+val ChartNegative = Color(0xFFFF3B30)        // Vermelho
 val ChartNeutral = Color(0xFF94A3B8)         // Neutro
 
 // Dark palette (Tom carvão quente acolhedor, mantendo o laranja luminoso)

@@ -25,6 +25,7 @@ data class NfceSupermarketInfo(
     val name: String,
     val cnpj: String? = null,
     val city: String? = null,
-    val state: String? = null
+    val state: String? = null,
+    val type: com.prati.meugasto.domain.model.EstablishmentType = com.prati.meugasto.domain.model.EstablishmentDetector.detectType(name)
 )
 

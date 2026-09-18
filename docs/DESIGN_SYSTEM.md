@@ -6,73 +6,73 @@
 
 | Token | Hex | Uso |
 |-------|-----|-----|
-| Primary | `#356859` | Ações principais, navegação, destaques |
+| Primary | `#C2410C` / `#FF6B35` | Ações principais, navegação, destaques |
 | OnPrimary | `#FFFFFF` | Texto e ícones sobre primary |
-| PrimaryContainer | `#BEE8D5` | Cards hero, filtros selecionados |
-| OnPrimaryContainer | `#002114` | Texto sobre primaryContainer |
-| Secondary | `#6B5E4A` | Ações de apoio e labels |
+| PrimaryContainer | `#FFF0E8` | Cards hero, filtros selecionados |
+| OnPrimaryContainer | `#7C2D12` | Texto sobre primaryContainer |
+| Secondary | `#5B46CC` | Ações de apoio, badges de categoria e labels |
 | OnSecondary | `#FFFFFF` | Texto sobre secondary |
-| SecondaryContainer | `#EFE0C5` | Cards secundários e filtros |
-| OnSecondaryContainer | `#251B0A` | Texto sobre secondaryContainer |
-| Tertiary | `#526B8C` | Analytics, gráficos, estados de comparação |
+| SecondaryContainer | `#EDE9FE` | Cards secundários e filtros |
+| OnSecondaryContainer | `#2E1065` | Texto sobre secondaryContainer |
+| Tertiary | `#1D5FBF` | Analytics, gráficos, dados fiscais |
 | OnTertiary | `#FFFFFF` | Texto sobre tertiary |
-| TertiaryContainer | `#D5E3FF` | Fundos de gráficos e cards de insight |
-| OnTertiaryContainer | `#0A1E38` | Texto sobre tertiaryContainer |
+| TertiaryContainer | `#E0F2FE` | Fundos de gráficos e cards de insight |
+| OnTertiaryContainer | `#0369A1` | Texto sobre tertiaryContainer |
 
 ### Brand Palette (Dark)
 
 | Token | Hex | Uso |
 |-------|-----|-----|
-| PrimaryDark | `#A7D7C5` | Ações principais (dark) |
-| OnPrimaryDark | `#12372A` | Texto sobre primary (dark) |
-| PrimaryContainerDark | `#1D4D3D` | Cards hero (dark) |
-| OnPrimaryContainerDark | `#BEE8D5` | Texto sobre primaryContainer (dark) |
-| SecondaryDark | `#D8C6A8` | Ações de apoio (dark) |
-| OnSecondaryDark | `#3B2E1C` | Texto sobre secondary (dark) |
-| SecondaryContainerDark | `#51432E` | Cards secundários (dark) |
-| OnSecondaryContainerDark | `#EFE0C5` | Texto sobre secondaryContainer (dark) |
-| TertiaryDark | `#B8C9E8` | Analytics (dark) |
-| OnTertiaryDark | `#20334F` | Texto sobre tertiary (dark) |
-| TertiaryContainerDark | `#3A506F` | Fundos de gráficos (dark) |
-| OnTertiaryContainerDark | `#D5E3FF` | Texto sobre tertiaryContainer (dark) |
+| PrimaryDark | `#FF8C5A` | Ações principais (dark) |
+| OnPrimaryDark | `#431407` | Texto sobre primary (dark) |
+| PrimaryContainerDark | `#5A200A` | Cards hero (dark) |
+| OnPrimaryContainerDark | `#FFDBC8` | Texto sobre primaryContainer (dark) |
+| SecondaryDark | `#FDBA74` | Ações de apoio (dark) |
+| OnSecondaryDark | `#431407` | Texto sobre secondary (dark) |
+| SecondaryContainerDark | `#431407` | Cards secundários (dark) |
+| OnSecondaryContainerDark | `#FFEDD5` | Texto sobre secondaryContainer (dark) |
+| TertiaryDark | `#7DD3FC` | Analytics (dark) |
+| OnTertiaryDark | `#082F49` | Texto sobre tertiary (dark) |
+| TertiaryContainerDark | `#0C4A6E` | Fundos de gráficos (dark) |
+| OnTertiaryContainerDark | `#E0F2FE` | Texto sobre tertiaryContainer (dark) |
 
 ### Surface Palette
 
 | Token | Light | Dark | Uso |
 |-------|-------|------|-----|
-| Background | `#F8FAF7` | `#1A1C19` | Fundo do app |
-| OnBackground | `#1A1C19` | `#E2E3DD` | Texto sobre background |
-| Surface | `#F8FAF7` | `#1A1C19` | Cards e sheets |
-| OnSurface | `#1A1C19` | `#E2E3DD` | Texto sobre surface |
-| SurfaceVariant | `#DDE5DA` | `#414941` | Campos de entrada, seções mutadas |
-| OnSurfaceVariant | `#414941` | `#C1C9BF` | Texto secundário |
-| Outline | `#717971` | `#8B938A` | Bordas e divisores |
-| OutlineVariant | `#C1C9BF` | `#414941` | Separadores sutis |
+| Background | `#EAF2F4` | `#181513` | Fundo do app (azul-gelo característico / carvão) |
+| OnBackground | `#1F2937` | `#F5EFEB` | Texto sobre background |
+| Surface | `#FFFFFF` | `#221E1B` | Cards e sheets |
+| OnSurface | `#1F2937` | `#F5EFEB` | Texto sobre surface |
+| SurfaceVariant | `#F7F7F7` | `#332D28` | Campos de entrada, seções mutadas |
+| OnSurfaceVariant | `#6B7280` | `#D6C8BE` | Texto secundário |
+| Outline | `#E6E6E6` | `#8C7F75` | Bordas e divisores sutis |
+| OutlineVariant | `#E2E8F0` | `#4D433C` | Separadores sutis |
 
 ### Semantic Colors
 
 | Token | Hex | Uso |
 |-------|-----|-----|
-| Positive | `#2E7D5B` | Economia, preço baixo, tendência positiva |
-| PositiveContainer | `#D7F2E3` | Badges de economia |
-| Negative | `#BA1A1A` | Aumento de preço, erro, orçamento excedido |
-| NegativeContainer | `#FFDAD6` | Superfícies de erro/aviso |
-| Warning | `#8A6100` | Dados incompletos, sync pendente |
-| WarningContainer | `#FFDEA6` | Banners de aviso |
-| Info | `#426486` | Explicações, status de sincronização |
-| InfoContainer | `#D1E4FF` | Cards informativos |
+| Positive | `#1E8E3E` | Economia, preço baixo, tendência positiva |
+| PositiveContainer | `#DCFCE7` | Badges de economia |
+| Negative | `#FF3B30` | Aumento de preço, erro, orçamento excedido |
+| NegativeContainer | `#FFEBEE` | Superfícies de erro/aviso |
+| Warning | `#F59E0B` | Dados incompletos, sync pendente |
+| WarningContainer | `#FEF3C7` | Banners de aviso |
+| Info | `#1D5FBF` | Explicações, status de sincronização |
+| InfoContainer | `#E0F2FE` | Cards informativos |
 
 ### Chart Palette (Colorblind-safe)
 
 | Token | Hex | Uso |
 |-------|-----|-----|
-| ChartPrimary | `#356859` | Linha/barras principais |
-| ChartSecondary | `#526B8C` | Série secundária |
-| ChartTertiary | `#B66D3C` | Série terciária |
-| ChartQuaternary | `#7B5C8A` | Série quaternária |
-| ChartPositive | `#2E7D5B` | Tendência positiva |
-| ChartNegative | `#BA1A1A` | Tendência negativa |
-| ChartNeutral | `#7A7A7A` | Neutro/sem dados |
+| ChartPrimary | `#FF6B35` | Linha/barras principais (Laranja MeuGasto) |
+| ChartSecondary | `#5B46CC` | Série secundária (Roxo MeuGasto) |
+| ChartTertiary | `#1D5FBF` | Série terciária (Azul) |
+| ChartQuaternary | `#F59E0B` | Série quaternária (Âmbar) |
+| ChartPositive | `#1E8E3E` | Tendência positiva |
+| ChartNegative | `#FF3B30` | Tendência negativa |
+| ChartNeutral | `#94A3B8` | Neutro/sem dados |
 
 ---
 

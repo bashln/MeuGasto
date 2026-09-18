@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.repository.PurchaseRepository
+import com.prati.meugasto.domain.model.EstablishmentType
 import com.prati.meugasto.domain.model.Purchase
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.DateFormatters
@@ -28,12 +29,15 @@ fun PurchasesScreen(
 ) {
     val purchases by repository.getPurchases().collectAsState(initial = emptyList())
     var searchQuery by remember { mutableStateOf("") }
+    var selectedTypeFilter by remember { mutableStateOf<EstablishmentType?>(null) }
 
-    val filteredPurchases = remember(purchases, searchQuery) {
-        if (searchQuery.isBlank()) purchases
-        else purchases.filter {
-            it.supermarket.name.contains(searchQuery, ignoreCase = true) ||
-            it.products.any { item -> item.name.contains(searchQuery, ignoreCase = true) }
+    val filteredPurchases = remember(purchases, searchQuery, selectedTypeFilter) {
+        purchases.filter { purchase ->
+            val matchesType = selectedTypeFilter == null || purchase.supermarket.type == selectedTypeFilter
+            val matchesQuery = searchQuery.isBlank() ||
+                purchase.supermarket.name.contains(searchQuery, ignoreCase = true) ||
+                purchase.products.any { item -> item.name.contains(searchQuery, ignoreCase = true) }
+            matchesType && matchesQuery
         }
     }
 
@@ -60,7 +64,7 @@ fun PurchasesScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Buscar por mercado ou produto...") },
+                placeholder = { Text("Buscar por estabelecimento ou produto...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -78,6 +82,43 @@ fun PurchasesScreen(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                 )
             )
+
+            Spacer(modifier = Modifier.height(AppSpacing.SM))
+
+            // Chips de filtro por tipo de estabelecimento
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = AppSpacing.XS),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.XS)
+            ) {
+                FilterChip(
+                    selected = selectedTypeFilter == null,
+                    onClick = { selectedTypeFilter = null },
+                    label = { Text("Todos") }
+                )
+                FilterChip(
+                    selected = selectedTypeFilter == EstablishmentType.SUPERMARKET,
+                    onClick = {
+                        selectedTypeFilter = if (selectedTypeFilter == EstablishmentType.SUPERMARKET) null else EstablishmentType.SUPERMARKET
+                    },
+                    label = { Text("Mercados") }
+                )
+                FilterChip(
+                    selected = selectedTypeFilter == EstablishmentType.PHARMACY,
+                    onClick = {
+                        selectedTypeFilter = if (selectedTypeFilter == EstablishmentType.PHARMACY) null else EstablishmentType.PHARMACY
+                    },
+                    label = { Text("Farmácias") }
+                )
+                FilterChip(
+                    selected = selectedTypeFilter == EstablishmentType.GAS_STATION,
+                    onClick = {
+                        selectedTypeFilter = if (selectedTypeFilter == EstablishmentType.GAS_STATION) null else EstablishmentType.GAS_STATION
+                    },
+                    label = { Text("Postos") }
+                )
+            }
 
             if (filteredPurchases.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(AppSpacing.SM))

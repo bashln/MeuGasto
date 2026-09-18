@@ -160,7 +160,8 @@ fun ScanQrCodeScreen(
                                     supermarket = Supermarket(
                                         name = state.data.supermarket.name,
                                         cnpj = state.data.supermarket.cnpj,
-                                        state = state.data.supermarket.state
+                                        state = state.data.supermarket.state,
+                                        type = state.data.supermarket.type
                                     ),
                                     date = state.data.date,
                                     totalPrice = state.data.totalPrice,
@@ -465,11 +466,29 @@ fun ConfirmationScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(AppSpacing.LG)) {
-                        Text(
-                            text = data.supermarket.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = data.supermarket.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Surface(
+                                shape = AppShapes.Full,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = data.supermarket.type.displayName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = AppSpacing.SM, vertical = AppSpacing.XS)
+                                )
+                            }
+                        }
                         if (data.supermarket.cnpj != null) {
                             Text(
                                 text = "CNPJ: ${data.supermarket.cnpj}",

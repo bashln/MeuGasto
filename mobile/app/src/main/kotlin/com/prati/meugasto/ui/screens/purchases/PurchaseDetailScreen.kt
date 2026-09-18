@@ -6,6 +6,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.LocalPharmacy
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -102,21 +105,39 @@ fun PurchaseDetailScreen(
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     ) {
+                        val (establishmentIcon, _) = when (purchase.supermarket.type) {
+                            com.prati.meugasto.domain.model.EstablishmentType.PHARMACY -> Icons.Default.LocalPharmacy to "Farmácia"
+                            com.prati.meugasto.domain.model.EstablishmentType.GAS_STATION -> Icons.Default.LocalGasStation to "Posto de Combustível"
+                            com.prati.meugasto.domain.model.EstablishmentType.SUPERMARKET -> Icons.Default.ShoppingCart to "Supermercado"
+                            com.prati.meugasto.domain.model.EstablishmentType.OTHER -> Icons.Default.Storefront to "Outro"
+                        }
                         Column(modifier = Modifier.padding(AppSpacing.XL)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Storefront,
+                                    imageVector = establishmentIcon,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
                                     text = purchase.supermarket.name,
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.weight(1f)
                                 )
+                                Surface(
+                                    shape = AppShapes.Full,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = purchase.supermarket.type.displayName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = AppSpacing.SM, vertical = AppSpacing.XS)
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.height(AppSpacing.XS))
                             Text(

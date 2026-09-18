@@ -93,21 +93,15 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm ci
 
+      - name: Dependency audit policy tests
+        run: node --test scripts/dependency-audit.test.mjs
+
       - name: Dependency vulnerability audit
-        working-directory: ./mobile
-        run: npm audit --audit-level=high
+        run: node scripts/dependency-audit.mjs
 
-      - name: Lint
+      - name: Native Android Unit Tests
         working-directory: ./mobile
-        run: npm run lint
-
-      - name: Test
-        working-directory: ./mobile
-        run: npm test -- --runInBand
-
-      - name: Typecheck
-        working-directory: ./mobile
-        run: npm run typecheck
+        run: ./gradlew test
 
       - name: Validate environment variables
         working-directory: ./mobile
@@ -155,7 +149,7 @@ jobs:
       - name: Validate APK size
         run: |
           APK_SIZE=$(stat -c%s mobile/app/build/outputs/apk/release/app-release.apk)
-          MIN_SIZE=30000000
+          MIN_SIZE=15000000
           if [ $APK_SIZE -lt $MIN_SIZE ]; then
             echo "⚠️ APK muito pequeno ($APK_SIZE bytes). Possível problema no build."
             exit 1

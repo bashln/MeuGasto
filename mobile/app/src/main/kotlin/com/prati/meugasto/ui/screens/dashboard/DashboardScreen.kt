@@ -1,18 +1,24 @@
 package com.prati.meugasto.ui.screens.dashboard
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.domain.model.Purchase
@@ -252,7 +258,8 @@ fun QuickMetricCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
             modifier = Modifier.padding(AppSpacing.LG)
@@ -274,6 +281,29 @@ fun QuickMetricCard(
 
 @Composable
 fun PurchaseListItem(purchase: Purchase, onClick: () -> Unit) {
+    val (establishmentIcon, iconBg, iconTint) = when (purchase.supermarket.type) {
+        com.prati.meugasto.domain.model.EstablishmentType.PHARMACY -> Triple(
+            Icons.Default.LocalPharmacy,
+            Color(0xFFE0F2FE),
+            Color(0xFF0284C7)
+        )
+        com.prati.meugasto.domain.model.EstablishmentType.GAS_STATION -> Triple(
+            Icons.Default.LocalGasStation,
+            Color(0xFFFEF3C7),
+            Color(0xFFD97706)
+        )
+        com.prati.meugasto.domain.model.EstablishmentType.SUPERMARKET -> Triple(
+            Icons.Default.ShoppingCart,
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.primary
+        )
+        com.prati.meugasto.domain.model.EstablishmentType.OTHER -> Triple(
+            Icons.Default.Storefront,
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.secondary
+        )
+    }
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -281,7 +311,8 @@ fun PurchaseListItem(purchase: Purchase, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             modifier = Modifier
@@ -290,6 +321,20 @@ fun PurchaseListItem(purchase: Purchase, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(iconBg, androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = establishmentIcon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(AppSpacing.MD))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = purchase.supermarket.name,
@@ -297,12 +342,29 @@ fun PurchaseListItem(purchase: Purchase, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(AppSpacing.XS))
-                Text(
-                    text = "${DateFormatters.friendly(purchase.date)} • ${purchase.products.size} itens",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${DateFormatters.friendly(purchase.date)} • ${purchase.products.size} itens",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (purchase.supermarket.type != com.prati.meugasto.domain.model.EstablishmentType.SUPERMARKET) {
+                        Spacer(modifier = Modifier.width(AppSpacing.XS))
+                        Surface(
+                            shape = AppShapes.Full,
+                            color = iconBg
+                        ) {
+                            Text(
+                                text = purchase.supermarket.type.displayName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = iconTint,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
             }
+            Spacer(modifier = Modifier.width(AppSpacing.SM))
             MoneyText(
                 value = purchase.totalPrice,
                 style = MaterialTheme.typography.titleMedium,

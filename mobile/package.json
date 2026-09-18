@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "0.4.0.0",
+  "version": "0.4.1.0",
   "private": true,
   "description": "Dependency audit for supply chain security",
   "scripts": {

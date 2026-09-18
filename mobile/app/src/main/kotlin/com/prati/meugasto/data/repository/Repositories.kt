@@ -34,6 +34,11 @@ class LocalPurchaseRepository(
     override fun getPurchases(): Flow<List<Purchase>> {
         return database.purchaseDao().getAllWithDetails().map { list ->
             list.map { detail ->
+                val detectedOrSavedType = try {
+                    EstablishmentType.valueOf(detail.supermarket.type)
+                } catch (_: Exception) {
+                    EstablishmentDetector.detectType(detail.supermarket.name)
+                }
                 Purchase(
                     id = detail.purchase.id,
                     supermarket = Supermarket(
@@ -42,6 +47,7 @@ class LocalPurchaseRepository(
                         cnpj = detail.supermarket.cnpj,
                         city = detail.supermarket.city,
                         state = detail.supermarket.state,
+                        type = detectedOrSavedType,
                         isManual = detail.supermarket.isManual
                     ),
                     date = detail.purchase.date,
@@ -77,6 +83,7 @@ class LocalPurchaseRepository(
                 cnpj = purchase.supermarket.cnpj,
                 city = purchase.supermarket.city,
                 state = purchase.supermarket.state,
+                type = purchase.supermarket.type.name,
                 isManual = purchase.supermarket.isManual,
                 createdAt = now
             )

@@ -12,6 +12,7 @@ data class SupermarketEntity(
     val cnpj: String? = null,
     val city: String? = null,
     val state: String? = null,
+    val type: String = "SUPERMARKET",
     val isManual: Boolean = false,
     val createdAt: String
 )

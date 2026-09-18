@@ -2,6 +2,8 @@ package com.prati.meugasto.domain.model
 
 import kotlinx.serialization.Serializable
 
+import java.util.Locale
+
 enum class AppMode {
     CLOUD,      // Sincronizado com Supabase
     LOCAL_FIRST // 100% offline-first com sync em WebDAV/Drive/Dropbox
@@ -13,6 +15,59 @@ enum class SyncProviderType {
     DROPBOX
 }
 
+enum class EstablishmentType {
+    SUPERMARKET,
+    PHARMACY,
+    GAS_STATION,
+    OTHER;
+
+    val displayName: String
+        get() = when (this) {
+            SUPERMARKET -> "Supermercado"
+            PHARMACY -> "Farmácia"
+            GAS_STATION -> "Posto de Combustível"
+            OTHER -> "Outro"
+        }
+}
+
+object EstablishmentDetector {
+    fun detectType(name: String): EstablishmentType {
+        val upper = name.uppercase(Locale.ROOT)
+
+        val pharmacyKeywords = listOf(
+            "FARMACIA", "FARMÁCIA", "DROGARIA", "DROGA", "PANVEL", "RAIA", "DROGASIL",
+            "SAO JOAO", "SÃO JOÃO", "PAGUE MENOS", "ULTRAFARMA", "NISSEI", "VENANCIO", "VENÂNCIO",
+            "MEDICAMENTO", "FARMACEUTIC", "FARMACÊUTIC"
+        )
+        if (pharmacyKeywords.any { upper.contains(it) }) {
+            return EstablishmentType.PHARMACY
+        }
+
+        val gasKeywords = listOf(
+            "POSTO", "COMBUSTIVEL", "COMBUSTÍVEL", "COMBUSTIVEIS", "COMBUSTÍVEIS",
+            "PETROBRAS", "PETROBRÁS", "IPIRANGA", "SHELL", "AUTO POSTO", "LUBRIFICANTE",
+            "DERIVADOS DE PETROLEO", "DERIVADOS DE PETRÓLEO", "ABASTECEDORA", "REDE DE POSTOS",
+            "ALE COMB", "RODOIL"
+        )
+        if (gasKeywords.any { upper.contains(it) }) {
+            return EstablishmentType.GAS_STATION
+        }
+
+        val supermarketKeywords = listOf(
+            "SUPERMERCADO", "MERCADO", "HIPERMERCADO", "ATACADO", "ATACADAO", "ATACADÃO",
+            "ASSAI", "ASSAÍ", "ZAFFARI", "CARREFOUR", "PAO DE ACUCAR", "PÃO DE AÇÚCAR",
+            "COMPER", "BIG", "SUPER", "MINIMERCADO", "MERCEARIA", "HORTIFRUTI"
+        )
+        if (supermarketKeywords.any { upper.contains(it) }) {
+            return EstablishmentType.SUPERMARKET
+        }
+
+        return EstablishmentType.SUPERMARKET
+    }
+}
+
+typealias Establishment = Supermarket
+
 @Serializable
 data class Supermarket(
     val id: Long = 0,
@@ -20,6 +75,7 @@ data class Supermarket(
     val cnpj: String? = null,
     val city: String? = null,
     val state: String? = null,
+    val type: EstablishmentType = EstablishmentDetector.detectType(name),
     val isManual: Boolean = false,
     val createdAt: String? = null
 )

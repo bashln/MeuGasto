@@ -4,9 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Release tags follow the project format `vMAJOR.MINOR.PATCH.BUILD`; GitHub Releases are the authoritative record of published APKs.
 
-## [Unreleased] — 0.3.2.3
+## [0.4.1.0] - 2026-09-18
 
-Changes below are present after the latest published tag, `v0.3.2.1`. This version must not be treated as a published APK until a matching `v0.3.2.3` GitHub release exists.
+### Added
+
+- **Suporte a múltiplos tipos de estabelecimentos (#33)**: Leitura, registro e análise de compras em Farmácias, Postos de Combustível, Supermercados e outros varejistas.
+- **Detecção automática de estabelecimentos**: Identificação inteligente de tipo por palavras-chave na Razão Social / Nome Fantasia (`EstablishmentDetector`).
+- **Filtros e identificadores visuais**: Badges e ícones dedicados no Dashboard, Detalhes da Compra e chips de filtro por categoria em Minhas Compras.
+- **Migração segura do banco Room (`MIGRATION_1_2`)**: Atualização do schema SQLite para versão 2 preservando todos os dados existentes.
+- **Migração nativa completa**: Arquitetura 100% Android nativa em Kotlin + Jetpack Compose + Material 3, Room, CameraX + ML Kit e Scraper HTTP com suporte a certificados SEFAZ.
+
+### Changed
+
+- **Restauração do design e paleta do React Native (#34)**:
+  - Fundo azul-gelo característico do app original (`#EAF2F4`) e superfícies limpas em branco (`#FFFFFF`).
+  - Acento roxo original (`#5B46CC`) para categorias e badges secundários.
+  - Bordas sutis nos cartões e tipografia alinhada ao design original.
+  - Atualização dos tokens em `Color.kt`, `Theme.kt` e `docs/DESIGN_SYSTEM.md`.
+- **Modernização do pipeline de release**: Workflow `.github/workflows/release.yml` atualizado para compilação nativa com `./gradlew assembleRelease` e testes unitários.
+- **Sincronização de versão**: `v0.4.1.0` com `versionCode 71` e `buildNumber 71` em `app.json` e `build.gradle.kts`.
 
 ### Added
 
