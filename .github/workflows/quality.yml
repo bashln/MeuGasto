@@ -19,16 +19,24 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Security and privacy guardrails
+        run: bash scripts/privacy-check.sh
+
+      - name: Secret scan
+        run: bash scripts/secret-scan.sh
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: mobile/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('mobile/package-lock.json') }}
@@ -38,14 +46,31 @@ jobs:
         working-directory: ./mobile
         run: npm ci
 
-      - name: Lint
-        working-directory: ./mobile
-        run: npm run lint
+      - name: Dependency audit policy tests
+        run: node --test scripts/dependency-audit.test.mjs
 
-      - name: Test
-        working-directory: ./mobile
-        run: npm test -- --runInBand --coverage
+      - name: Dependency vulnerability audit
+        run: node scripts/dependency-audit.mjs
 
-      - name: Typecheck
+      - name: Pull request size advisory
+        if: github.event_name == 'pull_request'
+        env:
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+        run: bash scripts/check-pr-size.sh "$CHANGED_FILES" "$ADDITIONS" "$DELETIONS"
+
+      - name: Setup Java
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: ''
+
+      - name: Native Android Unit Tests
         working-directory: ./mobile
-        run: npm run typecheck
+        run: ./gradlew test

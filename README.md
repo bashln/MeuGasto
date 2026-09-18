@@ -9,25 +9,28 @@ Arquitetura preparada para evolução para modelo SaaS.
 
 Baixe a versão mais recente diretamente na seção de [Releases](https://github.com/bashln/MeuGasto/releases).
 
-Os APKs são gerados automaticamente via GitHub Actions a cada nova tag de versão (`v*`).
+Os APKs são gerados automaticamente via GitHub Actions para tags no formato `vX.Y.Z.W`.
 
 ## Stack
 
-- Mobile: Expo + React Native + TypeScript
-- Backend: Supabase (Auth, Postgres, RLS)
-- Build Android: GitHub Actions (APK Standalone) / EAS Build
+- **Mobile Nativo:** Kotlin 2.x + Jetpack Compose (Material 3 / Material You) + Room DB
+- **Modos de Operação (Dual Mode):**
+  - _Modo Nuvem:_ Supabase (Auth, Postgres, RLS)
+  - _Modo Local-First:_ Banco local criptografado + sincronização pessoal via WebDAV (Nextcloud/ownCloud), Google Drive ou Dropbox
+- **Hardware & Fiscais:** CameraX + Google ML Kit (Leitor QR Code) + Motor de Scraping NFC-e (GET-first)
+- **Build & CI/CD:** Gradle 8.9 + GitHub Actions (Release de APK standalone assinado)
 
 ## Estrutura
 
 ```
 .
 ├── docs/                      # Documentação do projeto
-│   ├── index.md               # Índice da documentação
-│   ├── architecture/
-│   ├── audits/
-│   ├── status/
-│   ├── process/
-│   └── ai/
+│   ├── README.md              # Índice da documentação
+│   ├── adr/                   # Decisões arquiteturais registradas
+│   ├── architecture/          # Desenho e diretrizes de arquitetura
+│   ├── development/           # Guias de desenvolvimento e build
+│   ├── product/               # Roadmap e backlogs de produto
+│   └── security/              # Políticas e planos de segurança/privacidade
 ├── mobile/                    # Aplicativo Expo
 │   ├── src/
 │   │   ├── components/        # Componentes reutilizáveis
@@ -73,7 +76,23 @@ EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
-Schema do banco (referência): `mobile/supabase_schema.sql`
+Schema do banco (referência): `mobile/supabase_schema.sql`.
+
+Para uma instalação nova, aplique `mobile/supabase_schema.sql`,
+`mobile/supabase_privacy_migration.sql`, `mobile/supabase_price_comparison_migration.sql`
+e, por último, `mobile/supabase_security_hardening_migration.sql`. O hardening restringe
+referências entre usuários, acesso aos analytics, escrita no log de auditoria e abuso
+de recursos com quotas e limites horários de escrita por usuário. Valide a sequência
+completa primeiro em uma branch de staging do Supabase; nunca use o banco de produção
+como ambiente de ensaio.
+
+Depois de aplicar o hardening em staging, execute
+`mobile/supabase_security_hardening_smoke_test.sql` com `ON_ERROR_STOP=1` para
+confirmar RLS, privilégios e todos os triggers de rate limit antes da promoção.
+
+O plano para cumprir literalmente a promessa de administração sem acesso aos gastos
+está em `docs/adr/0001-admin-blind-e2ee.md`. Ele exige migração gradual e novo APK;
+não é uma alteração compatível apenas com OTA.
 
 ## Build Android (Preview)
 

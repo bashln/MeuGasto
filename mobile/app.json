@@ -3,7 +3,7 @@
     "name": "MeuGasto",
     "slug": "meugasto",
     "owner": "bashln",
-    "version": "0.3.2.2",
+    "version": "0.4.1.0",
     "scheme": "com.prati.meugasto",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,23 +11,22 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1976d2"
+      "backgroundColor": "#C2410C"
     },
     "ios": {
-      "buildNumber": "67",
+      "buildNumber": "71",
       "supportsTablet": true,
       "bundleIdentifier": "com.prati.meugasto"
     },
     "android": {
-      "versionCode": 67,
+      "versionCode": 71,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#1976d2"
+        "backgroundColor": "#C2410C"
       },
       "package": "com.prati.meugasto",
-      "permissions": [
-        "android.permission.CAMERA"
-      ]
+      "permissions": ["android.permission.CAMERA"],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,7 +42,15 @@
       "expo-secure-store",
       "expo-font",
       "expo-asset",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "meugasto",
+          "organization": "leonamduarte"
+        }
+      ]
     ],
     "extra": {
       "eas": {

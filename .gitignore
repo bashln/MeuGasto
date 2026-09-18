@@ -2,8 +2,6 @@
 node_modules/
 dist/
 dist-ssr/
-# Tracked .md files are in docs/, root stubs, and standard root files (README.md, CHANGELOG.md, SECURITY.md)
-# Ignore any other stray .md files not explicitly tracked
 
 # Environment variables
 .env
@@ -27,62 +25,30 @@ target/
 .mvn/
 *.class
 
-# Gradle
-.gradle/
-build/
-
 # Android
 *.apk
 *.aab
-captures/
-output-metadata.json
-
-# Android Keystores (NEVER commit these!)
 *.jks
 *.keystore
 
+# Build
+build/
+.gradle/
+local.properties
+
 # IDE
 .idea/
-*.iml
 .vscode/
-*.swp
-*.swo
+*.iml
 *.iws
 *.ipr
-.misc.xml
 
 # OS
 .DS_Store
 Thumbs.db
 
-# AI agents & tooling
-.ralph-tui/
-docs/ai/
+# Kotlin
+.kotlin/
 
-# Coverage artifacts
-mobile/coverage/
-
-# Misc
-*.local
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-
-# Mobile (Expo)
+# Expo (legacy - no longer used)
 .expo/
-expo-env.d.ts
-mobile/android/
-mobile/ios/
-
-# Misc
-local.properties
-deploymentTargetDropDown.xml
-render.experimental.xml
-*.md
-!README.md
-!AGENTS.md
-!CLAUDE.md
-!CHANGELOG.md
-!SECURITY.md
-!LICENSE
