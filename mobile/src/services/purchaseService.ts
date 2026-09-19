@@ -262,6 +262,7 @@ export const purchaseService = {
     }>;
   }): Promise<Purchase> {
     await productCategorizer.ready();
+    const userId = await getCurrentUserId();
     const itemsPayload = (purchase.items ?? []).map(item => ({
         name: item.name,
         code: '',
@@ -273,6 +274,8 @@ export const purchaseService = {
 
     const supabase = getClient();
 
+    let purchaseId: number | null = null;
+
     const { data: createdPurchase, error: purchaseError } = await supabase.rpc('create_purchase_with_items', {
       p_supermarket_id: purchase.supermarketId || null,
       p_access_key: null,
@@ -282,11 +285,43 @@ export const purchaseService = {
       p_items: itemsPayload,
     });
 
-    if (purchaseError) {
-      throw new Error(purchaseError.message);
+    if (!purchaseError && createdPurchase?.[0]?.purchase_id) {
+      purchaseId = createdPurchase[0].purchase_id;
+    } else {
+      const { data: purchaseRow, error: directError } = await supabase
+        .from('purchases')
+        .insert({
+          user_id: userId,
+          supermarket_id: purchase.supermarketId || null,
+          access_key: null,
+          date: purchase.date,
+          total_price: purchase.totalPrice,
+          manual: true,
+        })
+        .select('id')
+        .single();
+
+      if (directError || !purchaseRow?.id) {
+        throw new Error(purchaseError?.message || directError?.message || 'Não foi possível criar a compra manual');
+      }
+
+      purchaseId = purchaseRow.id;
+
+      if (itemsPayload.length > 0) {
+        const itemsToInsert = itemsPayload.map(item => ({
+          purchase_id: purchaseId,
+          name: item.name,
+          code: item.code || null,
+          category_id: item.category_id,
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+        }));
+
+        await supabase.from('items').insert(itemsToInsert);
+      }
     }
 
-    const purchaseId = createdPurchase?.[0]?.purchase_id;
     if (!purchaseId) {
       throw new Error('Não foi possível criar a compra manual');
     }

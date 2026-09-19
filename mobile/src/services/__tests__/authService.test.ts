@@ -92,6 +92,28 @@ describe('authService', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('normaliza erro de credenciais invalidas no login', async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      data: null,
+      error: new Error('Invalid login credentials'),
+    });
+
+    await expect(
+      authService.login({ email: 'user@example.com', password: 'wrong' })
+    ).rejects.toThrow('Email ou senha incorretos');
+  });
+
+  it('normaliza erro de email nao confirmado', async () => {
+    mockSignInWithPassword.mockResolvedValue({
+      data: null,
+      error: new Error('Email not confirmed'),
+    });
+
+    await expect(
+      authService.login({ email: 'unconfirmed@example.com', password: 'secret' })
+    ).rejects.toThrow('Email ainda não confirmado');
+  });
+
   it('retorna erro especifico quando URL do Supabase esta ausente', async () => {
     mockIsSupabaseConfigured.mockReturnValue(false);
     mockGetResolvedSupabaseConfig.mockReturnValue({
