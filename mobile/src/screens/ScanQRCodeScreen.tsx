@@ -189,20 +189,7 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
 
     if (typeof reason === 'string') {
       const lower = reason.toLowerCase();
-      if (lower.includes('network') || lower.includes('conex') || lower.includes('internet')) {
-        message = 'Sem internet no momento. Você pode tentar novamente ou salvar manualmente.';
-      } else if (
-        lower.includes('ssl') ||
-        lower.includes('http') ||
-        lower.includes('erro de rede') ||
-        lower.includes('handshake')
-      ) {
-        message = 'Falha de conexão com a SEFAZ no momento. Você pode tentar novamente ou salvar manualmente.';
-      } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
-        message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
-      } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
-        message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
-      } else if (
+      if (
         lower.includes('duplicate') ||
         lower.includes('unique') ||
         lower.includes('já importada') ||
@@ -212,6 +199,36 @@ export const ScanQRCodeScreen: React.FC<ScanQRCodeScreenProps> = ({ navigation }
         lower.includes('access_key')
       ) {
         message = 'Esta nota já foi importada anteriormente.';
+      } else if (
+        lower.includes('digest') ||
+        lower.includes('function') ||
+        lower.includes('rpc') ||
+        lower.includes('pgrst') ||
+        lower.includes('database') ||
+        lower.includes('banco')
+      ) {
+        message = 'Erro no banco de dados ao salvar a nota. Tente novamente em alguns instantes ou salve manualmente.';
+      } else if (
+        lower.includes('500') ||
+        lower.includes('502') ||
+        lower.includes('503') ||
+        lower.includes('504') ||
+        lower.includes('network response was not ok')
+      ) {
+        message = 'Servidor de consulta da SEFAZ fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (
+        lower.includes('ssl') ||
+        lower.includes('handshake') ||
+        lower.includes('erro de rede') ||
+        lower.includes('network') ||
+        lower.includes('conex') ||
+        lower.includes('internet')
+      ) {
+        message = 'Sem internet ou falha de conexão no momento. Você pode tentar novamente ou salvar manualmente.';
+      } else if (lower.includes('qr') || lower.includes('chave') || lower.includes('código')) {
+        message = 'QR Code inválido. Você pode tentar novamente ou salvar manualmente.';
+      } else if (lower.includes('tempo limite') || lower.includes('timeout') || lower.includes('servid')) {
+        message = 'Nota fora do ar no momento. Você pode tentar novamente ou salvar manualmente.';
       }
 
       // Diagnóstico explícito para troubleshooting em campo.

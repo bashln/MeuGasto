@@ -44,19 +44,23 @@ const productCategorizer = new ProductCategorizerService({
   },
 });
 
-export const hashAccessKey = async (accessKey: string): Promise<string> => {
-  const sanitizedAccessKey = validateAccessKey(accessKey);
-  const subtle = globalThis.crypto?.subtle;
+export const hashAccessKey = async (accessKey: string): Promise<string | null> => {
+  try {
+    const sanitizedAccessKey = validateAccessKey(accessKey);
+    const subtle = globalThis.crypto?.subtle;
 
-  if (!subtle) {
-    throw new Error('SHA-256 indisponivel no ambiente atual');
+    if (!subtle) {
+      return null;
+    }
+
+    const input = new TextEncoder().encode(sanitizedAccessKey);
+    const digest = await subtle.digest('SHA-256', input);
+    return Array.from(new Uint8Array(digest))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
+  } catch {
+    return null;
   }
-
-  const input = new TextEncoder().encode(sanitizedAccessKey);
-  const digest = await subtle.digest('SHA-256', input);
-  return Array.from(new Uint8Array(digest))
-    .map(byte => byte.toString(16).padStart(2, '0'))
-    .join('');
 };
 
 export const buildExternalScraperPayload = async (
@@ -65,7 +69,7 @@ export const buildExternalScraperPayload = async (
 ): Promise<{ nfceUrl: string; accessKeyHash: string }> => {
   return {
     nfceUrl,
-    accessKeyHash: await hashAccessKey(accessKey),
+    accessKeyHash: (await hashAccessKey(accessKey)) ?? '',
   };
 };
 
@@ -365,12 +369,15 @@ export const nfceService = {
     if (!purchaseError && createdPurchase?.[0]?.purchase_id) {
       purchaseId = createdPurchase[0].purchase_id;
     } else {
+      const accessKeyHash = await hashAccessKey(sanitizedAccessKey);
+
       const { data: purchaseRow, error: directError } = await supabase
         .from('purchases')
         .insert({
           user_id: userId,
           supermarket_id: actualSupermarketId || null,
           access_key: sanitizedAccessKey,
+          access_key_hash: accessKeyHash,
           date: purchaseDate,
           total_price: sanitizedPayload.total,
           manual: false,

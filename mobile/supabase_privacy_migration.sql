@@ -49,6 +49,7 @@ CREATE OR REPLACE FUNCTION public.create_purchase_with_items(
 RETURNS TABLE(purchase_id INTEGER)
 LANGUAGE plpgsql
 SECURITY INVOKER
+SET search_path = public, pg_catalog
 AS $$
 DECLARE
   v_user_id UUID := auth.uid();
@@ -96,13 +97,13 @@ BEGIN
 
     IF v_hmac_secret IS NOT NULL AND v_hmac_secret <> '' THEN
       v_access_key_hash := encode(
-        hmac(p_access_key, v_hmac_secret, 'sha256'),
+        hmac(p_access_key::bytea, v_hmac_secret::bytea, 'sha256'),
         'hex'
       );
     ELSE
-      -- Fallback: SHA-256 sem secret (menos seguro; migrar para HMAC quando secret estiver disponível)
+      -- Fallback: sha256 nativo do PostgreSQL sem depender da extensao pgcrypto/digest
       v_access_key_hash := encode(
-        digest(p_access_key, 'sha256'),
+        sha256(p_access_key::bytea),
         'hex'
       );
     END IF;
