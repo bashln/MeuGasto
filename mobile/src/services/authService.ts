@@ -67,6 +67,17 @@ const normalizeAuthError = (error: unknown, action: 'login' | 'register'): Error
     );
   }
 
+  const lowerMessage = message.toLowerCase();
+  if (lowerMessage.includes('invalid login credentials')) {
+    return new Error('Email ou senha incorretos. Verifique suas credenciais e tente novamente.');
+  }
+  if (lowerMessage.includes('email not confirmed')) {
+    return new Error('Email ainda não confirmado. Verifique sua caixa de entrada para confirmar o cadastro.');
+  }
+  if (lowerMessage.includes('user not found')) {
+    return new Error('Usuário não encontrado. Verifique o email informado.');
+  }
+
   return error instanceof Error ? error : new Error(message);
 };
 
@@ -148,7 +159,7 @@ export const authService = {
           .from('profiles')
           .select('name')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
         if (profile?.name) {
           userName = profile.name;
@@ -176,11 +187,11 @@ export const authService = {
 
   async logout(): Promise<void> {
     const supabase = getClient();
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw new Error(error.message);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      await clearSupabaseSessionStorage();
     }
-    await clearSupabaseSessionStorage();
   },
 
   async getSession(): Promise<{ user: AuthUser | null }> {
@@ -199,7 +210,7 @@ export const authService = {
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
 
     return {
       user: {
@@ -223,7 +234,7 @@ export const authService = {
       .from('profiles')
       .select('name, role')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
 
     return {
       user: {

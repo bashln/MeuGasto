@@ -20,6 +20,7 @@ const mockRpc = supabase!.rpc as jest.Mock;
 
 const makeChain = (result: unknown) => ({
   select: jest.fn().mockReturnThis(),
+  insert: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
   gte: jest.fn().mockReturnThis(),
   lte: jest.fn().mockReturnThis(),
@@ -63,8 +64,10 @@ describe('purchaseService', () => {
     expect(result.page.totalPages).toBe(1);
   });
 
-  it('lanca erro quando RPC nao retorna purchase_id', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null });
+  it('lanca erro quando RPC e insercao direta falham', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: { message: 'Erro RPC' } });
+    const chain = makeChain({ data: null, error: { message: 'Erro tabela' } });
+    mockFrom.mockReturnValue(chain);
 
     await expect(
       purchaseService.createManualPurchase({
@@ -72,7 +75,52 @@ describe('purchaseService', () => {
         totalPrice: 10,
         items: [{ name: 'Cafe', quantity: 1, unit: 'UN', price: 10 }],
       })
-    ).rejects.toThrow(/N[aã]o foi poss[ií]vel criar a compra manual/i);
+    ).rejects.toThrow(/Erro RPC/i);
+  });
+
+  it('usa insercao direta na tabela quando RPC falha', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC nao disponivel' } });
+
+    const insertPurchaseChain = {
+      insert: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 88 }, error: null }),
+    };
+    const insertItemsChain = {
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+    const fetchByIdChain = makeChain({
+      data: {
+        id: 88,
+        supermarket: null,
+        date: '2026-02-02',
+        total_price: '10.00',
+        manual: true,
+        items: [{ id: 1, name: 'Cafe', quantity: 1, unit: 'UN', price: 10 }],
+        created_at: '2026-02-02T00:00:00.000Z',
+        updated_at: '2026-02-02T00:00:00.000Z',
+      },
+      error: null,
+    });
+
+    mockFrom
+      .mockReturnValueOnce(insertPurchaseChain)
+      .mockReturnValueOnce(insertItemsChain)
+      .mockReturnValueOnce(fetchByIdChain);
+
+    const purchase = await purchaseService.createManualPurchase({
+      date: '2026-02-02',
+      totalPrice: 10,
+      items: [{ name: 'Cafe', quantity: 1, unit: 'UN', price: 10 }],
+    });
+
+    expect(purchase.id).toBe(88);
+    expect(insertPurchaseChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        manual: true,
+        total_price: 10,
+      })
+    );
   });
 
   it('lanca erro quando compra nao e encontrada em getPurchaseById', async () => {
@@ -110,16 +158,30 @@ describe('purchaseService', () => {
   });
 
   it('inclui category_id nos itens ao criar compra manual', async () => {
-    mockRpc.mockResolvedValue({ data: [], error: null });
+    mockRpc.mockResolvedValue({ data: [{ purchase_id: 100 }], error: null });
 
-    await expect(
-      purchaseService.createManualPurchase({
+    const fetchByIdChain = makeChain({
+      data: {
+        id: 100,
+        supermarket: null,
         date: '2026-02-02',
-        totalPrice: 20,
-        items: [{ name: 'Detergente Neutro', quantity: 1, unit: 'UN', price: 5 }],
-      })
-    ).rejects.toThrow();
+        total_price: '20.00',
+        manual: true,
+        items: [{ id: 1, name: 'Detergente Neutro', quantity: 1, unit: 'UN', price: 5 }],
+        created_at: '2026-02-02T00:00:00.000Z',
+        updated_at: '2026-02-02T00:00:00.000Z',
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue(fetchByIdChain);
 
+    const purchase = await purchaseService.createManualPurchase({
+      date: '2026-02-02',
+      totalPrice: 20,
+      items: [{ name: 'Detergente Neutro', quantity: 1, unit: 'UN', price: 5 }],
+    });
+
+    expect(purchase.id).toBe(100);
     expect(mockRpc).toHaveBeenCalledWith(
       'create_purchase_with_items',
       expect.objectContaining({

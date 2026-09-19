@@ -180,6 +180,7 @@ BEGIN
     INSERT INTO purchases (
       user_id,
       supermarket_id,
+      access_key,
       access_key_hash,
       date,
       total_price,
@@ -188,6 +189,7 @@ BEGIN
     VALUES (
       v_user_id,
       p_supermarket_id,
+      p_access_key,
       v_access_key_hash,
       p_date,
       p_total_price,
@@ -200,7 +202,10 @@ BEGIN
         INTO v_purchase_id
         FROM purchases
        WHERE user_id = v_user_id
-         AND access_key_hash = v_access_key_hash
+         AND (
+           (v_access_key_hash IS NOT NULL AND access_key_hash = v_access_key_hash)
+           OR (p_access_key IS NOT NULL AND access_key = p_access_key)
+         )
        LIMIT 1;
   END;
 

@@ -236,4 +236,63 @@ describe('nfceService purchase creation', () => {
       expect.objectContaining({ p_supermarket_id: 33 })
     );
   });
+
+  it('usa insercao direta na tabela compras quando RPC falha no fluxo NFC-e', async () => {
+    const likeLookupChain = {
+      select: jest.fn().mockReturnThis(),
+      like: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const exactLookupChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    const createSupermarketChain = {
+      insert: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 33 }, error: null }),
+    };
+    const insertPurchaseChain = {
+      insert: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { id: 99 }, error: null }),
+    };
+    const insertItemsChain = {
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    };
+
+    mockFrom
+      .mockReturnValueOnce(likeLookupChain)
+      .mockReturnValueOnce(exactLookupChain)
+      .mockReturnValueOnce(createSupermarketChain)
+      .mockReturnValueOnce(insertPurchaseChain)
+      .mockReturnValueOnce(insertItemsChain);
+
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'RPC nao encontrada' } });
+
+    const result = await nfceService.createPurchaseFromScrapedData(
+      {
+        total: 15.0,
+        emittedAt: '03/05/2026 10:32:00',
+        cnpj: '12345678000195',
+        storeName: 'Mercado Fallback',
+        city: 'Curitiba',
+        state: 'PR',
+        items: [{ name: 'Leite', quantity: 2, unit: 'UN', unityPrice: 7.5 }],
+      },
+      '43180611111111111111111111111111111111111111'
+    );
+
+    expect(result.purchaseId).toBe(99);
+    expect(insertPurchaseChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        access_key: '43180611111111111111111111111111111111111111',
+        manual: false,
+        total_price: 15,
+      })
+    );
+  });
 });
