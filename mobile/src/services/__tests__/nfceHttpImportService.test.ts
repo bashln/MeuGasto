@@ -42,8 +42,10 @@ describe('nfceHttpImportService parseRjHtml', () => {
     expect(parsed?.state).toBe('RJ');
     expect(parsed?.total).toBeCloseTo(95.99, 2);
     expect(parsed?.items).toHaveLength(2);
-    expect(parsed?.items[0].name).toContain('PASSATEMPO');
-    expect(parsed?.accessKey).toBe('33260531698759001519651240000285231892931973');
+      expect(parsed?.items[0].name).toContain('PASSATEMPO');
+      expect(parsed?.accessKey).toBe('33260531698759001519651240000285231892931973');
+      // "Emissão" com acento (variante RJ) continua aceita
+      expect(parsed?.emittedAt).toContain('15/05/2026');
   });
 
   it('extrai itens e totais de HTML no formato RS (dfe-portal.svrs)', () => {
@@ -86,6 +88,9 @@ describe('nfceHttpImportService parseRjHtml', () => {
     expect(parsed?.items[1].quantity).toBeCloseTo(0.124, 3);
     expect(parsed?.items[1].unit).toBe('KG');
     expect(parsed?.accessKey).toBe('43260904784082000163652040001781671145519190');
+    // "Emissao" sem acento (variante SVRS) deve ser aceita — senao compra antiga
+    // cai na data de hoje (createPurchaseFromScrapedData usa new Date() como fallback)
+    expect(parsed?.emittedAt).toContain('18/09/2026');
   });
 });
 
@@ -126,6 +131,7 @@ describe('nfceHttpImportService.tryImport', () => {
       expect(result.data.state).toBe('RS');
       expect(result.data.items).toHaveLength(1);
       expect(result.accessKey).toBe('43260904784082000163652040001781671145519190');
+      expect(result.data.emittedAt).toContain('18/09/2026');
     }
   });
 
