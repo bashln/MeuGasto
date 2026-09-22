@@ -2,6 +2,9 @@ import { NFCeScrapedData } from '../lib/nfcePayloadValidation';
 import { isAllowedNfceUrl } from './nfceService';
 
 const RJ_HOST = 'consultadfe.fazenda.rj.gov.br';
+const SVRS_HOST = 'dfe-portal.svrs.rs.gov.br';
+// Hosts cujo portal serve HTML estatico que parsePortalHtml consegue extrair.
+const HTTP_IMPORT_HOSTS = new Set<string>([RJ_HOST, SVRS_HOST]);
 const REQUEST_TIMEOUT_MS = 15000;
 const RJ_COMPAT_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
@@ -47,6 +50,15 @@ const extractAccessKey = (html: string): string => {
     .replace(/\D/g, '')
     .trim();
   return key.length === 44 ? key : '';
+};
+
+// Deriva a UF (2 letras) a partir dos 2 primeiros digitos da chave de acesso.
+const stateFromAccessKey = (accessKey: string): string | null => {
+  if (!/^\d{44}$/.test(accessKey)) {
+    return null;
+  }
+  const stateMap: Record<string, string> = { '33': 'RJ', '43': 'RS' };
+  return stateMap[accessKey.substring(0, 2)] || null;
 };
 
 export const parseRjHtml = (html: string): NFCeScrapedData | null => {
@@ -139,7 +151,7 @@ export const nfceHttpImportService = {
       return { ok: false, error: 'URL NFC-e inválida.' };
     }
 
-    if (parsed.hostname !== RJ_HOST) {
+    if (!HTTP_IMPORT_HOSTS.has(parsed.hostname)) {
       return { ok: false, error: 'HTTP import ainda não suportado para este estado.' };
     }
 
@@ -176,7 +188,21 @@ export const nfceHttpImportService = {
         };
       }
 
-      const accessKey = parsedData.accessKey;
+      // Fallback: chave vem da URL (?p=44digitos|...) quando o HTML nao traz .chave
+      const accessKeyFromUrl = parsed.searchParams.get('p')?.split('|')[0]?.trim() || '';
+      const accessKey = /^\d{44}$/.test(parsedData.accessKey || '')
+        ? (parsedData.accessKey as string)
+        : /^\d{44}$/.test(accessKeyFromUrl)
+          ? accessKeyFromUrl
+          : '';
+
+      // O parser foi nomeado para RJ mas roda nos dois portais (mesmo layout);
+      // corrige a UF quando a chave indica outro estado.
+      const derivedState = stateFromAccessKey(accessKey);
+      if (derivedState) {
+        parsedData.state = derivedState;
+      }
+
       return { ok: true, data: parsedData, accessKey: accessKey || undefined };
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
