@@ -65,8 +65,9 @@ export const parseRjHtml = (html: string): NFCeScrapedData | null => {
   const storeName = stripTags(html.match(/<div[^>]*id="u20"[^>]*>([\s\S]*?)<\/div>/i)?.[1] || '');
   const cnpj = (html.match(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/)?.[0] || '').trim();
   const emittedAt = (
-    html.match(/Emiss(?:&atilde;|ã)o:\s*<\/strong>\s*([\d/:\-\s]+)/i)?.[1] ||
-    html.match(/Emiss(?:&atilde;|ã)o:\s*([\d/:\-\s]+)/i)?.[1] ||
+    // Aceita "Emissão", "Emissao" (sem acento, portals SVRS) e a entidade HTML &atilde;
+    html.match(/Emiss(?:&atilde;|[ãa])o:\s*<\/strong>\s*([\d/:\-\s]+)/i)?.[1] ||
+    html.match(/Emiss(?:&atilde;|[ãa])o:\s*([\d/:\-\s]+)/i)?.[1] ||
     ''
   )
     .replace(/\s+-\s+Via.*$/i, '')
