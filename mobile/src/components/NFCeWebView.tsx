@@ -271,13 +271,25 @@ export const NFCeWebView: React.FC<NFCeWebViewProps> = ({
         console.warn('[NFCeWebView] Debug:', message.message);
         setStatusMessage(message.message);
       } else if (message.type === 'NFCE_SCRAPE_RESULT') {
-        scraperInjectedRef.current = false;
-        emergencyExtractionTriggeredRef.current = false;
-        clearAllTimeouts();
         if (message.ok) {
+          const itemCount = Array.isArray(message.data?.items) ? message.data.items.length : 0;
+          if (itemCount === 0 && !emergencyExtractionTriggeredRef.current) {
+            // Scraper postou ok sem itens (layout variou). Nao aborta ainda:
+            // pede snapshot do HTML e tenta o parser estruturado antes de rejeitar.
+            emergencyExtractionTriggeredRef.current = true;
+            setStatusMessage('Reextraindo itens da nota...');
+            injectRjHtmlSnapshot();
+            return;
+          }
+          scraperInjectedRef.current = false;
+          emergencyExtractionTriggeredRef.current = false;
+          clearAllTimeouts();
           const sanitizedPayload = validateAndSanitizeNFCePayload(message.data);
           onSuccess(sanitizedPayload);
         } else {
+          scraperInjectedRef.current = false;
+          emergencyExtractionTriggeredRef.current = false;
+          clearAllTimeouts();
           onError(message.error || 'Erro ao extrair dados da nota fiscal');
         }
       } else if (message.type === 'NFCE_HTML_SNAPSHOT') {
