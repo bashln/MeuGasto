@@ -154,7 +154,18 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(Screen.Planning.route) {
-                            ShoppingListScreen(database = database)
+                            ShoppingListScreen(
+                                database = database,
+                                onNavigateToComparison = {
+                                    navController.navigate(Screen.PriceComparison.route)
+                                }
+                            )
+                        }
+
+                        composable(Screen.PriceComparison.route) {
+                            com.prati.meugasto.ui.screens.planning.PriceComparisonScreen(
+                                onNavigateBack = { navController.popBackStack() }
+                            )
                         }
 
                         composable(Screen.Reports.route) {
@@ -194,6 +205,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateBack = { navController.popBackStack() },
                                 onNavigateToProductHistory = { productName ->
                                     navController.navigate("product_history/${java.net.URLEncoder.encode(productName, "UTF-8")}")
+                                },
+                                onNavigateToComparison = {
+                                    navController.navigate(Screen.PriceComparison.route)
                                 }
                             )
                         }

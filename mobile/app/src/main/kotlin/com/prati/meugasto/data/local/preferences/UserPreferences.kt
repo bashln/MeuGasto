@@ -81,7 +81,7 @@ class UserPreferences(context: Context) {
         plainPrefs.edit().putBoolean("onboarding_completed", completed).apply()
     }
 
-    // Supabase Auth tokens
+    // Supabase Auth tokens & Account
     fun saveAuthTokens(accessToken: String, refreshToken: String) {
         securePrefs.edit()
             .putString("access_token", accessToken)
@@ -92,8 +92,15 @@ class UserPreferences(context: Context) {
     fun getAccessToken(): String? = securePrefs.getString("access_token", null)
     fun getRefreshToken(): String? = securePrefs.getString("refresh_token", null)
 
+    fun saveUserEmail(email: String) {
+        plainPrefs.edit().putString("user_email", email).apply()
+    }
+
+    fun getUserEmail(): String? = plainPrefs.getString("user_email", null)
+
     fun clearAuth() {
         securePrefs.edit().remove("access_token").remove("refresh_token").apply()
+        plainPrefs.edit().remove("user_email").apply()
     }
 
     // WebDAV config

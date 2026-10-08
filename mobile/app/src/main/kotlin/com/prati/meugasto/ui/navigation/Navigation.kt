@@ -17,6 +17,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Settings : Screen("settings", "Ajustes")
     object Onboarding : Screen("onboarding", "Boas-vindas")
     object ProductHistory : Screen("product_history/{productName}", "Histórico do Produto")
+    object PriceComparison : Screen("price_comparison", "Comparador de Preços")
 }
 
 val BottomNavItems = listOf(

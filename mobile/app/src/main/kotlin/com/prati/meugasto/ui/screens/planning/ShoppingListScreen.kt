@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
@@ -28,7 +29,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShoppingListScreen(
-    database: AppDatabase
+    database: AppDatabase,
+    onNavigateToComparison: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val lists by database.shoppingListDao().getAllLists().collectAsState(initial = emptyList())
@@ -55,7 +57,16 @@ fun ShoppingListScreen(
 
     Scaffold(
         topBar = {
-            AppTopBar(title = "Lista de Compras")
+            AppTopBar(
+                title = "Lista de Compras",
+                actions = listOf(
+                    com.prati.meugasto.ui.components.TopBarAction(
+                        icon = Icons.AutoMirrored.Filled.CompareArrows,
+                        contentDescription = "Comparar Preços",
+                        onClick = onNavigateToComparison
+                    )
+                )
+            )
         }
     ) { padding ->
         Column(

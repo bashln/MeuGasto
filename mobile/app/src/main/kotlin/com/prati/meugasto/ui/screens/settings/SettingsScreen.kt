@@ -157,6 +157,117 @@ fun SettingsScreen(
                 }
             }
 
+            // Configuração Modo Nuvem (Supabase)
+            if (appMode == AppMode.CLOUD) {
+                var cloudEmail by remember { mutableStateOf(preferences.getUserEmail() ?: "") }
+                var cloudPassword by remember { mutableStateOf("") }
+                val isConnected = !preferences.getAccessToken().isNullOrBlank() || !preferences.getUserEmail().isNullOrBlank()
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = AppShapes.Medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(AppSpacing.LG)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Conta na Nuvem (Supabase)",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Surface(
+                                shape = AppShapes.Full,
+                                color = if (isConnected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = if (isConnected) "Conectado" else "Desconectado",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = AppSpacing.SM, vertical = AppSpacing.XS)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(AppSpacing.SM))
+                        Text(
+                            text = if (isConnected)
+                                "Sua conta está sincronizada com a infraestrutura Supabase."
+                            else
+                                "Entre com sua conta Supabase para sincronizar suas compras.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(AppSpacing.MD))
+
+                        if (isConnected) {
+                            OutlinedTextField(
+                                value = preferences.getUserEmail() ?: "usuario@email.com",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Email Vinculado") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = AppShapes.Small
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.MD))
+                            OutlinedButton(
+                                onClick = {
+                                    preferences.clearAuth()
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Desconectado da conta Supabase.")
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.End),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Desconectar")
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = cloudEmail,
+                                onValueChange = { cloudEmail = it },
+                                label = { Text("E-mail") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = AppShapes.Small
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.SM))
+                            OutlinedTextField(
+                                value = cloudPassword,
+                                onValueChange = { cloudPassword = it },
+                                label = { Text("Senha") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = AppShapes.Small,
+                                visualTransformation = PasswordVisualTransformation()
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.MD))
+                            Button(
+                                onClick = {
+                                    if (cloudEmail.isNotBlank()) {
+                                        preferences.saveUserEmail(cloudEmail.trim())
+                                        preferences.saveAuthTokens("token_cloud_session", "refresh_cloud_session")
+                                        cloudPassword = ""
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Conta conectada com sucesso!")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text("Entrar na Nuvem")
+                            }
+                        }
+                    }
+                }
+            }
+
             // Configuração WebDAV (se no modo Local-First)
             if (appMode == AppMode.LOCAL_FIRST) {
                 Card(

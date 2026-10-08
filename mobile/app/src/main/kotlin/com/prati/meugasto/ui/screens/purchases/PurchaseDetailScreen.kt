@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalGasStation
@@ -34,7 +35,8 @@ fun PurchaseDetailScreen(
     purchaseId: Long,
     repository: PurchaseRepository,
     onNavigateBack: () -> Unit,
-    onNavigateToProductHistory: (String) -> Unit = {}
+    onNavigateToProductHistory: (String) -> Unit = {},
+    onNavigateToComparison: () -> Unit = {}
 ) {
     val purchases by repository.getPurchases().collectAsState(initial = emptyList())
     val purchase = purchases.firstOrNull { it.id == purchaseId }
@@ -76,6 +78,11 @@ fun PurchaseDetailScreen(
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNavigateBack = onNavigateBack,
                 actions = listOf(
+                    TopBarAction(
+                        icon = Icons.AutoMirrored.Filled.CompareArrows,
+                        contentDescription = "Comparar Preços",
+                        onClick = onNavigateToComparison
+                    ),
                     TopBarAction(
                         icon = Icons.Default.Delete,
                         contentDescription = "Excluir compra",

@@ -33,7 +33,8 @@ class NavigationStructureTest {
             Screen.Planning,
             Screen.Reports,
             Screen.Settings,
-            Screen.Onboarding
+            Screen.Onboarding,
+            Screen.PriceComparison
         )
         val routes = screens.map { it.route }
         assertEquals(routes.size, routes.distinct().size)
