@@ -47,6 +47,8 @@ fun SettingsScreen(
     var webDavUser by remember { mutableStateOf(preferences.getWebDavUser() ?: "") }
     var webDavPass by remember { mutableStateOf(preferences.getWebDavPass() ?: "") }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
         topBar = {
             AppTopBar(
@@ -54,7 +56,8 @@ fun SettingsScreen(
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNavigateBack = onNavigateBack
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -211,12 +214,38 @@ fun SettingsScreen(
                         Button(
                             onClick = {
                                 preferences.saveWebDavConfig(webDavUrl, webDavUser, webDavPass)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Configuração WebDAV salva com sucesso!")
+                                }
                             },
                             modifier = Modifier.align(Alignment.End)
                         ) {
                             Text("Salvar Configuração")
                         }
                     }
+                }
+            }
+
+            // Privacidade e Princípios
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = AppShapes.Medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(AppSpacing.LG)) {
+                    Text(
+                        text = "Privacidade e Princípios",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                    Text(
+                        text = "O MeuGasto foi construído sob o princípio de Privacidade por Design. Suas notas fiscais e histórico de compras permanecem sob seu controle e nunca são vendidos.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 

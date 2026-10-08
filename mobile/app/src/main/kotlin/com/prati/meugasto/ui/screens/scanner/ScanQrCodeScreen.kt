@@ -29,7 +29,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -533,8 +533,16 @@ fun ConfirmationScreen(
                                 text = item.name,
                                 style = MaterialTheme.typography.bodyMedium
                             )
+                            val unitPriceText = remember(item) {
+                                if (item.quantity != 1.0 && item.quantity > 0.0) {
+                                    val formatted = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("pt", "BR")).format(item.unitPrice)
+                                    "${item.quantity} ${item.unit} • $formatted / ${item.unit}"
+                                } else {
+                                    "${item.quantity} ${item.unit}"
+                                }
+                            }
                             Text(
-                                text = "${item.quantity} ${item.unit}",
+                                text = unitPriceText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

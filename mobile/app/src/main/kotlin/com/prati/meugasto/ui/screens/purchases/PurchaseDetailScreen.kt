@@ -5,9 +5,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalPharmacy
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.*
@@ -23,18 +25,22 @@ import com.prati.meugasto.ui.components.TopBarAction
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PurchaseDetailScreen(
     purchaseId: Long,
     repository: PurchaseRepository,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToProductHistory: (String) -> Unit = {}
 ) {
     val purchases by repository.getPurchases().collectAsState(initial = emptyList())
     val purchase = purchases.firstOrNull { it.id == purchaseId }
     val coroutineScope = rememberCoroutineScope()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var itemSearchQuery by remember { mutableStateOf("") }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -89,6 +95,14 @@ fun PurchaseDetailScreen(
                 CircularProgressIndicator()
             }
         } else {
+            val displayedProducts = remember(purchase.products, itemSearchQuery) {
+                if (itemSearchQuery.isBlank()) {
+                    purchase.products
+                } else {
+                    purchase.products.filter { it.name.contains(itemSearchQuery, ignoreCase = true) }
+                }
+            }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -220,8 +234,36 @@ fun PurchaseDetailScreen(
                     )
                 }
 
-                items(purchase.products) { item ->
+                if (purchase.products.size > 5) {
+                    item {
+                        OutlinedTextField(
+                            value = itemSearchQuery,
+                            onValueChange = { itemSearchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Buscar item na nota...") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            trailingIcon = {
+                                if (itemSearchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { itemSearchQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Limpar busca")
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = AppShapes.Medium
+                        )
+                    }
+                }
+
+                items(displayedProducts) { item ->
                     Card(
+                        onClick = { onNavigateToProductHistory(item.name) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = AppShapes.Small,
                         colors = CardDefaults.cardColors(
@@ -239,19 +281,36 @@ fun PurchaseDetailScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = item.name,
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                                val unitPriceFormatted = remember(item) {
+                                    if (item.quantity != 1.0 && item.quantity > 0.0) {
+                                        val formatted = NumberFormat.getCurrencyInstance(Locale("pt", "BR")).format(item.unitPrice)
+                                        "${item.quantity} ${item.unit} • $formatted / ${item.unit}"
+                                    } else {
+                                        "${item.quantity} ${item.unit}"
+                                    }
+                                }
                                 Text(
-                                    text = "${item.quantity} ${item.unit}",
+                                    text = unitPriceFormatted,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            MoneyText(
-                                value = item.price,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Spacer(modifier = Modifier.width(AppSpacing.SM))
+                            Column(horizontalAlignment = Alignment.End) {
+                                MoneyText(
+                                    value = item.price,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Histórico ›",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                                )
+                            }
                         }
                     }
                 }

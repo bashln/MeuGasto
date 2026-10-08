@@ -27,10 +27,10 @@
 | OnPrimaryDark | `#431407` | Texto sobre primary (dark) |
 | PrimaryContainerDark | `#5A200A` | Cards hero (dark) |
 | OnPrimaryContainerDark | `#FFDBC8` | Texto sobre primaryContainer (dark) |
-| SecondaryDark | `#FDBA74` | Ações de apoio (dark) |
-| OnSecondaryDark | `#431407` | Texto sobre secondary (dark) |
-| SecondaryContainerDark | `#431407` | Cards secundários (dark) |
-| OnSecondaryContainerDark | `#FFEDD5` | Texto sobre secondaryContainer (dark) |
+| SecondaryDark | `#A78BFA` | Ações de apoio e badges de categoria (dark) |
+| OnSecondaryDark | `#2E1065` | Texto sobre secondary (dark) |
+| SecondaryContainerDark | `#3B236E` | Cards secundários e chips (dark) |
+| OnSecondaryContainerDark | `#EDE9FE` | Texto sobre secondaryContainer (dark) |
 | TertiaryDark | `#7DD3FC` | Analytics (dark) |
 | OnTertiaryDark | `#082F49` | Texto sobre tertiary (dark) |
 | TertiaryContainerDark | `#0C4A6E` | Fundos de gráficos (dark) |

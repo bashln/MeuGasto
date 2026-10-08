@@ -3,7 +3,6 @@ package com.prati.meugasto.domain.nfce
 import kotlin.math.abs
 
 object NfcePayloadValidator {
-    const val MAX_ITEMS_PER_PURCHASE = 200
     const val MAX_ITEM_NAME_LENGTH = 200
     const val MAX_TEXT_FIELD_LENGTH = 150
 
@@ -17,7 +16,7 @@ object NfcePayloadValidator {
 
     fun sanitizeText(text: String, maxLength: Int): String {
         return text.trim()
-            .replace("[<>\"'%/\\\\]".toRegex(), "")
+            .replace("[<>]".toRegex(), "")
             .take(maxLength)
     }
 
@@ -30,10 +29,6 @@ object NfcePayloadValidator {
 
         if (data.items.isEmpty()) {
             throw IllegalArgumentException("Nenhum item válido encontrado na nota fiscal.")
-        }
-
-        if (data.items.size > MAX_ITEMS_PER_PURCHASE) {
-            throw IllegalArgumentException("Nota excede o limite máximo de $MAX_ITEMS_PER_PURCHASE itens.")
         }
 
         val sanitizedItems = data.items.map { item ->

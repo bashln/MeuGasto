@@ -28,7 +28,8 @@ import com.prati.meugasto.ui.theme.AppSpacing
 @Composable
 fun ReportsScreen(
     repository: PurchaseRepository,
-    onNavigateToProductHistory: (String) -> Unit = {}
+    onNavigateToProductHistory: (String) -> Unit = {},
+    onScanReceipt: () -> Unit = {}
 ) {
     val spendingByDate by repository.getSpendingByDate().collectAsState(initial = emptyList())
     val spendingByMarket by repository.getSpendingByMarket().collectAsState(initial = emptyList())
@@ -51,7 +52,9 @@ fun ReportsScreen(
                 EmptyState(
                     icon = Icons.Default.BarChart,
                     title = "Dados insuficientes",
-                    description = "Registre algumas compras para ver seus relatórios de gastos e tendências."
+                    description = "Registre algumas compras para ver seus relatórios de gastos e tendências.",
+                    actionLabel = "Escanear Nota Fiscal",
+                    onAction = onScanReceipt
                 )
             }
         } else {
@@ -122,7 +125,7 @@ fun ReportsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(AppSpacing.SM))
                                 MarketSpendingChart(
-                                    data = spendingByMarket.map { (name, total) ->
+                                    data = spendingByMarket.take(5).map { (name, total) ->
                                         BarChartData(label = name, value = total)
                                     }
                                 )

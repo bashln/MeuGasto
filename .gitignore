@@ -52,3 +52,6 @@ Thumbs.db
 
 # Expo (legacy - no longer used)
 .expo/
+
+# Local tools
+.cortexkit/

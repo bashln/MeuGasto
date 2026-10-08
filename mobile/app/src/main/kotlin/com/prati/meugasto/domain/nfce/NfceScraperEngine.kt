@@ -1,6 +1,5 @@
 package com.prati.meugasto.domain.nfce
 
-import android.util.Log
 import com.prati.meugasto.domain.nfce.strategies.RjNfceStrategy
 import com.prati.meugasto.domain.nfce.strategies.RsNfceStrategy
 import io.ktor.client.HttpClient
@@ -61,10 +60,7 @@ class NfceScraperEngine(
             }
 
             val html = response.bodyAsText()
-            Log.d("NfceScraperEngine", "HTML length: ${html.length}")
-            Log.d("NfceScraperEngine", "HTML preview: ${html.take(2000)}")
             val scrapedData = strategy.parseHtml(html, url)
-            Log.d("NfceScraperEngine", "Scraped items: ${scrapedData.items.size}")
             Result.success(scrapedData)
         } catch (e: Exception) {
             Result.failure(e)

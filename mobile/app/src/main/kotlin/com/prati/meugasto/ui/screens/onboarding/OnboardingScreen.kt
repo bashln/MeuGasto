@@ -4,16 +4,14 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,30 +20,28 @@ import com.prati.meugasto.domain.model.AppMode
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
     preferences: UserPreferences,
     onFinish: () -> Unit
 ) {
     var currentStep by remember { mutableIntStateOf(0) }
-    var selectedMode by remember { mutableStateOf(AppMode.LOCAL_FIRST) }
 
     val steps = listOf(
         OnboardingStep(
-            icon = Icons.Default.Security,
-            title = "Privacidade Primeiro",
-            description = "\"Nem nós sabemos quanto você gasta. Só você.\" Seus dados ficam seguros no seu dispositivo."
-        ),
-        OnboardingStep(
             icon = Icons.Default.CameraAlt,
-            title = "Escaneie Notas Fiscais",
-            description = "Aponte o QR Code da NFC-e e o app registra automaticamente todos os itens, preços e mercados."
+            title = "Registro Automático",
+            description = "Aponte a câmera para o QR Code da nota fiscal. O MeuGasto extrai itens, quantidades, preços e supermercados instantaneamente."
         ),
         OnboardingStep(
-            icon = Icons.Default.Storage,
-            title = "Escolha o Modo de Armazenamento",
-            description = "Dados locais ou sincronizados na nuvem. Você decide."
+            icon = Icons.Default.Security,
+            title = "Privacidade por Design",
+            description = "Nem nós sabemos quanto você gasta. Seus dados de consumo pertencem apenas a você e ficam armazenados no seu dispositivo."
+        ),
+        OnboardingStep(
+            icon = Icons.AutoMirrored.Filled.ReceiptLong,
+            title = "Consciência Financeira",
+            description = "Monitore a evolução dos seus gastos por categoria, compare preços entre estabelecimentos e mantenha controle real das suas compras."
         )
     )
 
@@ -59,7 +55,6 @@ fun OnboardingScreen(
         ) {
             Spacer(modifier = Modifier.height(AppSpacing.LG))
 
-            // Logo icônico MeuGasto (estilo original laranja com cupom fiscal)
             Box(
                 modifier = Modifier
                     .size(68.dp)
@@ -67,7 +62,7 @@ fun OnboardingScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.ReceiptLong,
+                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                     contentDescription = "MeuGasto Logo",
                     tint = androidx.compose.ui.graphics.Color.White,
                     modifier = Modifier.size(38.dp)
@@ -83,6 +78,7 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(AppSpacing.XL))
 
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
             ) {
                 steps.forEachIndexed { index, _ ->
@@ -100,137 +96,56 @@ fun OnboardingScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(AppSpacing.XXXL))
-
-            AnimatedContent(
-                targetState = currentStep,
-                transitionSpec = {
-                    fadeIn() + slideInHorizontally { it / 3 } togetherWith
-                    fadeOut() + slideOutHorizontally { -it / 3 }
-                },
-                label = "onboarding_step"
-            ) { step ->
-                when (step) {
-                    0, 1 -> {
-                        val stepData = steps[step]
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedContent(
+                    targetState = currentStep,
+                    transitionSpec = {
+                        fadeIn() + slideInHorizontally { it / 3 } togetherWith
+                            fadeOut() + slideOutHorizontally { -it / 3 }
+                    },
+                    label = "onboarding_step"
+                ) { step ->
+                    val stepData = steps[step]
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppSpacing.MD)
+                    ) {
+                        Surface(
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(112.dp)
                         ) {
-                            Icon(
-                                stepData.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(80.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.XL))
-                            Text(
-                                text = stepData.title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.MD))
-                            Text(
-                                text = stepData.description,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                    2 -> {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = steps[2].title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.MD))
-                            Text(
-                                text = steps[2].description,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.XL))
-
-                            Card(
-                                onClick = { selectedMode = AppMode.LOCAL_FIRST },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = AppShapes.Medium,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (selectedMode == AppMode.LOCAL_FIRST)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surface
-                                ),
-                                border = if (selectedMode == AppMode.LOCAL_FIRST)
-                                    CardDefaults.outlinedCardBorder().copy(
-                                        brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary)
-                                    )
-                                else null
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(AppSpacing.LG),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Storage, contentDescription = null, modifier = Modifier.size(32.dp))
-                                    Spacer(modifier = Modifier.width(AppSpacing.MD))
-                                    Column {
-                                        Text(
-                                            text = "Modo Local-First",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "Dados 100% no seu aparelho. Suporte a backup WebDAV.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(AppSpacing.MD))
-
-                            Card(
-                                onClick = { selectedMode = AppMode.CLOUD },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = AppShapes.Medium,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (selectedMode == AppMode.CLOUD)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surface
-                                ),
-                                border = if (selectedMode == AppMode.CLOUD)
-                                    CardDefaults.outlinedCardBorder().copy(
-                                        brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary)
-                                    )
-                                else null
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(AppSpacing.LG),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(32.dp))
-                                    Spacer(modifier = Modifier.width(AppSpacing.MD))
-                                    Column {
-                                        Text(
-                                            text = "Modo Nuvem",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "Sincronização com Supabase e criptografia.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    stepData.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(56.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
+                        Spacer(modifier = Modifier.height(AppSpacing.XXL))
+                        Text(
+                            text = stepData.title,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(AppSpacing.MD))
+                        Text(
+                            text = stepData.description,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }
@@ -240,7 +155,7 @@ fun OnboardingScreen(
                     if (currentStep < steps.lastIndex) {
                         currentStep++
                     } else {
-                        preferences.setAppMode(selectedMode)
+                        preferences.setAppMode(AppMode.LOCAL_FIRST)
                         preferences.setOnboardingCompleted(true)
                         onFinish()
                     }
@@ -257,21 +172,23 @@ fun OnboardingScreen(
             }
 
             if (currentStep > 0) {
-                Spacer(modifier = Modifier.height(AppSpacing.MD))
+                Spacer(modifier = Modifier.height(AppSpacing.SM))
                 TextButton(
                     onClick = { if (currentStep > 0) currentStep-- }
                 ) {
                     Text("Voltar")
                 }
+            } else {
+                Spacer(modifier = Modifier.height(48.dp))
             }
 
-            Spacer(modifier = Modifier.height(AppSpacing.XL))
+            Spacer(modifier = Modifier.height(AppSpacing.MD))
         }
     }
 }
 
 private data class OnboardingStep(
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val icon: ImageVector,
     val title: String,
     val description: String
 )

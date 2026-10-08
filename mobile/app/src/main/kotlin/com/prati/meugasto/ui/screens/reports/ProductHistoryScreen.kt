@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +15,7 @@ import com.prati.meugasto.data.local.database.ProductPriceEntry
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.DateFormatters
+import com.prati.meugasto.ui.components.EmptyState
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.components.charts.LineChartData
 import com.prati.meugasto.ui.components.charts.SpendingTrendChart
@@ -50,13 +52,27 @@ fun ProductHistoryScreen(
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = AppSpacing.LG),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.LG)
-        ) {
+        if (priceHistory.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = AppSpacing.LG)
+            ) {
+                EmptyState(
+                    icon = Icons.Default.Info,
+                    title = "Sem histórico",
+                    description = "Nenhum registro de compra encontrado para este produto."
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = AppSpacing.LG),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.LG)
+            ) {
             item {
                 Spacer(modifier = Modifier.height(AppSpacing.SM))
                 Card(
@@ -175,18 +191,9 @@ fun ProductHistoryScreen(
                 }
             }
 
-            if (priceHistory.isEmpty()) {
                 item {
-                    Text(
-                        text = "Nenhum histórico de preços disponível para este produto.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(AppSpacing.XL))
                 }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(AppSpacing.XL))
             }
         }
     }

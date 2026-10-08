@@ -61,10 +61,10 @@ val OnPrimaryDark = Color(0xFF431407)
 val PrimaryContainerDark = Color(0xFF5A200A)
 val OnPrimaryContainerDark = Color(0xFFFFDBC8)
 
-val SecondaryDark = Color(0xFFFDBA74)
-val OnSecondaryDark = Color(0xFF431407)
-val SecondaryContainerDark = Color(0xFF431407)
-val OnSecondaryContainerDark = Color(0xFFFFEDD5)
+val SecondaryDark = Color(0xFFA78BFA)          // Roxo suave legível em superfícies escuras
+val OnSecondaryDark = Color(0xFF2E1065)
+val SecondaryContainerDark = Color(0xFF3B236E)
+val OnSecondaryContainerDark = Color(0xFFEDE9FE)
 
 val TertiaryDark = Color(0xFF7DD3FC)
 val OnTertiaryDark = Color(0xFF082F49)
@@ -99,7 +99,7 @@ val OnInfoContainerDark = Color(0xFFE0F2FE)
 
 // Chart palette — dark variants
 val ChartPrimaryDark = Color(0xFFFF8C5A)
-val ChartSecondaryDark = Color(0xFF7DD3FC)
+val ChartSecondaryDark = Color(0xFFA78BFA)
 val ChartTertiaryDark = Color(0xFFFCD34D)
 val ChartQuaternaryDark = Color(0xFFC4B5FD)
 val ChartPositiveDark = Color(0xFF86EFAC)

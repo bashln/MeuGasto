@@ -9,6 +9,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.prati.meugasto.ui.navigation.BottomNavItems
@@ -84,6 +86,22 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                    },
+                    floatingActionButton = {
+                        if (shouldShowBottomBar) {
+                            FloatingActionButton(
+                                onClick = { navController.navigate(Screen.Scanner.route) },
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = androidx.compose.ui.graphics.Color.White,
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = "Escanear NFC-e"
+                                )
+                            }
+                        }
                     }
                 ) { innerPadding ->
                     NavHost(
@@ -118,7 +136,8 @@ class MainActivity : ComponentActivity() {
                                 repository = repository,
                                 onNavigateToDetail = { purchaseId ->
                                     navController.navigate("purchase_detail/$purchaseId")
-                                }
+                                },
+                                onNavigateToScanner = { navController.navigate(Screen.Scanner.route) }
                             )
                         }
 
@@ -143,7 +162,8 @@ class MainActivity : ComponentActivity() {
                                 repository = repository,
                                 onNavigateToProductHistory = { productName ->
                                     navController.navigate("product_history/${java.net.URLEncoder.encode(productName, "UTF-8")}")
-                                }
+                                },
+                                onScanReceipt = { navController.navigate(Screen.Scanner.route) }
                             )
                         }
 
@@ -171,7 +191,10 @@ class MainActivity : ComponentActivity() {
                             PurchaseDetailScreen(
                                 purchaseId = purchaseId,
                                 repository = repository,
-                                onNavigateBack = { navController.popBackStack() }
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToProductHistory = { productName ->
+                                    navController.navigate("product_history/${java.net.URLEncoder.encode(productName, "UTF-8")}")
+                                }
                             )
                         }
                     }

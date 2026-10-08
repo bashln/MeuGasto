@@ -1,156 +1,96 @@
 # MeuGasto
 
-Aplicação mobile para gerenciamento inteligente de compras em mercados.
+Aplicativo Android nativo para controle de compras e gastos em supermercados, farmácias e postos.
 
-Foco em controle de gastos, organização de compras e integração com NFC-e.
-Arquitetura preparada para evolução para modelo SaaS.
+O aplicativo registra compras automaticamente através da leitura do QR Code da NFC-e (Nota Fiscal de Consumidor Eletrônica), extraindo itens, quantidades, valores e dados do estabelecimento.
 
 ## Download
 
 Baixe a versão mais recente diretamente na seção de [Releases](https://github.com/bashln/MeuGasto/releases).
 
-Os APKs são gerados automaticamente via GitHub Actions para tags no formato `vX.Y.Z.W`.
+Os arquivos APK assinados são gerados automaticamente pelo GitHub Actions para tags no formato `vX.Y.Z.W`.
 
-## Stack
+## Tecnologia
 
-- **Mobile Nativo:** Kotlin 2.x + Jetpack Compose (Material 3 / Material You) + Room DB
-- **Modos de Operação (Dual Mode):**
-  - _Modo Nuvem:_ Supabase (Auth, Postgres, RLS)
-  - _Modo Local-First:_ Banco local criptografado + sincronização pessoal via WebDAV (Nextcloud/ownCloud), Google Drive ou Dropbox
-- **Hardware & Fiscais:** CameraX + Google ML Kit (Leitor QR Code) + Motor de Scraping NFC-e (GET-first)
-- **Build & CI/CD:** Gradle 8.9 + GitHub Actions (Release de APK standalone assinado)
+- **Linguagem e interface:** Kotlin 2.x com Jetpack Compose e Material 3
+- **Banco de dados local:** Room Database (SQLite)
+- **Câmera e visão:** CameraX e Google ML Kit Barcode Scanning
+- **Comunicação de rede:** Ktor Client com OkHttp
+- **Armazenamento e sincronização:**
+  - Modo Local-First: dados armazenados exclusivamente no dispositivo, com suporte a backup pessoal via WebDAV.
+  - Modo Nuvem: sincronização com Supabase (PostgreSQL com Row Level Security).
+- **Compilação e automação:** Gradle 8.9 e GitHub Actions
 
-## Estrutura
+## Estrutura do projeto
 
 ```
 .
-├── docs/                      # Documentação do projeto
-│   ├── README.md              # Índice da documentação
-│   ├── adr/                   # Decisões arquiteturais registradas
-│   ├── architecture/          # Desenho e diretrizes de arquitetura
-│   ├── development/           # Guias de desenvolvimento e build
-│   ├── product/               # Roadmap e backlogs de produto
-│   └── security/              # Políticas e planos de segurança/privacidade
-├── mobile/                    # Aplicativo Expo
-│   ├── src/
-│   │   ├── components/        # Componentes reutilizáveis
-│   │   ├── screens/           # Telas
-│   │   ├── services/          # Integrações com Supabase
-│   │   ├── context/           # Contextos React
-│   │   ├── types/             # Tipos TypeScript
-│   │   ├── utils/             # Funções auxiliares
-│   │   ├── navigation/        # React Navigation
-│   │   └── lib/               # Configurações (Supabase)
-│   ├── assets/
-│   └── supabase_schema.sql    # Estrutura inicial do banco
-└── ...
+├── docs/                      # Documentação técnica, arquitetura e ADRs
+├── mobile/                    # Projeto Android nativo
+│   ├── app/
+│   │   ├── src/main/kotlin/   # Código-fonte da aplicação
+│   │   └── src/test/kotlin/   # Testes unitários
+│   ├── gradle/                # Version catalog e wrapper do Gradle
+│   └── build.gradle.kts       # Configuração de build do projeto
+├── scripts/                   # Scripts de validação, segurança e CI
+└── supabase/                  # Migrações e testes de segurança do banco
 ```
 
-## Executando em Desenvolvimento
+## Desenvolvimento
+
+Para compilar e testar o aplicativo, utilize o Android SDK com Java 17.
+
+Navegue até a pasta `mobile`:
 
 ```bash
 cd mobile
-npm install
-npx expo start
 ```
 
-Limpar cache se necessário:
+Executar os testes unitários:
 
 ```bash
-npx expo start --clear
+./gradlew test
 ```
 
-Comandos úteis:
+Gerar o APK de depuração:
 
 ```bash
-cd mobile
-npx tsc --noEmit
+./gradlew assembleDebug
 ```
 
-## Variáveis de Ambiente
-
-Criar `.env` dentro de `mobile/` (apenas `EXPO_PUBLIC_`):
-
-```
-EXPO_PUBLIC_SUPABASE_URL=
-EXPO_PUBLIC_SUPABASE_ANON_KEY=
-```
-
-Schema do banco (referência): `mobile/supabase_schema.sql`.
-
-Para uma instalação nova, aplique `mobile/supabase_schema.sql`,
-`mobile/supabase_privacy_migration.sql`, `mobile/supabase_price_comparison_migration.sql`
-e, por último, `mobile/supabase_security_hardening_migration.sql`. O hardening restringe
-referências entre usuários, acesso aos analytics, escrita no log de auditoria e abuso
-de recursos com quotas e limites horários de escrita por usuário. Valide a sequência
-completa primeiro em uma branch de staging do Supabase; nunca use o banco de produção
-como ambiente de ensaio.
-
-Depois de aplicar o hardening em staging, execute
-`mobile/supabase_security_hardening_smoke_test.sql` com `ON_ERROR_STOP=1` para
-confirmar RLS, privilégios e todos os triggers de rate limit antes da promoção.
-
-O plano para cumprir literalmente a promessa de administração sem acesso aos gastos
-está em `docs/adr/0001-admin-blind-e2ee.md`. Ele exige migração gradual e novo APK;
-não é uma alteração compatível apenas com OTA.
-
-## Build Android (Preview)
+Instalar diretamente em um dispositivo conectado via USB ou emulador:
 
 ```bash
-cd mobile
-eas build -p android --profile preview
+./gradlew installDebug
 ```
 
-## Android em Dispositivo
-
-`debug` em aparelho fisico depende do Metro. O APK `debug` nao e standalone.
+Gerar o APK de release assinado localmente:
 
 ```bash
-cd mobile
-npm run android:build:device:debug
-npm run android:install:device:debug
-npm run android:start:device:debug
+export MEUGASTO_STORE_FILE=/caminho/para/meugasto-release.jks
+export MEUGASTO_STORE_PASSWORD=senha
+export MEUGASTO_KEY_ALIAS=alias
+export MEUGASTO_KEY_PASSWORD=senha
+./gradlew assembleRelease
 ```
 
-Se o app ja estiver instalado em `debug`, tambem funciona:
+O arquivo gerado fica em `mobile/app/build/outputs/apk/release/app-release.apk`.
 
-```bash
-cd mobile
-npm run android:reverse
-npx expo start --dev-client
+## Variáveis de ambiente
+
+As variáveis de conexão com o Supabase podem ser passadas pelo ambiente ou por um arquivo `.env` na pasta `mobile/`:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anonima
 ```
 
-`release` local gera APK standalone, mas exige keystore configurado:
+No Android nativo, essas variáveis são incorporadas na classe `BuildConfig` durante a compilação.
 
-```bash
-cd mobile
-export MEUGASTO_STORE_FILE=/caminho/para/seu-release.jks
-export MEUGASTO_STORE_PASSWORD=...
-export MEUGASTO_KEY_ALIAS=...
-export MEUGASTO_KEY_PASSWORD=...
-npm run android:build:release:local
-```
+## Leitura de NFC-e
 
-## NFC-e
-
-O fluxo de leitura da NFC-e usa WebView para carregar a URL do QR Code e
-executar o scraping no componente `mobile/src/components/NFCeWebView.tsx`.
-Os dados extraídos são usados para criar rascunhos e compras no app.
-
-## Status
-
-Fase atual: Alpha (builds automáticos e funcionais disponíveis em Releases).
+A captura ocorre pelo leitor CameraX integrado ao ML Kit. A URL do QR Code é direcionada para o `NfceScraperEngine`, que seleciona a estratégia estadual correspondente (por exemplo, `RsNfceStrategy` ou `RjNfceStrategy`) e extrai os itens da compra diretamente do portal da SEFAZ.
 
 ## Licença
 
-Este projeto é distribuído sob a licença GNU AGPLv3.
-
-O código pode ser usado, modificado e redistribuído livremente,
-desde que qualquer uso como serviço acessível via rede também
-disponibilize o código-fonte das modificações.
-
-## Dependências externas
-
-- Portais estaduais da SEFAZ para consulta da NFC-e
-- nfce-scraper (https://nfce-scraper.herokuapp.com) como fallback para consulta
-- Serviços de terceiros podem ficar indisponíveis ou mudar sem aviso
+Este projeto é distribuído sob a licença GNU AGPLv3. Veja o arquivo `LICENSE` para detalhes completos.

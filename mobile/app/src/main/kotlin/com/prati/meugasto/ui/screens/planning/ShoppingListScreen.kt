@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -183,7 +184,7 @@ fun ShoppingListScreen(
 
             if (itemsList.isEmpty()) {
                 EmptyState(
-                    icon = Icons.Default.Add,
+                    icon = Icons.Default.Checklist,
                     title = "Nenhum item na lista",
                     description = "Adicione produtos usando o formulário acima"
                 )

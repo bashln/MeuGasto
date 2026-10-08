@@ -90,7 +90,10 @@ data class Item(
     val quantity: Double,
     val unit: String,
     val price: Double
-)
+) {
+    val unitPrice: Double
+        get() = if (quantity > 0.0) price / quantity else price
+}
 
 @Serializable
 data class Purchase(

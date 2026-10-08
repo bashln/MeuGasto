@@ -6,14 +6,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +25,7 @@ import com.prati.meugasto.domain.model.Purchase
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.DateFormatters
 import com.prati.meugasto.ui.components.EmptyState
+import com.prati.meugasto.ui.components.MetricCard
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.components.PeriodSelector
 import com.prati.meugasto.ui.components.SectionHeader
@@ -101,15 +102,6 @@ fun DashboardScreen(
                     )
                 )
             )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNavigateToScanner,
-                icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
-                text = { Text("Escanear NFC-e") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
         }
     ) { padding ->
         LazyColumn(
@@ -164,7 +156,7 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.XS)
                                 ) {
                                     Icon(
-                                        imageVector = if (spentMore) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                                        imageVector = if (spentMore) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
                                         tint = androidx.compose.ui.graphics.Color.White
@@ -227,7 +219,9 @@ fun DashboardScreen(
                     EmptyState(
                         icon = Icons.Default.ShoppingCart,
                         title = "Nenhuma compra neste período",
-                        description = "Escaneie o QR Code de uma nota fiscal para começar!"
+                        description = "Escaneie o QR Code de uma nota fiscal para começar a monitorar seus gastos.",
+                        actionLabel = "Escanear Nota Fiscal",
+                        onAction = onNavigateToScanner
                     )
                 }
             } else {
@@ -240,7 +234,7 @@ fun DashboardScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.XL))
             }
         }
     }
@@ -252,30 +246,18 @@ fun QuickMetricCard(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier,
-        shape = AppShapes.Medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-    ) {
-        Column(
-            modifier = Modifier.padding(AppSpacing.LG)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(AppSpacing.XS))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+    MetricCard(modifier = modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.XS))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

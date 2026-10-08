@@ -6,7 +6,6 @@ import com.prati.meugasto.data.local.database.PurchaseEntity
 import com.prati.meugasto.data.local.database.SupermarketEntity
 import com.prati.meugasto.data.local.database.ProductStats
 import com.prati.meugasto.data.local.database.ProductPriceEntry
-import com.prati.meugasto.data.local.preferences.UserPreferences
 import com.prati.meugasto.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -167,27 +166,5 @@ class LocalPurchaseRepository(
     override fun getAllProductNames(): Flow<List<String>> {
         return database.purchaseDao().getAllProductNames()
     }
-}
-
-class UnifiedPurchaseRepository(
-    private val localRepo: LocalPurchaseRepository,
-    private val preferences: UserPreferences
-) : PurchaseRepository {
-
-    private fun activeRepo(): PurchaseRepository {
-        // Quando estiver em modo CLOUD, pode delegar a Supabase;
-        // Atualmente integra com Room localmente garantindo offline-first para ambos os modos.
-        return localRepo
-    }
-
-    override fun getPurchases(): Flow<List<Purchase>> = activeRepo().getPurchases()
-    override suspend fun savePurchase(purchase: Purchase): Long = activeRepo().savePurchase(purchase)
-    override suspend fun deletePurchase(purchaseId: Long) = activeRepo().deletePurchase(purchaseId)
-    override fun getDashboardStats(): Flow<DashboardStats> = activeRepo().getDashboardStats()
-    override fun getSpendingByMarket(): Flow<List<Pair<String, Double>>> = activeRepo().getSpendingByMarket()
-    override fun getSpendingByDate(): Flow<List<Pair<String, Double>>> = activeRepo().getSpendingByDate()
-    override fun getTopProducts(limit: Int): Flow<List<ProductStats>> = activeRepo().getTopProducts(limit)
-    override fun getProductPriceHistory(productName: String): Flow<List<ProductPriceEntry>> = activeRepo().getProductPriceHistory(productName)
-    override fun getAllProductNames(): Flow<List<String>> = activeRepo().getAllProductNames()
 }
 
