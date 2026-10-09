@@ -60,7 +60,6 @@ fun LoginScreen(
             }
             isLoading = false
             result.onSuccess {
-                snackbarHostState.showSnackbar("Conta conectada. Sincronizando compras...")
                 onLoggedIn()
             }.onFailure { e ->
                 errorMessage = when (e) {

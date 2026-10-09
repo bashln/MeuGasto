@@ -63,22 +63,23 @@ class SupabaseAuthRepository(
         val access = session.accessToken?.takeIf { it.isNotBlank() }
             ?: throw SupabaseAuthException("Sessão inválida recebida do servidor.")
         val refresh = session.refreshToken.orEmpty()
-        preferences.saveAuthTokens(access, refresh)
 
-        val user = session.user
-        val email = user?.email
-        val name = user?.userMetadata?.get("name")
+        val userId = session.user?.id ?: preferences.getUserId()
+            ?: throw SupabaseAuthException("Resposta de login sem usuário.")
+        val email = session.user?.email
+        val name = session.user?.userMetadata?.get("name")
             ?.let { (it as? JsonPrimitive)?.contentOrNull }
             ?.takeIf { it.isNotBlank() }
 
-        if (user != null) preferences.saveUserId(user.id)
+        preferences.saveAuthTokens(access, refresh)
+        preferences.saveUserId(userId)
         if (email != null) preferences.saveUserEmail(email)
         if (name != null) preferences.saveUserName(name)
 
         preferences.setAppMode(AppMode.CLOUD)
 
         return AuthState.LoggedIn(
-            userId = user?.id ?: preferences.getUserId().orEmpty(),
+            userId = userId,
             email = email ?: preferences.getUserEmail(),
             name = name ?: preferences.getUserName()
         ).also { _state.value = it }

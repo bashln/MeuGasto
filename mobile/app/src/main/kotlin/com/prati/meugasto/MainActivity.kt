@@ -52,12 +52,12 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
-                val appScope = rememberCoroutineScope()
                 val snackbarHostState = remember { SnackbarHostState() }
+                val authState by authRepository.state.collectAsState()
 
-                // Sessão de nuvem restaurada: sincroniza as compras ao abrir o app.
-                LaunchedEffect(Unit) {
-                    if (authRepository.state.value is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
+                // Sincroniza sempre que a sessão estiver ativa (arranque ou login).
+                LaunchedEffect(authState) {
+                    if (authState is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
                         cloudSyncManager.syncNow().onFailure { error ->
                             snackbarHostState.showSnackbar(
                                 "Não foi possível sincronizar: ${error.message ?: "verifique sua conexão"}"
@@ -241,15 +241,9 @@ class MainActivity : ComponentActivity() {
                             com.prati.meugasto.ui.screens.auth.LoginScreen(
                                 authRepository = authRepository,
                                 onLoggedIn = {
-                                    appScope.launch {
-                                        cloudSyncManager.syncNow().onFailure { error ->
-                                            snackbarHostState.showSnackbar(
-                                                "Conta conectada, mas a sincronização falhou: ${error.message ?: "verifique sua conexão"}"
-                                            )
-                                        }
-                                        navController.navigate(Screen.Dashboard.route) {
-                                            popUpTo(Screen.Login.route) { inclusive = true }
-                                        }
+                                    // O sync é disparado pelo observador de authState no Scaffold.
+                                    navController.navigate(Screen.Dashboard.route) {
+                                        popUpTo(Screen.Login.route) { inclusive = true }
                                     }
                                 },
                                 onNavigateBack = { navController.popBackStack() }
