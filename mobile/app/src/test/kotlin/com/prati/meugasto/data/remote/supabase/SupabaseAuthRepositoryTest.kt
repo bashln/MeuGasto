@@ -68,6 +68,29 @@ class SupabaseAuthRepositoryTest {
         return SupabaseApi("https://proj.supabase.co", "anon-key", client)
     }
 
+    private fun apiReturningSessionWithoutUser(): SupabaseApi {
+        val engine = MockEngine {
+            respond(
+                content = """{"access_token":"access-123","refresh_token":"refresh-456"}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val client = HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        return SupabaseApi("https://proj.supabase.co", "anon-key", client)
+    }
+
+    @Test
+    fun `signIn sem user na resposta falha em vez de ficar meio-logado`() = runTest {
+        val prefs = FakePrefs(mode = AppMode.LOCAL_FIRST)
+        val repository = SupabaseAuthRepository(apiReturningSessionWithoutUser(), prefs)
+
+        val result = repository.signIn("ana@example.com", "segredo123")
+
+        assertTrue(result.isFailure)
+        assertEquals(AuthState.LoggedOut, repository.state.value)
+    }
+
     @Test
     fun `modo nuvem sem sessao valida volta para local`() {
         val prefs = FakePrefs(mode = AppMode.CLOUD)
