@@ -5,3 +5,10 @@ Root-cause B2/B3	No cloud integration exists	grep found zero Supabase client usa
 Choose raw Ktor over supabase-kt DSL	Control + testability; avoid DSL API risk	gradle cache has gotrue-kt 2.6.0; raw REST endpoints known	SupabaseApi on Ktor + kotlinx.serialization, unit-testable with MockEngine
 Choose Room-mirror (candidate A) over repository swap	All screens read Room; B would leave Reports/History empty in cloud mode	DashboardScreen/ReportsScreen read repository.getPurchases()	CloudPurchaseSync mirrors remote into Room via remoteId (idempotent)
 Prod boundary check	Confirm endpoints and auth mode	/auth/v1/settings -> mailer_autoconfirm true; anon select purchases -> HTTP 200 []	real login possible; RLS blocks anon
+Verified prod schema via PostgREST column probes (anon key, read-only)
+purchases/supermarkets/items columns used by the app all exist; items.normalized_name absent in prod (docs schema stale)
+privacy migration live: access_key_hash present, create_purchase_with_items RPC exists
+Supabase CLI linked to staging raahbqxjtgyhvzlptbnm, not prod xiguamctjwnezbzjipwl
+Prod E2E with isolated test user (created + deleted via Management API/service_role): login + fetch ok, numerics are JSON numbers
+Real-account E2E (user-provided): 24 purchases, 119 items, R$ 1.109,14 total rendered on Dashboard after login
+Released v0.5.0.0 (versionCode 72): pushed dev + tag, release.yml triggered
