@@ -1,6 +1,6 @@
 package com.prati.meugasto.data.remote.supabase
 
-import com.prati.meugasto.data.local.preferences.UserPreferences
+import com.prati.meugasto.data.local.preferences.AuthPreferences
 import com.prati.meugasto.domain.model.AppMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +19,7 @@ sealed interface AuthState {
  */
 class SupabaseAuthRepository(
     private val api: SupabaseApi,
-    private val preferences: UserPreferences
+    private val preferences: AuthPreferences
 ) {
 
     private val _state = MutableStateFlow(currentState())

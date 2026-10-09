@@ -15,7 +15,23 @@ enum class ThemeMode {
     SYSTEM
 }
 
-class UserPreferences(context: Context) {
+/** Superfície mínima de sessão usada pelo repositório de nuvem. */
+interface AuthPreferences {
+    fun getAccessToken(): String?
+    fun getRefreshToken(): String?
+    fun getAppMode(): AppMode
+    fun setAppMode(mode: AppMode)
+    fun saveAuthTokens(accessToken: String, refreshToken: String)
+    fun saveUserEmail(email: String)
+    fun getUserEmail(): String?
+    fun saveUserName(name: String)
+    fun getUserName(): String?
+    fun saveUserId(id: String)
+    fun getUserId(): String?
+    fun clearAuth()
+}
+
+class UserPreferences(context: Context) : AuthPreferences {
 
     private val plainPrefs: SharedPreferences =
         context.getSharedPreferences("meugasto_settings", Context.MODE_PRIVATE)
@@ -45,7 +61,7 @@ class UserPreferences(context: Context) {
     private val _themeMode = MutableStateFlow(getThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    fun getAppMode(): AppMode {
+    override fun getAppMode(): AppMode {
         val modeStr = plainPrefs.getString("app_mode", AppMode.LOCAL_FIRST.name)
         return try {
             AppMode.valueOf(modeStr ?: AppMode.LOCAL_FIRST.name)
@@ -54,7 +70,7 @@ class UserPreferences(context: Context) {
         }
     }
 
-    fun setAppMode(mode: AppMode) {
+    override fun setAppMode(mode: AppMode) {
         plainPrefs.edit().putString("app_mode", mode.name).apply()
         _appMode.value = mode
     }
@@ -82,35 +98,35 @@ class UserPreferences(context: Context) {
     }
 
     // Supabase Auth tokens & Account
-    fun saveAuthTokens(accessToken: String, refreshToken: String) {
+    override fun saveAuthTokens(accessToken: String, refreshToken: String) {
         securePrefs.edit()
             .putString("access_token", accessToken)
             .putString("refresh_token", refreshToken)
             .apply()
     }
 
-    fun getAccessToken(): String? = securePrefs.getString("access_token", null)
-    fun getRefreshToken(): String? = securePrefs.getString("refresh_token", null)
+    override fun getAccessToken(): String? = securePrefs.getString("access_token", null)
+    override fun getRefreshToken(): String? = securePrefs.getString("refresh_token", null)
 
-    fun saveUserEmail(email: String) {
+    override fun saveUserEmail(email: String) {
         plainPrefs.edit().putString("user_email", email).apply()
     }
 
-    fun getUserEmail(): String? = plainPrefs.getString("user_email", null)
+    override fun getUserEmail(): String? = plainPrefs.getString("user_email", null)
 
-    fun saveUserName(name: String) {
+    override fun saveUserName(name: String) {
         plainPrefs.edit().putString("user_name", name).apply()
     }
 
-    fun getUserName(): String? = plainPrefs.getString("user_name", null)
+    override fun getUserName(): String? = plainPrefs.getString("user_name", null)
 
-    fun saveUserId(id: String) {
+    override fun saveUserId(id: String) {
         plainPrefs.edit().putString("user_id", id).apply()
     }
 
-    fun getUserId(): String? = plainPrefs.getString("user_id", null)
+    override fun getUserId(): String? = plainPrefs.getString("user_id", null)
 
-    fun clearAuth() {
+    override fun clearAuth() {
         securePrefs.edit().remove("access_token").remove("refresh_token").apply()
         plainPrefs.edit().remove("user_email").remove("user_name").remove("user_id").apply()
     }
