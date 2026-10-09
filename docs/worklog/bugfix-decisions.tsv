@@ -12,3 +12,6 @@ Supabase CLI linked to staging raahbqxjtgyhvzlptbnm, not prod xiguamctjwnezbzjip
 Prod E2E with isolated test user (created + deleted via Management API/service_role): login + fetch ok, numerics are JSON numbers
 Real-account E2E (user-provided): 24 purchases, 119 items, R$ 1.109,14 total rendered on Dashboard after login
 Released v0.5.0.0 (versionCode 72): pushed dev + tag, release.yml triggered
+Upload implemented: CloudPurchaseUploader inserts supermarket/purchase/items and persists remoteId; items use identical keys to avoid PGRST102
+Upload tested: CloudPurchaseUploaderTest (mockk Room + MockEngine) + SupabaseApi insert cases; 52 debug tests green
+Released v0.5.1.0 (versionCode 73) with upload; v0.5.0.0 (fetch) already published
