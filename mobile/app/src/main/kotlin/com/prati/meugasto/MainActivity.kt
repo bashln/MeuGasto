@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
         val database = app.database
         val authRepository = app.authRepository
         val cloudSyncManager = app.cloudSyncManager
+        val cloudUploader = app.cloudUploader
 
         setContent {
             val themeMode by preferences.themeMode.collectAsState()
@@ -171,6 +172,11 @@ class MainActivity : ComponentActivity() {
                                 onPurchaseCreated = { purchaseId ->
                                     navController.navigate("purchase_detail/$purchaseId") {
                                         popUpTo(Screen.Scanner.route) { inclusive = true }
+                                    }
+                                },
+                                onPurchaseSaved = { purchaseId ->
+                                    if (authRepository.state.value is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
+                                        cloudUploader.upload(purchaseId)
                                     }
                                 }
                             )

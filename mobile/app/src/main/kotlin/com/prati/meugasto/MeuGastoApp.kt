@@ -4,6 +4,7 @@ import android.app.Application
 import com.prati.meugasto.data.local.database.AppDatabase
 import com.prati.meugasto.data.local.preferences.UserPreferences
 import com.prati.meugasto.data.remote.supabase.CloudPurchaseSync
+import com.prati.meugasto.data.remote.supabase.CloudPurchaseUploader
 import com.prati.meugasto.data.remote.supabase.CloudSyncManager
 import com.prati.meugasto.data.remote.supabase.SupabaseApi
 import com.prati.meugasto.data.remote.supabase.SupabaseAuthRepository
@@ -30,6 +31,9 @@ class MeuGastoApp : Application() {
     lateinit var cloudSyncManager: CloudSyncManager
         private set
 
+    lateinit var cloudUploader: CloudPurchaseUploader
+        private set
+
     override fun onCreate() {
         super.onCreate()
         database = AppDatabase.getInstance(this)
@@ -42,6 +46,11 @@ class MeuGastoApp : Application() {
             api = supabaseApi,
             auth = authRepository,
             sync = CloudPurchaseSync(database)
+        )
+        cloudUploader = CloudPurchaseUploader(
+            api = supabaseApi,
+            auth = authRepository,
+            database = database
         )
     }
 }

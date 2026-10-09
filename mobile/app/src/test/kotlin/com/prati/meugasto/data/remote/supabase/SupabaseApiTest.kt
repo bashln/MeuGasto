@@ -10,6 +10,8 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -132,5 +134,69 @@ class SupabaseApiTest {
     fun `api com placeholder nao esta configurada`() {
         val api = SupabaseApi("https://placeholder.supabase.co", "anon-key", client(MockEngine { respond("") }))
         assertTrue(!api.isConfigured)
+    }
+
+    @Test
+    fun `insertReturningId pede representacao e devolve id`() = runTest {
+        var capturedPath = ""
+        var capturedPrefer = ""
+        val engine = MockEngine { request ->
+            capturedPath = request.url.encodedPath
+            capturedPrefer = request.headers["Prefer"].orEmpty()
+            respond(content = """[{"id":42}]""", status = HttpStatusCode.Created, headers = jsonHeaders)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+
+        val id = api.insertReturningId(
+            "tok",
+            "supermarkets",
+            kotlinx.serialization.json.buildJsonObject { put("name", kotlinx.serialization.json.JsonPrimitive("Mercado")) }
+        )
+
+        assertEquals(42L, id)
+        assertEquals("/rest/v1/supermarkets", capturedPath)
+        assertTrue(capturedPrefer.contains("return=representation"))
+    }
+
+    @Test
+    fun `insertItems envia as mesmas chaves em todos os itens`() = runTest {
+        var capturedBody = ""
+        val engine = MockEngine { request ->
+            capturedBody = (request.body as? TextContent)?.text.orEmpty()
+            respond(content = "", status = HttpStatusCode.Created)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+
+        val items = kotlinx.serialization.json.JsonArray(
+            listOf(
+                kotlinx.serialization.json.buildJsonObject {
+                    put("purchase_id", kotlinx.serialization.json.JsonPrimitive(1))
+                    put("name", kotlinx.serialization.json.JsonPrimitive("Arroz"))
+                    put("code", kotlinx.serialization.json.JsonNull)
+                    put("category_id", kotlinx.serialization.json.JsonPrimitive(2))
+                    put("quantity", kotlinx.serialization.json.JsonPrimitive(1.0))
+                    put("unit", kotlinx.serialization.json.JsonPrimitive("un"))
+                    put("price", kotlinx.serialization.json.JsonPrimitive(9.9))
+                },
+                kotlinx.serialization.json.buildJsonObject {
+                    put("purchase_id", kotlinx.serialization.json.JsonPrimitive(1))
+                    put("name", kotlinx.serialization.json.JsonPrimitive("Leite"))
+                    put("code", kotlinx.serialization.json.JsonPrimitive("789"))
+                    put("category_id", kotlinx.serialization.json.JsonNull)
+                    put("quantity", kotlinx.serialization.json.JsonPrimitive(2.0))
+                    put("unit", kotlinx.serialization.json.JsonPrimitive("un"))
+                    put("price", kotlinx.serialization.json.JsonPrimitive(4.5))
+                }
+            )
+        )
+
+        api.insertItems("tok", items)
+
+        val array = SupabaseApi.json.parseToJsonElement(capturedBody).jsonArray
+        val keys0 = array[0].jsonObject.keys
+        val keys1 = array[1].jsonObject.keys
+        assertEquals(keys0, keys1)
+        assertTrue(keys0.contains("code"))
+        assertTrue(keys0.contains("category_id"))
     }
 }

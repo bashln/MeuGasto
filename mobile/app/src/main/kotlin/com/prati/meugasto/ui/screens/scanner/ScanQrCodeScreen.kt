@@ -54,7 +54,8 @@ import kotlin.math.min
 fun ScanQrCodeScreen(
     repository: PurchaseRepository,
     onNavigateBack: () -> Unit,
-    onPurchaseCreated: (Long) -> Unit
+    onPurchaseCreated: (Long) -> Unit,
+    onPurchaseSaved: suspend (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -175,6 +176,7 @@ fun ScanQrCodeScreen(
                                     }
                                 )
                                 val id = repository.savePurchase(purchase)
+                                onPurchaseSaved(id)
                                 onPurchaseCreated(id)
                             }
                         },

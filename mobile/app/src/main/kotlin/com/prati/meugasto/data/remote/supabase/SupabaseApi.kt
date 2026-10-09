@@ -18,6 +18,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
 open class SupabaseException(message: String, val statusCode: Int = 0) : Exception(message)
@@ -76,9 +77,10 @@ data class RemotePurchase(
 )
 
 @Serializable
-private data class EmailCredentials(val email: String, val password: String)
+data class IdRow(val id: Long)
 
 @Serializable
+private data class EmailCredentials(val email: String, val password: String)@Serializable
 private data class SignUpRequest(
     val email: String,
     val password: String,
@@ -146,6 +148,30 @@ class SupabaseApi(
         }
         if (!response.status.isSuccess()) throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
         return response.body()
+    }
+
+    /** Insere um registo e devolve o id gerado pelo Postgres. */
+    suspend fun insertReturningId(accessToken: String, table: String, body: JsonObject): Long {
+        val response = client.post("$baseUrl/rest/v1/$table") {
+            header("apikey", anonKey)
+            header("Authorization", "Bearer $accessToken")
+            header("Prefer", "return=representation")
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        if (!response.status.isSuccess()) throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+        return response.body<List<IdRow>>().first().id
+    }
+
+    suspend fun insertItems(accessToken: String, items: JsonArray) {
+        val response = client.post("$baseUrl/rest/v1/items") {
+            header("apikey", anonKey)
+            header("Authorization", "Bearer $accessToken")
+            header("Prefer", "return=minimal")
+            contentType(ContentType.Application.Json)
+            setBody(items)
+        }
+        if (!response.status.isSuccess()) throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
     }
 
     private suspend inline fun <reified T> HttpResponse.decodeOrThrow(): T {

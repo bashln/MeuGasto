@@ -76,6 +76,9 @@ interface PurchaseDao {
     @Query("SELECT id FROM purchases WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findIdByRemoteId(remoteId: Long): Long?
 
+    @Query("UPDATE purchases SET remoteId = :remoteId WHERE id = :id")
+    suspend fun setRemoteId(id: Long, remoteId: Long)
+
     @Query(
         "UPDATE purchases SET supermarketId = :supermarketId, date = :date, totalPrice = :totalPrice, " +
             "isManual = :isManual, updatedAt = :updatedAt WHERE id = :id"
