@@ -85,7 +85,7 @@ class RsNfceStrategy : NfceStateStrategy {
             else -> candidateTotal ?: 0.0
         }
 
-        val dateRegex = Regex("(?i)Emissão:.*?(\\d{2}/\\d{2}/\\d{4})")
+        val dateRegex = Regex("(?i)Emiss(?:&atilde;|[ãa])o:.*?(\\d{2}/\\d{2}/\\d{4})")
         val dateStr = dateRegex.find(html)?.groupValues?.get(1)
         val date = try {
             if (dateStr != null) {

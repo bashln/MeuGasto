@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.prati.meugasto.domain.comparator.ComparisonCandidate
@@ -75,10 +76,37 @@ fun PriceComparisonScreen(
             verticalArrangement = Arrangement.spacedBy(AppSpacing.LG)
         ) {
             Text(
-                text = "Compare o custo real por unidade de medida entre dois tamanhos ou marcas.",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Compare preços sem salvar no histórico",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Compare o custo real por unidade de medida para descobrir qual opção compensa mais.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        name1 = "Item 1"
+                        price1Str = ""
+                        qty1Str = ""
+                        unit1 = "un"
+                        name2 = "Item 2"
+                        price2Str = ""
+                        qty2Str = ""
+                        unit2 = "un"
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = AppShapes.Small
+                ) {
+                    Text("🧹 Limpar Tudo")
+                }
+            }
 
             // Card Item 1
             ItemInputCard(
@@ -282,7 +310,7 @@ private fun ItemInputCard(
             containerColor = if (isWinner) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isWinner) 2.dp else 1.dp),
-        border = if (isWinner) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+        border = if (isWinner) androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF10B981)) else null
     ) {
         Column(modifier = Modifier.padding(AppSpacing.LG)) {
             Row(
@@ -292,19 +320,19 @@ private fun ItemInputCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (isWinner) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (isWinner) {
                     Surface(
                         shape = AppShapes.Full,
-                        color = MaterialTheme.colorScheme.primary
+                        color = Color(0xFF10B981)
                     ) {
                         Text(
-                            text = "Melhor Opção",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = AppSpacing.SM, vertical = AppSpacing.XS)
+                            text = "✓ Mais barato",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = AppSpacing.MD, vertical = AppSpacing.XS)
                         )
                     }
                 }
@@ -330,7 +358,8 @@ private fun ItemInputCard(
                 OutlinedTextField(
                     value = priceStr,
                     onValueChange = onPriceChange,
-                    label = { Text("Preço total") },
+                    label = { Text("Preço") },
+                    placeholder = { Text("0,00") },
                     prefix = { Text("R$ ") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1.2f),
@@ -341,41 +370,41 @@ private fun ItemInputCard(
                 OutlinedTextField(
                     value = qtyStr,
                     onValueChange = onQtyChange,
-                    label = { Text("Qtd / Tamanho") },
+                    label = { Text("Quantidade") },
+                    placeholder = { Text("1") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     shape = AppShapes.Small
                 )
+            }
 
-                var expanded by remember { mutableStateOf(false) }
-                val units = listOf("g", "kg", "ml", "L", "un", "dz")
+            Spacer(modifier = Modifier.height(AppSpacing.SM))
 
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                    modifier = Modifier.weight(0.9f)
-                ) {
-                    OutlinedTextField(
-                        value = selectedUnit,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Un.") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor(),
-                        shape = AppShapes.Small
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+            // Chips de unidade rápida (un, kg, g, l, ml, pc, cx)
+            val units = listOf("un", "kg", "g", "l", "ml", "pc", "cx")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.XS)
+            ) {
+                units.forEach { u ->
+                    val isSelected = selectedUnit.equals(u, ignoreCase = true)
+                    Surface(
+                        onClick = { onUnitChange(u) },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                        color = if (isSelected) com.prati.meugasto.ui.theme.PrimaryBrand else MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        units.forEach { u ->
-                            DropdownMenuItem(
-                                text = { Text(u) },
-                                onClick = {
-                                    onUnitChange(u)
-                                    expanded = false
-                                }
+                        Box(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = u,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                ),
+                                color = if (isSelected) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

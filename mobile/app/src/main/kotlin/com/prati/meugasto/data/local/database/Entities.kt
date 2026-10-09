@@ -5,7 +5,10 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "supermarkets")
+@Entity(
+    tableName = "supermarkets",
+    indices = [Index(value = ["remoteId"], unique = true)]
+)
 data class SupermarketEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
@@ -14,7 +17,9 @@ data class SupermarketEntity(
     val state: String? = null,
     val type: String = "SUPERMARKET",
     val isManual: Boolean = false,
-    val createdAt: String
+    val createdAt: String,
+    /** Id da linha correspondente no Supabase, quando sincronizada. */
+    val remoteId: Long? = null
 )
 
 @Entity(
@@ -27,7 +32,7 @@ data class SupermarketEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["supermarketId"]), Index(value = ["date"])]
+    indices = [Index(value = ["supermarketId"]), Index(value = ["date"]), Index(value = ["remoteId"], unique = true)]
 )
 data class PurchaseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -36,7 +41,9 @@ data class PurchaseEntity(
     val totalPrice: Double,
     val isManual: Boolean = false,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    /** Id da linha correspondente no Supabase, quando sincronizada. */
+    val remoteId: Long? = null
 )
 
 @Entity(
@@ -49,7 +56,7 @@ data class PurchaseEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["purchaseId"])]
+    indices = [Index(value = ["purchaseId"]), Index(value = ["remoteId"], unique = true)]
 )
 data class ItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -59,7 +66,9 @@ data class ItemEntity(
     val categoryId: Int? = null,
     val quantity: Double,
     val unit: String,
-    val price: Double
+    val price: Double,
+    /** Id da linha correspondente no Supabase, quando sincronizada. */
+    val remoteId: Long? = null
 )
 
 @Entity(tableName = "drafts")

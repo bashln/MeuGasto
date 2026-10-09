@@ -8,6 +8,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Balance
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -43,6 +46,8 @@ fun DashboardScreen(
     repository: PurchaseRepository,
     onNavigateToScanner: () -> Unit,
     onNavigateToPurchaseDetail: (Long) -> Unit,
+    onNavigateToPriceComparison: () -> Unit = {},
+    onNavigateToLists: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {}
 ) {
     val allPurchases by repository.getPurchases().collectAsState(initial = emptyList())
@@ -197,16 +202,239 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
                 ) {
-                    QuickMetricCard(
-                        label = "Ticket Médio",
-                        value = avgPurchaseFormatted,
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickMetricCard(
-                        label = "Mercados",
-                        value = "$uniqueMarkets",
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Card Verde: Compras
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = AppShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF10B981)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(AppSpacing.MD)) {
+                            Text(
+                                text = "Compras",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.XS))
+                            Text(
+                                text = "$periodCount",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Card Laranja: Itens
+                    Card(
+                        modifier = Modifier.weight(1.1f),
+                        shape = AppShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = com.prati.meugasto.ui.theme.PrimaryBrand),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(AppSpacing.MD)) {
+                            Text(
+                                text = "Itens únicos",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.XS))
+                            Text(
+                                text = "$periodItems",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Card Azul: Ticket Médio
+                    Card(
+                        modifier = Modifier.weight(1.3f),
+                        shape = AppShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(AppSpacing.MD)) {
+                            Text(
+                                text = "Ticket médio",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.XS))
+                            Text(
+                                text = avgPurchaseFormatted,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                                color = Color.White,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Ações Rápidas (Escanear NFC-e, Comparador de Preços, Listas/Rascunhos)
+            item {
+                SectionHeader(title = "Ações Rápidas")
+            }
+
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.SM)
+                ) {
+                    // Card Escanear NFC-e
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = AppShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(AppSpacing.MD),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFFE8F5E9), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2E7D32)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Escanear NFC-e",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "Leia o QR Code da nota fiscal",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = onNavigateToScanner,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = AppSpacing.MD, vertical = AppSpacing.XS)
+                            ) {
+                                Text("Abrir", color = Color.White)
+                            }
+                        }
+                    }
+
+                    // Card Comparador de Preços
+                    Card(
+                        onClick = onNavigateToPriceComparison,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = AppShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(AppSpacing.MD),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFFEDE9FE), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Balance,
+                                        contentDescription = null,
+                                        tint = Color(0xFF6D28D9)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Comparador de Preços",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "Compare itens por peso e volume",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    // Card Rascunhos / Listas de Compras
+                    Card(
+                        onClick = onNavigateToLists,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = AppShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(AppSpacing.MD),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFFFEF3C7), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = Color(0xFFD97706)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Listas de Compras",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                    )
+                                    Text(
+                                        text = "Planeje suas compras e orçamentos",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 

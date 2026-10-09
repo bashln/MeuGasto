@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ShoppingListEntity::class,
         ShoppingListItemEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,13 +35,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE supermarkets ADD COLUMN remoteId INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE purchases ADD COLUMN remoteId INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE items ADD COLUMN remoteId INTEGER DEFAULT NULL")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_supermarkets_remoteId ON supermarkets(remoteId)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_purchases_remoteId ON purchases(remoteId)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_items_remoteId ON items(remoteId)")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "meugasto.db"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)

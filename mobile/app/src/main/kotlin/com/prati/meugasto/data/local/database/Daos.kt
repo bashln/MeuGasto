@@ -50,6 +50,12 @@ interface SupermarketDao {
     @Query("SELECT * FROM supermarkets WHERE cnpj = :cnpj LIMIT 1")
     suspend fun findByCnpj(cnpj: String): SupermarketEntity?
 
+    @Query("SELECT id FROM supermarkets WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun findIdByRemoteId(remoteId: Long): Long?
+
+    @Query("UPDATE supermarkets SET remoteId = :remoteId WHERE id = :id")
+    suspend fun setRemoteId(id: Long, remoteId: Long)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(supermarket: SupermarketEntity): Long
 
@@ -66,6 +72,22 @@ interface PurchaseDao {
     @Transaction
     @Query("SELECT * FROM purchases WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): PurchaseWithSupermarketAndItems?
+
+    @Query("SELECT id FROM purchases WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun findIdByRemoteId(remoteId: Long): Long?
+
+    @Query(
+        "UPDATE purchases SET supermarketId = :supermarketId, date = :date, totalPrice = :totalPrice, " +
+            "isManual = :isManual, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateFromRemote(
+        id: Long,
+        supermarketId: Long,
+        date: String,
+        totalPrice: Double,
+        isManual: Boolean,
+        updatedAt: String
+    )
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPurchase(purchase: PurchaseEntity): Long

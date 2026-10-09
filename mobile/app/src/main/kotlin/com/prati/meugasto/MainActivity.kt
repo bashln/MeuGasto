@@ -25,6 +25,7 @@ import com.prati.meugasto.ui.screens.reports.ReportsScreen
 import com.prati.meugasto.ui.screens.scanner.ScanQrCodeScreen
 import com.prati.meugasto.ui.screens.settings.SettingsScreen
 import com.prati.meugasto.ui.theme.MeuGastoTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +35,8 @@ class MainActivity : ComponentActivity() {
         val preferences = app.preferences
         val repository = app.purchaseRepository
         val database = app.database
+        val authRepository = app.authRepository
+        val cloudSyncManager = app.cloudSyncManager
 
         setContent {
             val themeMode by preferences.themeMode.collectAsState()
@@ -47,6 +50,14 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
+                val appScope = rememberCoroutineScope()
+
+                // Sessão de nuvem restaurada: sincroniza as compras ao abrir o app.
+                LaunchedEffect(Unit) {
+                    if (authRepository.state.value is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
+                        cloudSyncManager.syncNow()
+                    }
+                }
 
                 val isOnboardingCompleted = remember { preferences.isOnboardingCompleted() }
                 val startDestination = if (isOnboardingCompleted) Screen.Dashboard.route else Screen.Onboarding.route
@@ -58,20 +69,26 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         if (shouldShowBottomBar) {
                             NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 6.dp
+                                containerColor = com.prati.meugasto.ui.theme.PrimaryBrand,
+                                tonalElevation = 8.dp
                             ) {
                                 BottomNavItems.forEach { screen ->
+                                    val isSelected = currentDestination?.route == screen.route
                                     NavigationBarItem(
                                         icon = { screen.icon?.let { Icon(it, contentDescription = screen.title) } },
-                                        label = { Text(screen.title) },
-                                        selected = currentDestination?.route == screen.route,
+                                        label = {
+                                            Text(
+                                                screen.title,
+                                                fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                            )
+                                        },
+                                        selected = isSelected,
                                         colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            selectedIconColor = androidx.compose.ui.graphics.Color.White,
+                                            selectedTextColor = androidx.compose.ui.graphics.Color.White,
+                                            indicatorColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.25f),
+                                            unselectedIconColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.70f),
+                                            unselectedTextColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.70f)
                                         ),
                                         onClick = {
                                             navController.navigate(screen.route) {
@@ -126,6 +143,12 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToScanner = { navController.navigate(Screen.Scanner.route) },
                                 onNavigateToPurchaseDetail = { purchaseId ->
                                     navController.navigate("purchase_detail/$purchaseId")
+                                },
+                                onNavigateToPriceComparison = {
+                                    navController.navigate(Screen.PriceComparison.route)
+                                },
+                                onNavigateToLists = {
+                                    navController.navigate(Screen.Planning.route)
                                 },
                                 onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
                             )
@@ -193,6 +216,33 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Settings.route) {
                             SettingsScreen(
                                 preferences = preferences,
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                                onNavigateToLogin = { navController.navigate(Screen.Login.route) },
+                                onSignOut = { authRepository.signOut() }
+                            )
+                        }
+
+                        composable(Screen.Login.route) {
+                            com.prati.meugasto.ui.screens.auth.LoginScreen(
+                                authRepository = authRepository,
+                                onLoggedIn = {
+                                    appScope.launch {
+                                        cloudSyncManager.syncNow()
+                                        navController.navigate(Screen.Dashboard.route) {
+                                            popUpTo(Screen.Login.route) { inclusive = true }
+                                        }
+                                    }
+                                },
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        composable(Screen.Profile.route) {
+                            com.prati.meugasto.ui.screens.profile.ProfileScreen(
+                                preferences = preferences,
+                                authRepository = authRepository,
+                                onNavigateToLogin = { navController.navigate(Screen.Login.route) },
                                 onNavigateBack = { navController.popBackStack() }
                             )
                         }

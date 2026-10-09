@@ -98,9 +98,21 @@ class UserPreferences(context: Context) {
 
     fun getUserEmail(): String? = plainPrefs.getString("user_email", null)
 
+    fun saveUserName(name: String) {
+        plainPrefs.edit().putString("user_name", name).apply()
+    }
+
+    fun getUserName(): String? = plainPrefs.getString("user_name", null)
+
+    fun saveUserId(id: String) {
+        plainPrefs.edit().putString("user_id", id).apply()
+    }
+
+    fun getUserId(): String? = plainPrefs.getString("user_id", null)
+
     fun clearAuth() {
         securePrefs.edit().remove("access_token").remove("refresh_token").apply()
-        plainPrefs.edit().remove("user_email").apply()
+        plainPrefs.edit().remove("user_email").remove("user_name").remove("user_id").apply()
     }
 
     // WebDAV config

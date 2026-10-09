@@ -12,8 +12,8 @@ class NavigationStructureTest {
         assertEquals("Bottom nav must have exactly 4 main tabs", 4, BottomNavItems.size)
         assertTrue(BottomNavItems.contains(Screen.Dashboard))
         assertTrue(BottomNavItems.contains(Screen.Purchases))
-        assertTrue(BottomNavItems.contains(Screen.Planning))
         assertTrue(BottomNavItems.contains(Screen.Reports))
+        assertTrue(BottomNavItems.contains(Screen.Profile))
     }
 
     @Test
@@ -34,7 +34,9 @@ class NavigationStructureTest {
             Screen.Reports,
             Screen.Settings,
             Screen.Onboarding,
-            Screen.PriceComparison
+            Screen.PriceComparison,
+            Screen.Profile,
+            Screen.Login
         )
         val routes = screens.map { it.route }
         assertEquals(routes.size, routes.distinct().size)

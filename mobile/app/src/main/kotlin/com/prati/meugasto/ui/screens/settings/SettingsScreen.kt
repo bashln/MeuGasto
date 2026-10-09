@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
@@ -31,7 +32,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     preferences: UserPreferences,
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
+    onNavigateToLogin: () -> Unit = {},
+    onSignOut: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -54,7 +58,14 @@ fun SettingsScreen(
             AppTopBar(
                 title = "Ajustes",
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNavigateBack = onNavigateBack
+                onNavigateBack = onNavigateBack,
+                actions = listOf(
+                    com.prati.meugasto.ui.components.TopBarAction(
+                        icon = Icons.Default.Person,
+                        contentDescription = "Perfil do Usuário",
+                        onClick = onNavigateToProfile
+                    )
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -159,8 +170,6 @@ fun SettingsScreen(
 
             // Configuração Modo Nuvem (Supabase)
             if (appMode == AppMode.CLOUD) {
-                var cloudEmail by remember { mutableStateOf(preferences.getUserEmail() ?: "") }
-                var cloudPassword by remember { mutableStateOf("") }
                 val isConnected = !preferences.getAccessToken().isNullOrBlank() || !preferences.getUserEmail().isNullOrBlank()
 
                 Card(
@@ -216,7 +225,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(AppSpacing.MD))
                             OutlinedButton(
                                 onClick = {
-                                    preferences.clearAuth()
+                                    onSignOut()
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Desconectado da conta Supabase.")
                                     }
@@ -229,36 +238,14 @@ fun SettingsScreen(
                                 Text("Desconectar")
                             }
                         } else {
-                            OutlinedTextField(
-                                value = cloudEmail,
-                                onValueChange = { cloudEmail = it },
-                                label = { Text("E-mail") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = AppShapes.Small
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.SM))
-                            OutlinedTextField(
-                                value = cloudPassword,
-                                onValueChange = { cloudPassword = it },
-                                label = { Text("Senha") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = AppShapes.Small,
-                                visualTransformation = PasswordVisualTransformation()
+                            Text(
+                                text = "Entre com sua conta MeuGasto para sincronizar. Uma única entrada já conecta este aparelho.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(AppSpacing.MD))
                             Button(
-                                onClick = {
-                                    if (cloudEmail.isNotBlank()) {
-                                        preferences.saveUserEmail(cloudEmail.trim())
-                                        preferences.saveAuthTokens("token_cloud_session", "refresh_cloud_session")
-                                        cloudPassword = ""
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Conta conectada com sucesso!")
-                                        }
-                                    }
-                                },
+                                onClick = onNavigateToLogin,
                                 modifier = Modifier.align(Alignment.End)
                             ) {
                                 Text("Entrar na Nuvem")

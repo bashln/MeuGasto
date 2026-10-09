@@ -1,0 +1,7 @@
+what	why	evidence	result
+Reproduce B1 on device	Bug-fix step 1, same surface	fresh debug build + screencap showed orange status bar, no white strip	B1 does NOT reproduce on current head; user screenshot showed old UI (light bottom bar)
+Root-cause B1	Rule out insets/theme	Theme.kt sets window.statusBarColor=primary; themes.xml statusBarColor #C2410C; screenshot integrated	no code change needed for B1
+Root-cause B2/B3	No cloud integration exists	grep found zero Supabase client usage; Settings wrote fake token_cloud_session; BuildConfig URL=placeholder unless env	root cause: cloud login and sync were stubs
+Choose raw Ktor over supabase-kt DSL	Control + testability; avoid DSL API risk	gradle cache has gotrue-kt 2.6.0; raw REST endpoints known	SupabaseApi on Ktor + kotlinx.serialization, unit-testable with MockEngine
+Choose Room-mirror (candidate A) over repository swap	All screens read Room; B would leave Reports/History empty in cloud mode	DashboardScreen/ReportsScreen read repository.getPurchases()	CloudPurchaseSync mirrors remote into Room via remoteId (idempotent)
+Prod boundary check	Confirm endpoints and auth mode	/auth/v1/settings -> mailer_autoconfirm true; anon select purchases -> HTTP 200 []	real login possible; RLS blocks anon
