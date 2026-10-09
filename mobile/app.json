@@ -3,7 +3,7 @@
     "name": "MeuGasto",
     "slug": "meugasto",
     "owner": "bashln",
-    "version": "0.5.0.0",
+    "version": "0.5.1.0",
     "scheme": "com.prati.meugasto",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,12 +14,12 @@
       "backgroundColor": "#C2410C"
     },
     "ios": {
-      "buildNumber": "72",
+      "buildNumber": "73",
       "supportsTablet": true,
       "bundleIdentifier": "com.prati.meugasto"
     },
     "android": {
-      "versionCode": 72,
+      "versionCode": 73,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#C2410C"
