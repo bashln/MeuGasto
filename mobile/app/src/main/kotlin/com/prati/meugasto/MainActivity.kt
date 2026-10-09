@@ -53,11 +53,16 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
                 val appScope = rememberCoroutineScope()
+                val snackbarHostState = remember { SnackbarHostState() }
 
                 // Sessão de nuvem restaurada: sincroniza as compras ao abrir o app.
                 LaunchedEffect(Unit) {
                     if (authRepository.state.value is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
-                        cloudSyncManager.syncNow()
+                        cloudSyncManager.syncNow().onFailure { error ->
+                            snackbarHostState.showSnackbar(
+                                "Não foi possível sincronizar: ${error.message ?: "verifique sua conexão"}"
+                            )
+                        }
                     }
                 }
 
@@ -69,6 +74,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     bottomBar = {
                         if (shouldShowBottomBar) {
                             NavigationBar(
@@ -236,7 +242,11 @@ class MainActivity : ComponentActivity() {
                                 authRepository = authRepository,
                                 onLoggedIn = {
                                     appScope.launch {
-                                        cloudSyncManager.syncNow()
+                                        cloudSyncManager.syncNow().onFailure { error ->
+                                            snackbarHostState.showSnackbar(
+                                                "Conta conectada, mas a sincronização falhou: ${error.message ?: "verifique sua conexão"}"
+                                            )
+                                        }
                                         navController.navigate(Screen.Dashboard.route) {
                                             popUpTo(Screen.Login.route) { inclusive = true }
                                         }
