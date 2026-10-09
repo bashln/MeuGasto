@@ -26,8 +26,8 @@ android {
         applicationId = "com.prati.meugasto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 74
-        versionName = "0.5.2.0"
+        versionCode = 75
+        versionName = "0.5.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
