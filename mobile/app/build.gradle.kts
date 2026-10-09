@@ -9,6 +9,15 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Lê mobile/.env quando as variáveis não estão no ambiente, para builds locais.
+val envProps = Properties()
+val envFile = rootProject.file(".env")
+if (envFile.exists()) {
+    envFile.inputStream().use { stream -> envProps.load(stream) }
+}
+fun envValue(vararg keys: String): String? =
+    keys.firstNotNullOfOrNull { System.getenv(it) ?: envProps.getProperty(it) }
+
 android {
     namespace = "com.prati.meugasto"
     compileSdk = 35
@@ -25,11 +34,9 @@ android {
             useSupportLibrary = true
         }
 
-        val supabaseUrl = System.getenv("EXPO_PUBLIC_SUPABASE_URL")
-            ?: System.getenv("SUPABASE_URL")
+        val supabaseUrl = envValue("EXPO_PUBLIC_SUPABASE_URL", "SUPABASE_URL")
             ?: "https://placeholder.supabase.co"
-        val supabaseAnonKey = System.getenv("EXPO_PUBLIC_SUPABASE_ANON_KEY")
-            ?: System.getenv("SUPABASE_ANON_KEY")
+        val supabaseAnonKey = envValue("EXPO_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY")
             ?: "placeholder-anon-key"
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
