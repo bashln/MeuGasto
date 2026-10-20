@@ -202,72 +202,21 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
                 ) {
-                    // Card Verde: Compras
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        shape = AppShapes.Medium,
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF10B981)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(AppSpacing.MD)) {
-                            Text(
-                                text = "Compras",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.XS))
-                            Text(
-                                text = "$periodCount",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    // Card Laranja: Itens
-                    Card(
-                        modifier = Modifier.weight(1.1f),
-                        shape = AppShapes.Medium,
-                        colors = CardDefaults.cardColors(containerColor = com.prati.meugasto.ui.theme.PrimaryBrand),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(AppSpacing.MD)) {
-                            Text(
-                                text = "Itens únicos",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.XS))
-                            Text(
-                                text = "$periodItems",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    // Card Azul: Ticket Médio
-                    Card(
-                        modifier = Modifier.weight(1.3f),
-                        shape = AppShapes.Medium,
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(AppSpacing.MD)) {
-                            Text(
-                                text = "Ticket médio",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.XS))
-                            Text(
-                                text = avgPurchaseFormatted,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                                color = Color.White,
-                                maxLines = 1
-                            )
-                        }
-                    }
+                    QuickMetricCard(
+                        label = "Compras",
+                        value = "$periodCount",
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickMetricCard(
+                        label = "Itens",
+                        value = "$periodItems",
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickMetricCard(
+                        label = "Ticket médio",
+                        value = avgPurchaseFormatted,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -302,13 +251,13 @@ fun DashboardScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFE8F5E9), CircleShape),
+                                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.QrCodeScanner,
                                         contentDescription = null,
-                                        tint = Color(0xFF2E7D32)
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                                 Column {
@@ -325,7 +274,6 @@ fun DashboardScreen(
                             }
                             Button(
                                 onClick = onNavigateToScanner,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = AppSpacing.MD, vertical = AppSpacing.XS)
                             ) {
@@ -356,13 +304,13 @@ fun DashboardScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFEDE9FE), CircleShape),
+                                        .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Balance,
                                         contentDescription = null,
-                                        tint = Color(0xFF6D28D9)
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
                                 }
                                 Column {
@@ -407,13 +355,13 @@ fun DashboardScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color(0xFFFEF3C7), CircleShape),
+                                        .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Description,
                                         contentDescription = null,
-                                        tint = Color(0xFFD97706)
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
                                     )
                                 }
                                 Column {
@@ -448,8 +396,8 @@ fun DashboardScreen(
                         icon = Icons.Default.ShoppingCart,
                         title = "Nenhuma compra neste período",
                         description = "Escaneie o QR Code de uma nota fiscal para começar a monitorar seus gastos.",
-                        actionLabel = "Escanear Nota Fiscal",
-                        onAction = onNavigateToScanner
+                        actionLabel = null,
+                        onAction = null
                     )
                 }
             } else {

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.prati.meugasto.ui.navigation.BottomNavItems
+import com.prati.meugasto.ui.navigation.ScanActionPlacement
 import com.prati.meugasto.ui.navigation.Screen
 import com.prati.meugasto.ui.screens.dashboard.DashboardScreen
 import com.prati.meugasto.ui.screens.onboarding.OnboardingScreen
@@ -69,7 +70,9 @@ class MainActivity : ComponentActivity() {
                 val isOnboardingCompleted = remember { preferences.isOnboardingCompleted() }
                 val startDestination = if (isOnboardingCompleted) Screen.Dashboard.route else Screen.Onboarding.route
 
-                val shouldShowBottomBar = currentDestination?.route in BottomNavItems.map { it.route }
+                val activeBottomNavScreen = BottomNavItems.firstOrNull { it.route == currentDestination?.route }
+                val shouldShowBottomBar = activeBottomNavScreen != null
+                val shouldShowScanFab = activeBottomNavScreen?.scanActionPlacement == ScanActionPlacement.Floating
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -78,7 +81,7 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         if (shouldShowBottomBar) {
                             NavigationBar(
-                                containerColor = com.prati.meugasto.ui.theme.PrimaryBrand,
+                                containerColor = MaterialTheme.colorScheme.surface,
                                 tonalElevation = 8.dp
                             ) {
                                 BottomNavItems.forEach { screen ->
@@ -93,11 +96,11 @@ class MainActivity : ComponentActivity() {
                                         },
                                         selected = isSelected,
                                         colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = androidx.compose.ui.graphics.Color.White,
-                                            selectedTextColor = androidx.compose.ui.graphics.Color.White,
-                                            indicatorColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.25f),
-                                            unselectedIconColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.70f),
-                                            unselectedTextColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.70f)
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                         ),
                                         onClick = {
                                             navController.navigate(screen.route) {
@@ -114,11 +117,11 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     floatingActionButton = {
-                        if (shouldShowBottomBar) {
+                        if (shouldShowScanFab) {
                             FloatingActionButton(
                                 onClick = { navController.navigate(Screen.Scanner.route) },
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = androidx.compose.ui.graphics.Color.White,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                                 shape = androidx.compose.foundation.shape.CircleShape,
                                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
                             ) {
@@ -168,8 +171,7 @@ class MainActivity : ComponentActivity() {
                                 repository = repository,
                                 onNavigateToDetail = { purchaseId ->
                                     navController.navigate("purchase_detail/$purchaseId")
-                                },
-                                onNavigateToScanner = { navController.navigate(Screen.Scanner.route) }
+                                }
                             )
                         }
 
@@ -210,8 +212,7 @@ class MainActivity : ComponentActivity() {
                                 repository = repository,
                                 onNavigateToProductHistory = { productName ->
                                     navController.navigate("product_history/${java.net.URLEncoder.encode(productName, "UTF-8")}")
-                                },
-                                onScanReceipt = { navController.navigate(Screen.Scanner.route) }
+                                }
                             )
                         }
 

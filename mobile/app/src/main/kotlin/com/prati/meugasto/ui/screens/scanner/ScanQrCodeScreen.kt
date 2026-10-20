@@ -80,7 +80,6 @@ fun ScanQrCodeScreen(
 
     var scanState by remember { mutableStateOf<ScanState>(ScanState.Scanning) }
     var scrapedData by remember { mutableStateOf<NfceScrapedData?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -122,15 +121,13 @@ fun ScanQrCodeScreen(
                                 result.onSuccess { data ->
                                     scrapedData = data
                                     scanState = ScanState.Confirmation(data)
-                                }.onFailure { err ->
-                                    errorMessage = err.message
-                                    scanState = ScanState.Error(err.message ?: "Erro desconhecido")
+                                }.onFailure {
+                                    scanState = ScanState.Error(ScanFailure.ReceiptReadFailed)
                                 }
                             }
                         },
-                        onError = { msg ->
-                            errorMessage = msg
-                            scanState = ScanState.Error(msg)
+                        onError = {
+                            scanState = ScanState.Error(ScanFailure.CameraUnavailable)
                         },
                         permissionLauncher = permissionLauncher
                     )
@@ -183,17 +180,15 @@ fun ScanQrCodeScreen(
                         onCancel = {
                             scanState = ScanState.Scanning
                             scrapedData = null
-                            errorMessage = null
                         }
                     )
                 }
 
                 is ScanState.Error -> {
                     ErrorScreen(
-                        message = state.message,
+                        failure = state.failure,
                         onRetry = {
                             scanState = ScanState.Scanning
-                            errorMessage = null
                         },
                         onBack = onNavigateBack
                     )
@@ -207,7 +202,12 @@ sealed class ScanState {
     data object Scanning : ScanState()
     data object Processing : ScanState()
     data class Confirmation(val data: NfceScrapedData) : ScanState()
-    data class Error(val message: String) : ScanState()
+    data class Error(val failure: ScanFailure) : ScanState()
+}
+
+enum class ScanFailure {
+    CameraUnavailable,
+    ReceiptReadFailed
 }
 
 @Composable
@@ -217,7 +217,7 @@ fun CameraPreview(
     cameraExecutor: java.util.concurrent.ExecutorService,
     barcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner,
     onQrDetected: (String) -> Unit,
-    onError: (String) -> Unit,
+    onError: () -> Unit,
     permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -272,7 +272,7 @@ fun CameraPreview(
                                 imageAnalysis
                             )
                         } catch (exc: Exception) {
-                            onError("Erro ao iniciar câmera: ${exc.message}")
+                            onError()
                         }
                     }, ContextCompat.getMainExecutor(ctx))
 
@@ -596,23 +596,32 @@ fun ConfirmationScreen(
 
 @Composable
 fun ErrorScreen(
-    message: String,
+    failure: ScanFailure,
     onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
+    val title = when (failure) {
+        ScanFailure.CameraUnavailable -> "Não foi possível iniciar a câmera"
+        ScanFailure.ReceiptReadFailed -> "Não foi possível ler a NFC-e"
+    }
+    val guidance = when (failure) {
+        ScanFailure.CameraUnavailable -> "Verifique se o MeuGasto tem permissão para usar a câmera e tente novamente."
+        ScanFailure.ReceiptReadFailed -> "Confira sua conexão e se o QR Code está legível. Depois, tente novamente."
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Erro ao ler NFC-e",
+            text = title,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.error
         )
         Spacer(modifier = Modifier.height(AppSpacing.SM))
         Text(
-            text = message,
+            text = guidance,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

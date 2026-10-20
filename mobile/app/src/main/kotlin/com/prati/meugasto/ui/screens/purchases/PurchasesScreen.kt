@@ -25,8 +25,7 @@ import com.prati.meugasto.ui.theme.AppSpacing
 @Composable
 fun PurchasesScreen(
     repository: PurchaseRepository,
-    onNavigateToDetail: (Long) -> Unit,
-    onNavigateToScanner: () -> Unit = {}
+    onNavigateToDetail: (Long) -> Unit
 ) {
     val purchases by repository.getPurchases().collectAsState(initial = emptyList())
     var searchQuery by remember { mutableStateOf("") }
@@ -148,11 +147,11 @@ fun PurchasesScreen(
                     icon = Icons.Default.ShoppingCart,
                     title = if (hasFilter) "Nenhum resultado encontrado" else "Nenhuma compra registrada",
                     description = if (hasFilter) "Tente ajustar ou limpar seus filtros de busca." else "Escaneie sua primeira nota fiscal para começar a acompanhar seus gastos.",
-                    actionLabel = if (hasFilter) "Limpar Filtros" else "Escanear Nota Fiscal",
+                    actionLabel = if (hasFilter) "Limpar Filtros" else null,
                     onAction = if (hasFilter) {
                         { searchQuery = ""; selectedTypeFilter = null }
                     } else {
-                        onNavigateToScanner
+                        null
                     }
                 )
             } else {
@@ -175,6 +174,9 @@ fun PurchasesScreen(
                                 onClick = { onNavigateToDetail(purchase.id) }
                             )
                         }
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(100.dp))
                     }
                 }
             }

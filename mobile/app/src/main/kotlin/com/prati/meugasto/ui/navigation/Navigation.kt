@@ -9,12 +9,23 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.ui.graphics.vector.ImageVector
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
-    object Dashboard : Screen("dashboard", "Início", Icons.Default.Home)
-    object Purchases : Screen("purchases", "Compras", Icons.Default.ShoppingCart)
+enum class ScanActionPlacement {
+    Hidden,
+    Inline,
+    Floating
+}
+
+sealed class Screen(
+    val route: String,
+    val title: String,
+    val icon: ImageVector? = null,
+    val scanActionPlacement: ScanActionPlacement = ScanActionPlacement.Hidden
+) {
+    object Dashboard : Screen("dashboard", "Início", Icons.Default.Home, ScanActionPlacement.Inline)
+    object Purchases : Screen("purchases", "Compras", Icons.Default.ShoppingCart, ScanActionPlacement.Floating)
     object Scanner : Screen("scanner", "Escanear", Icons.Default.QrCodeScanner)
     object Planning : Screen("planning", "Listas", Icons.Default.Checklist)
-    object Reports : Screen("reports", "Relatórios", Icons.Default.BarChart)
+    object Reports : Screen("reports", "Relatórios", Icons.Default.BarChart, ScanActionPlacement.Floating)
     object Settings : Screen("settings", "Ajustes")
     object Onboarding : Screen("onboarding", "Boas-vindas")
     object ProductHistory : Screen("product_history/{productName}", "Histórico do Produto")
