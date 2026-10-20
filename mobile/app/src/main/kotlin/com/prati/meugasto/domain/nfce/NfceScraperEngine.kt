@@ -1,0 +1,61 @@
+package com.prati.meugasto.domain.nfce
+
+import com.prati.meugasto.domain.nfce.strategies.RjNfceStrategy
+import com.prati.meugasto.domain.nfce.strategies.RsNfceStrategy
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+class NfceScraperEngine(
+    private val strategies: List<NfceStateStrategy> = listOf(
+        RsNfceStrategy(),
+        RjNfceStrategy()
+    )
+) {
+    private val httpClient by lazy {
+        HttpClient(OkHttp) {
+            engine {
+                config {
+                    followRedirects(true)
+                    connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                    readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                }
+            }
+        }
+    }
+
+    suspend fun scrapeUrl(url: String): Result<NfceScrapedData> = withContext(Dispatchers.IO) {
+        try {
+            val strategy = strategies.firstOrNull { it.canHandle(url) }
+                ?: return@withContext Result.failure(
+                    IllegalArgumentException("Estado não suportado para a URL: $url")
+                )
+
+            // Tentativa GET-first
+            val response = httpClient.get(url) {
+                header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36")
+                header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            }
+
+            val html = response.bodyAsText()
+            val scrapedData = strategy.parseHtml(html, url)
+            Result.success(scrapedData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun parseWithStrategy(html: String, url: String): Result<NfceScrapedData> {
+        return try {
+            val strategy = strategies.firstOrNull { it.canHandle(url) }
+                ?: return Result.failure(IllegalArgumentException("Nenhuma estratégia encontrada para a URL"))
+            Result.success(strategy.parseHtml(html, url))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
+

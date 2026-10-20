@@ -1,0 +1,17 @@
+what	why	evidence	result
+Reproduce B1 on device	Bug-fix step 1, same surface	fresh debug build + screencap showed orange status bar, no white strip	B1 does NOT reproduce on current head; user screenshot showed old UI (light bottom bar)
+Root-cause B1	Rule out insets/theme	Theme.kt sets window.statusBarColor=primary; themes.xml statusBarColor #C2410C; screenshot integrated	no code change needed for B1
+Root-cause B2/B3	No cloud integration exists	grep found zero Supabase client usage; Settings wrote fake token_cloud_session; BuildConfig URL=placeholder unless env	root cause: cloud login and sync were stubs
+Choose raw Ktor over supabase-kt DSL	Control + testability; avoid DSL API risk	gradle cache has gotrue-kt 2.6.0; raw REST endpoints known	SupabaseApi on Ktor + kotlinx.serialization, unit-testable with MockEngine
+Choose Room-mirror (candidate A) over repository swap	All screens read Room; B would leave Reports/History empty in cloud mode	DashboardScreen/ReportsScreen read repository.getPurchases()	CloudPurchaseSync mirrors remote into Room via remoteId (idempotent)
+Prod boundary check	Confirm endpoints and auth mode	/auth/v1/settings -> mailer_autoconfirm true; anon select purchases -> HTTP 200 []	real login possible; RLS blocks anon
+Verified prod schema via PostgREST column probes (anon key, read-only)
+purchases/supermarkets/items columns used by the app all exist; items.normalized_name absent in prod (docs schema stale)
+privacy migration live: access_key_hash present, create_purchase_with_items RPC exists
+Supabase CLI linked to staging raahbqxjtgyhvzlptbnm, not prod xiguamctjwnezbzjipwl
+Prod E2E with isolated test user (created + deleted via Management API/service_role): login + fetch ok, numerics are JSON numbers
+Real-account E2E (user-provided): 24 purchases, 119 items, R$ 1.109,14 total rendered on Dashboard after login
+Released v0.5.0.0 (versionCode 72): pushed dev + tag, release.yml triggered
+Upload implemented: CloudPurchaseUploader inserts supermarket/purchase/items and persists remoteId; items use identical keys to avoid PGRST102
+Upload tested: CloudPurchaseUploaderTest (mockk Room + MockEngine) + SupabaseApi insert cases; 52 debug tests green
+Released v0.5.1.0 (versionCode 73) with upload; v0.5.0.0 (fetch) already published
