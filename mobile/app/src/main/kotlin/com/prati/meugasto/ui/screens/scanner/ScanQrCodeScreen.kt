@@ -271,7 +271,7 @@ fun CameraPreview(
                                 preview,
                                 imageAnalysis
                             )
-                        } catch (exc: Exception) {
+                        } catch (_: Exception) {
                             onError()
                         }
                     }, ContextCompat.getMainExecutor(ctx))
