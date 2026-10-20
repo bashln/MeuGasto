@@ -37,7 +37,7 @@ android {
         val supabaseUrl = envValue("EXPO_PUBLIC_SUPABASE_URL", "SUPABASE_URL")
             ?: "https://placeholder.supabase.co"
         val supabaseAnonKey = envValue("EXPO_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY")
-            ?: "placeholder-anon-key"
+            ?: ""
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
