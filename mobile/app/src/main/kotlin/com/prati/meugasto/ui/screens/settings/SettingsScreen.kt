@@ -35,7 +35,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
-    onSignOut: () -> Unit = {}
+    onSignOut: suspend () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -225,9 +225,16 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.height(AppSpacing.MD))
                             OutlinedButton(
                                 onClick = {
-                                    onSignOut()
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Desconectado da conta Supabase.")
+                                        runCatching { onSignOut() }
+                                            .onSuccess {
+                                                snackbarHostState.showSnackbar("Desconectado da conta Supabase.")
+                                            }
+                                            .onFailure { error ->
+                                                snackbarHostState.showSnackbar(
+                                                    "Não foi possível sair: ${error.message ?: "tente novamente"}"
+                                                )
+                                            }
                                     }
                                 },
                                 modifier = Modifier.align(Alignment.End),

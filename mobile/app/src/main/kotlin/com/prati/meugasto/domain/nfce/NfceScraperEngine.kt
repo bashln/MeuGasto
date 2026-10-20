@@ -9,13 +9,6 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
-import java.time.Duration
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
-
 class NfceScraperEngine(
     private val strategies: List<NfceStateStrategy> = listOf(
         RsNfceStrategy(),
@@ -23,21 +16,9 @@ class NfceScraperEngine(
     )
 ) {
     private val httpClient by lazy {
-        val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-        })
-
-        val sslContext = SSLContext.getInstance("TLS").apply {
-            init(null, trustAllCerts, SecureRandom())
-        }
-
         HttpClient(OkHttp) {
             engine {
                 config {
-                    sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
-                    hostnameVerifier { _, _ -> true }
                     followRedirects(true)
                     connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
                     readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)

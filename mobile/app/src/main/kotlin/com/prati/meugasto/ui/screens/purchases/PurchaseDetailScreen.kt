@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.repository.PurchaseRepository
+import com.prati.meugasto.domain.model.AppMode
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.DateFormatters
 import com.prati.meugasto.ui.components.MoneyText
@@ -34,6 +35,7 @@ import java.util.Locale
 fun PurchaseDetailScreen(
     purchaseId: Long,
     repository: PurchaseRepository,
+    appMode: AppMode,
     onNavigateBack: () -> Unit,
     onNavigateToProductHistory: (String) -> Unit = {},
     onNavigateToComparison: () -> Unit = {}
@@ -42,20 +44,37 @@ fun PurchaseDetailScreen(
     val purchase = purchases.firstOrNull { it.id == purchaseId }
     val coroutineScope = rememberCoroutineScope()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
     var itemSearchQuery by remember { mutableStateOf("") }
 
     if (showDeleteConfirm) {
         AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
+            onDismissRequest = {
+                showDeleteConfirm = false
+                deleteError = null
+            },
             title = { Text("Excluir compra?") },
-            text = { Text("Esta ação removerá a compra e todos os seus itens definitivamente.") },
+            text = {
+                Text(
+                    deleteError ?: if (appMode == AppMode.CLOUD) {
+                        "Esta ação remove a compra deste aparelho e da sua conta na nuvem, quando sincronizada."
+                    } else {
+                        "Esta ação remove a cópia deste aparelho. A compra pode voltar se você ativar o modo Nuvem."
+                    }
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
                         coroutineScope.launch {
-                            repository.deletePurchase(purchaseId)
-                            showDeleteConfirm = false
-                            onNavigateBack()
+                            runCatching { repository.deletePurchase(purchaseId) }
+                                .onSuccess {
+                                    showDeleteConfirm = false
+                                    onNavigateBack()
+                                }
+                                .onFailure { error ->
+                                    deleteError = error.message ?: "Tente novamente."
+                                }
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
@@ -86,7 +105,10 @@ fun PurchaseDetailScreen(
                     TopBarAction(
                         icon = Icons.Default.Delete,
                         contentDescription = "Excluir compra",
-                        onClick = { showDeleteConfirm = true }
+                        onClick = {
+                            deleteError = null
+                            showDeleteConfirm = true
+                        }
                     )
                 )
             )

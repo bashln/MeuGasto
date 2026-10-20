@@ -61,6 +61,9 @@ interface SupermarketDao {
 
     @Query("SELECT * FROM supermarkets ORDER BY name ASC")
     fun getAll(): Flow<List<SupermarketEntity>>
+
+    @Query("UPDATE supermarkets SET remoteId = NULL WHERE remoteId IS NOT NULL")
+    suspend fun clearRemoteIds()
 }
 
 @Dao
@@ -76,7 +79,13 @@ interface PurchaseDao {
     @Query("SELECT id FROM purchases WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findIdByRemoteId(remoteId: Long): Long?
 
-    @Query("UPDATE purchases SET remoteId = :remoteId WHERE id = :id")
+    @Query("SELECT id FROM purchases WHERE remoteId IS NULL AND pendingCloudUserId = :userId ORDER BY id")
+    suspend fun getPendingCloudUploadIds(userId: String): List<Long>
+
+    @Query("DELETE FROM purchases WHERE remoteId IS NOT NULL OR pendingCloudUserId IS NOT NULL")
+    suspend fun deleteCloudAccountPurchases()
+
+    @Query("UPDATE purchases SET remoteId = :remoteId, accessKey = NULL, pendingCloudUserId = NULL WHERE id = :id")
     suspend fun setRemoteId(id: Long, remoteId: Long)
 
     @Query(

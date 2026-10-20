@@ -18,6 +18,11 @@ import org.junit.Test
 
 class SupabaseAuthRepositoryTest {
 
+    private class FakeCloudAccountCache : CloudAccountCache {
+        var clearCount = 0
+        override suspend fun clear() { clearCount += 1 }
+    }
+
     private class FakePrefs(
         private var accessToken: String? = null,
         private var userId: String? = null,
@@ -83,7 +88,7 @@ class SupabaseAuthRepositoryTest {
     @Test
     fun `signIn sem user na resposta falha em vez de ficar meio-logado`() = runTest {
         val prefs = FakePrefs(mode = AppMode.LOCAL_FIRST)
-        val repository = SupabaseAuthRepository(apiReturningSessionWithoutUser(), prefs)
+        val repository = SupabaseAuthRepository(apiReturningSessionWithoutUser(), prefs, FakeCloudAccountCache())
 
         val result = repository.signIn("ana@example.com", "segredo123")
 
@@ -95,7 +100,7 @@ class SupabaseAuthRepositoryTest {
     fun `modo nuvem sem sessao valida volta para local`() {
         val prefs = FakePrefs(mode = AppMode.CLOUD)
 
-        SupabaseAuthRepository(apiReturningSession(), prefs)
+        SupabaseAuthRepository(apiReturningSession(), prefs, FakeCloudAccountCache())
 
         assertEquals(AppMode.LOCAL_FIRST, prefs.appModeSet)
     }
@@ -104,7 +109,7 @@ class SupabaseAuthRepositoryTest {
     fun `modo local sem sessao permanece local`() {
         val prefs = FakePrefs(mode = AppMode.LOCAL_FIRST)
 
-        SupabaseAuthRepository(apiReturningSession(), prefs)
+        SupabaseAuthRepository(apiReturningSession(), prefs, FakeCloudAccountCache())
 
         assertNull(prefs.appModeSet)
     }
@@ -112,7 +117,7 @@ class SupabaseAuthRepositoryTest {
     @Test
     fun `signIn guarda sessao e ativa o modo nuvem`() = runTest {
         val prefs = FakePrefs(mode = AppMode.LOCAL_FIRST)
-        val repository = SupabaseAuthRepository(apiReturningSession(), prefs)
+        val repository = SupabaseAuthRepository(apiReturningSession(), prefs, FakeCloudAccountCache())
 
         val result = repository.signIn("ana@example.com", "segredo123")
 
@@ -126,14 +131,29 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signOut limpa sessao e volta para local`() {
+    fun `signOut limpa cache da conta antes de limpar sessao`() = runTest {
         val prefs = FakePrefs(accessToken = "tok", userId = "user-1", mode = AppMode.CLOUD)
-        val repository = SupabaseAuthRepository(apiReturningSession(), prefs)
+        val cache = FakeCloudAccountCache()
+        val repository = SupabaseAuthRepository(apiReturningSession(), prefs, cache)
 
         repository.signOut()
 
+        assertEquals(1, cache.clearCount)
         assertTrue(prefs.cleared)
         assertEquals(AppMode.LOCAL_FIRST, prefs.appModeSet)
         assertEquals(AuthState.LoggedOut, repository.state.value)
+    }
+
+    @Test
+    fun `trocar de conta limpa cache anterior antes de persistir nova sessao`() = runTest {
+        val prefs = FakePrefs(accessToken = "old-token", userId = "old-user", mode = AppMode.CLOUD)
+        val cache = FakeCloudAccountCache()
+        val repository = SupabaseAuthRepository(apiReturningSession(), prefs, cache)
+
+        val result = repository.signIn("ana@example.com", "segredo123")
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, cache.clearCount)
+        assertEquals("user-1", prefs.getUserId())
     }
 }

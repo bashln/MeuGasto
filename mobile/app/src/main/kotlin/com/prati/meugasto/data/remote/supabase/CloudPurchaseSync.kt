@@ -18,7 +18,14 @@ private const val UNKNOWN_MARKET = "Estabelecimento não informado"
  */
 class CloudPurchaseSync(
     private val database: AppDatabase
-) {
+) : CloudAccountCache {
+
+    override suspend fun clear() {
+        database.withTransaction {
+            database.purchaseDao().deleteCloudAccountPurchases()
+            database.supermarketDao().clearRemoteIds()
+        }
+    }
 
     suspend fun sync(remote: List<RemotePurchase>): Int {
         database.withTransaction {

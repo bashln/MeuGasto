@@ -67,10 +67,17 @@ fun ProfileScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        authRepository.signOut()
-                        showLogoutConfirm = false
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Você saiu da conta.")
+                            runCatching { authRepository.signOut() }
+                                .onSuccess {
+                                    showLogoutConfirm = false
+                                    snackbarHostState.showSnackbar("Você saiu da conta.")
+                                }
+                                .onFailure { error ->
+                                    snackbarHostState.showSnackbar(
+                                        "Não foi possível sair: ${error.message ?: "tente novamente"}"
+                                    )
+                                }
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)

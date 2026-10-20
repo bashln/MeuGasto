@@ -9,6 +9,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -16,6 +20,8 @@ import androidx.navigation.compose.*
 import com.prati.meugasto.ui.navigation.BottomNavItems
 import com.prati.meugasto.ui.navigation.ScanActionPlacement
 import com.prati.meugasto.ui.navigation.Screen
+import com.prati.meugasto.data.remote.supabase.AuthState
+import com.prati.meugasto.domain.model.AppMode
 import com.prati.meugasto.ui.screens.dashboard.DashboardScreen
 import com.prati.meugasto.ui.screens.onboarding.OnboardingScreen
 import com.prati.meugasto.ui.screens.planning.ShoppingListScreen
@@ -54,19 +60,62 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
                 val snackbarHostState = remember { SnackbarHostState() }
+                val coroutineScope = rememberCoroutineScope()
                 val authState by authRepository.state.collectAsState()
+                val appMode by preferences.appMode.collectAsState()
+                var cloudCacheReady by remember { mutableStateOf(authState is AuthState.LoggedIn) }
+                var cloudCacheError by remember { mutableStateOf<String?>(null) }
 
-                // Sincroniza sempre que a sessão estiver ativa (arranque ou login).
                 LaunchedEffect(authState) {
-                    if (authState is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
+                    if (authState is AuthState.LoggedOut) {
+                        cloudCacheReady = false
+                        cloudCacheError = null
+                        runCatching { app.cloudPurchaseSync.clear() }
+                            .onSuccess { cloudCacheReady = true }
+                            .onFailure { cloudCacheError = it.message ?: "cache cleanup failed" }
+                    } else {
+                        cloudCacheReady = true
+                        cloudCacheError = null
+                    }
+                }
+
+                LaunchedEffect(authState, appMode) {
+                    if (authState is AuthState.LoggedIn && appMode == AppMode.CLOUD) {
                         cloudSyncManager.syncNow().onFailure { error ->
                             snackbarHostState.showSnackbar(
                                 "Não foi possível sincronizar: ${error.message ?: "verifique sua conexão"}"
                             )
                         }
+                        cloudUploader.uploadPendingPurchases().onFailure { error ->
+                            snackbarHostState.showSnackbar(
+                                "Há compras aguardando envio: ${error.message ?: "verifique sua conexão"}"
+                            )
+                        }
                     }
                 }
 
+                if (!cloudCacheReady) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (cloudCacheError == null) {
+                            CircularProgressIndicator()
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Não foi possível proteger os dados da conta anterior.")
+                                Button(onClick = {
+                                    cloudCacheReady = false
+                                    cloudCacheError = null
+                                    coroutineScope.launch {
+                                        runCatching { app.cloudPurchaseSync.clear() }
+                                            .onSuccess { cloudCacheReady = true }
+                                            .onFailure { cloudCacheError = it.message ?: "cache cleanup failed" }
+                                    }
+                                }) {
+                                    Text("Tentar novamente")
+                                }
+                            }
+                        }
+                    }
+                } else {
                 val isOnboardingCompleted = remember { preferences.isOnboardingCompleted() }
                 val startDestination = if (isOnboardingCompleted) Screen.Dashboard.route else Screen.Onboarding.route
 
@@ -185,8 +234,12 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onPurchaseSaved = { purchaseId ->
-                                    if (authRepository.state.value is com.prati.meugasto.data.remote.supabase.AuthState.LoggedIn) {
-                                        cloudUploader.upload(purchaseId)
+                                    if (authRepository.state.value is AuthState.LoggedIn && appMode == AppMode.CLOUD) {
+                                        cloudUploader.upload(purchaseId).onFailure { error ->
+                                            snackbarHostState.showSnackbar(
+                                                "Compra salva no aparelho, mas não sincronizada: ${error.message ?: "verifique sua conexão"}"
+                                            )
+                                        }
                                     }
                                 }
                             )
@@ -265,6 +318,7 @@ class MainActivity : ComponentActivity() {
                             PurchaseDetailScreen(
                                 purchaseId = purchaseId,
                                 repository = repository,
+                                appMode = appMode,
                                 onNavigateBack = { navController.popBackStack() },
                                 onNavigateToProductHistory = { productName ->
                                     navController.navigate("product_history/${java.net.URLEncoder.encode(productName, "UTF-8")}")
@@ -279,4 +333,5 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 }

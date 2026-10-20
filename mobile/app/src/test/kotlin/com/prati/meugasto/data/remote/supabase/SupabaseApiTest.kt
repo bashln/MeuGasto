@@ -12,6 +12,8 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -111,6 +113,61 @@ class SupabaseApiTest {
         assertTrue(error is SupabaseAuthException)
         assertEquals(401, (error as SupabaseAuthException).statusCode)
         assertTrue(error.message!!.contains("JWT expired"))
+    }
+
+    @Test
+    fun `createPurchaseWithItems usa RPC idempotente e devolve purchase id`() = runTest {
+        var capturedPath = ""
+        var capturedBody = ""
+        var capturedAuth = ""
+        val engine = MockEngine { request ->
+            capturedPath = request.url.encodedPath
+            capturedBody = (request.body as? TextContent)?.text.orEmpty()
+            capturedAuth = request.headers[HttpHeaders.Authorization].orEmpty()
+            respond("[{\"purchase_id\":42}]", HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+
+        val id = api.createPurchaseWithItems(
+            accessToken = "access-123",
+            supermarketId = 9,
+            accessKey = "43260993015006000113651040003070441999999999",
+            date = "2026-10-01",
+            totalPrice = 1234.56,
+            manual = false,
+            items = kotlinx.serialization.json.buildJsonArray {
+                add(kotlinx.serialization.json.buildJsonObject {
+                    put("name", kotlinx.serialization.json.JsonPrimitive("Arroz"))
+                    put("price", kotlinx.serialization.json.JsonPrimitive(1234.56))
+                })
+            }
+        )
+
+        assertEquals(42L, id)
+        assertEquals("/rest/v1/rpc/create_purchase_with_items", capturedPath)
+        assertEquals("Bearer access-123", capturedAuth)
+        assertTrue(capturedBody.contains("p_access_key"))
+        assertTrue(capturedBody.contains("p_items"))
+    }
+
+    @Test
+    fun `deletePurchase envia filtro de id e token`() = runTest {
+        var capturedPath = ""
+        var capturedId = ""
+        var capturedAuth = ""
+        val engine = MockEngine { request ->
+            capturedPath = request.url.encodedPath
+            capturedId = request.url.parameters["id"].orEmpty()
+            capturedAuth = request.headers[HttpHeaders.Authorization].orEmpty()
+            respond("", HttpStatusCode.NoContent)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+
+        api.deletePurchase("access-123", 42)
+
+        assertEquals("/rest/v1/purchases", capturedPath)
+        assertEquals("eq.42", capturedId)
+        assertEquals("Bearer access-123", capturedAuth)
     }
 
     @Test

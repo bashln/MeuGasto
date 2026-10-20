@@ -3,10 +3,63 @@ package com.prati.meugasto.domain.nfce
 import com.prati.meugasto.domain.nfce.strategies.RjNfceStrategy
 import com.prati.meugasto.domain.nfce.strategies.RsNfceStrategy
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NfceScraperEngineTest {
+
+    @Test
+    fun `parser converte milhares e decimais brasileiros`() {
+        assertEquals(1234.56, NfcePortalDataParser.parseCurrency("R$ 1.234,56")!!, 0.001)
+        assertEquals(1234567.89, NfcePortalDataParser.parseCurrency("1.234.567,89")!!, 0.001)
+        assertEquals(1234.56, NfcePortalDataParser.parseCurrency("1234.56")!!, 0.001)
+    }
+
+    @Test
+    fun `estrategia RJ le total com milhares e data fiscal`() {
+        val html = """
+            <div class="txtTopo">Mercado Central</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">1.234,56</span>
+            <div>Valor a pagar R$ 1.234,56</div>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val url = "https://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+
+        val data = RjNfceStrategy().parseHtml(html, url)
+
+        assertEquals(1234.56, data.totalPrice, 0.001)
+        assertEquals("2024-07-03", data.date)
+    }
+
+    @Test
+    fun `estrategia RS le total com milhares`() {
+        val html = """
+            <tr id="Item1">
+                <span class="txtTit">Produto</span>
+                <span class="Rqtd"><strong>Qtde.:</strong>1</span>
+                <span class="RUN"><strong>UN: </strong>UN</span>
+                <span class="valor">1.234,56</span>
+            </tr>
+            <div id="linhaTotal"><label>Valor a pagar R$:</label><span class="totalNumb">1.234,56</span></div>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val url = "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=43260993015006000113651040003070441999999999"
+
+        val data = RsNfceStrategy().parseHtml(html, url)
+
+        assertEquals(1234.56, data.items.single().price, 0.001)
+        assertEquals(1234.56, data.totalPrice, 0.001)
+    }
+
+    @Test
+    fun `estrategias recusam hosts que apenas contem dominio permitido`() {
+        assertFalse(RsNfceStrategy().canHandle("https://evil.example/?p=43"))
+        assertFalse(RjNfceStrategy().canHandle("http://consultadfe.fazenda.rj.gov.br/consulta"))
+    }
 
     @Test
     fun testRsStrategyParsesValidHtml() {

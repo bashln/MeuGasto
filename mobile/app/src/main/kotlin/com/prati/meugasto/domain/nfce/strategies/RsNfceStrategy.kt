@@ -1,10 +1,12 @@
 package com.prati.meugasto.domain.nfce.strategies
 
 import com.prati.meugasto.domain.nfce.NfcePayloadValidator
+import com.prati.meugasto.domain.nfce.NfcePortalDataParser
 import com.prati.meugasto.domain.nfce.NfceScrapedData
 import com.prati.meugasto.domain.nfce.NfceScrapedItem
 import com.prati.meugasto.domain.nfce.NfceStateStrategy
 import com.prati.meugasto.domain.nfce.NfceSupermarketInfo
+import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -19,7 +21,9 @@ class RsNfceStrategy : NfceStateStrategy {
     )
 
     override fun canHandle(url: String): Boolean {
-        return allowedHosts.any { url.contains(it) } || url.contains("p=43")
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            allowedHosts.any { it.equals(uri.host, ignoreCase = true) }
     }
 
     override fun parseHtml(html: String, originalUrl: String): NfceScrapedData {
@@ -41,17 +45,17 @@ class RsNfceStrategy : NfceStateStrategy {
         val items = mutableListOf<NfceScrapedItem>()
         // Padrão de linhas de itens da SEFAZ-RS (HTML real verificado)
         val itemRowRegex = Regex(
-            """(?is)<tr\s+id="Item[^"]*">.*?<span\s+class="txtTit">(.*?)</span>.*?<span\s+class="Rqtd"><strong>Qtde.:</strong>(\d+[.,]?\d*)</span>.*?<span\s+class="RUN"><strong>UN: </strong>(\S+)</span>.*?<span\s+class="valor">(\d+[.,]\d+)</span>.*?</tr>"""
+            """(?is)<tr\s+id="Item[^"]*">.*?<span\s+class="txtTit">(.*?)</span>.*?<span\s+class="Rqtd"><strong>Qtde.:</strong>(\d+[.,]?\d*)</span>.*?<span\s+class="RUN"><strong>UN: </strong>(\S+)</span>.*?<span\s+class="valor">([\d.,]+)</span>.*?</tr>"""
         )
         
         for (match in itemRowRegex.findAll(html)) {
             val name = match.groupValues[1].replace("<[^>]*>".toRegex(), "").trim()
             val qtdStr = match.groupValues[2].replace(",", ".")
             val unit = match.groupValues[3].trim()
-            val priceStr = match.groupValues[4].replace(",", ".")
+            val priceStr = match.groupValues[4]
 
             val qtd = qtdStr.toDoubleOrNull() ?: 1.0
-            val price = priceStr.toDoubleOrNull() ?: 0.0
+            val price = NfcePortalDataParser.parseCurrency(priceStr) ?: 0.0
 
             if (name.isNotBlank() && price > 0.0) {
                 items.add(
@@ -65,14 +69,17 @@ class RsNfceStrategy : NfceStateStrategy {
             }
         }
         // Extrair Total da compra (priorizar container oficial e "Valor a pagar")
-        val containerRegex = Regex("""(?is)<(?:div|tr)[^>]*id=["'](?:linhaTotal|totalNota)["'][^>]*>.*?<span[^>]*class=["'][^"']*totalNumb[^"']*["'][^>]*>(\d+[.,]\d{2})</span>""")
-        val containerTotal = containerRegex.findAll(html).lastOrNull()?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+        val containerRegex = Regex("""(?is)<(?:div|tr)[^>]*id=["'](?:linhaTotal|totalNota)["'][^>]*>.*?<span[^>]*class=["'][^"']*totalNumb[^"']*["'][^>]*>([\d.,]+)</span>""")
+        val containerTotal = containerRegex.findAll(html).lastOrNull()?.groupValues?.get(1)
+            ?.let(NfcePortalDataParser::parseCurrency)
 
-        val valorPagarRegex = Regex("""(?i)Valor\s+a\s+pagar[^0-9]*(\d+[.,]\d{2})""")
-        val valorPagar = valorPagarRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+        val valorPagarRegex = Regex("""(?i)Valor\s+a\s+pagar[^0-9]*([\d.,]+)""")
+        val valorPagar = valorPagarRegex.find(html)?.groupValues?.get(1)
+            ?.let(NfcePortalDataParser::parseCurrency)
 
-        val valorTotalRegex = Regex("""(?i)Valor\s+total[^0-9]*(\d+[.,]\d{2})""")
-        val valorTotal = valorTotalRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")?.toDoubleOrNull()
+        val valorTotalRegex = Regex("""(?i)Valor\s+total[^0-9]*([\d.,]+)""")
+        val valorTotal = valorTotalRegex.find(html)?.groupValues?.get(1)
+            ?.let(NfcePortalDataParser::parseCurrency)
 
         val itemsSum = items.sumOf { it.price }
 
@@ -85,18 +92,8 @@ class RsNfceStrategy : NfceStateStrategy {
             else -> candidateTotal ?: 0.0
         }
 
-        val dateRegex = Regex("(?i)Emiss(?:&atilde;|[ãa])o:.*?(\\d{2}/\\d{2}/\\d{4})")
-        val dateStr = dateRegex.find(html)?.groupValues?.get(1)
-        val date = try {
-            if (dateStr != null) {
-                val parsed = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateStr)
-                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(parsed!!)
-            } else {
-                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            }
-        } catch (_: Exception) {
-            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        }
+        val date = NfcePortalDataParser.parseEmissionDate(html)
+            ?: SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
         val rawData = NfceScrapedData(
             accessKey = accessKey,
             supermarket = NfceSupermarketInfo(

@@ -104,7 +104,8 @@ data class Purchase(
     val isManual: Boolean = false,
     val products: List<Item> = emptyList(),
     val createdAt: String? = null,
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    val accessKey: String? = null
 )
 
 @Serializable

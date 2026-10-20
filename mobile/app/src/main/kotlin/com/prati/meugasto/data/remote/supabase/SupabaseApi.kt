@@ -5,6 +5,7 @@ import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
@@ -78,6 +79,9 @@ data class RemotePurchase(
 
 @Serializable
 data class IdRow(val id: Long)
+
+@Serializable
+private data class PurchaseIdRow(@SerialName("purchase_id") val id: Long)
 
 @Serializable
 private data class EmailCredentials(val email: String, val password: String)@Serializable
@@ -172,6 +176,46 @@ class SupabaseApi(
             setBody(items)
         }
         if (!response.status.isSuccess()) throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+    }
+
+    suspend fun createPurchaseWithItems(
+        accessToken: String,
+        supermarketId: Long,
+        accessKey: String,
+        date: String,
+        totalPrice: Double,
+        manual: Boolean,
+        items: JsonArray
+    ): Long {
+        val response = client.post("$baseUrl/rest/v1/rpc/create_purchase_with_items") {
+            header("apikey", anonKey)
+            header("Authorization", "Bearer $accessToken")
+            contentType(ContentType.Application.Json)
+            setBody(kotlinx.serialization.json.buildJsonObject {
+                put("p_supermarket_id", kotlinx.serialization.json.JsonPrimitive(supermarketId))
+                put("p_access_key", kotlinx.serialization.json.JsonPrimitive(accessKey))
+                put("p_date", kotlinx.serialization.json.JsonPrimitive(date))
+                put("p_total_price", kotlinx.serialization.json.JsonPrimitive(totalPrice))
+                put("p_manual", kotlinx.serialization.json.JsonPrimitive(manual))
+                put("p_items", items)
+            })
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+        }
+        return response.body<List<PurchaseIdRow>>().first().id
+    }
+
+    suspend fun deletePurchase(accessToken: String, purchaseId: Long) {
+        val response = client.delete("$baseUrl/rest/v1/purchases") {
+            header("apikey", anonKey)
+            header("Authorization", "Bearer $accessToken")
+            header("Prefer", "return=minimal")
+            parameter("id", "eq.$purchaseId")
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+        }
     }
 
     private suspend inline fun <reified T> HttpResponse.decodeOrThrow(): T {

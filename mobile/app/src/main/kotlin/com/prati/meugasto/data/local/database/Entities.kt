@@ -43,7 +43,9 @@ data class PurchaseEntity(
     val createdAt: String,
     val updatedAt: String,
     /** Id da linha correspondente no Supabase, quando sincronizada. */
-    val remoteId: Long? = null
+    val remoteId: Long? = null,
+    val accessKey: String? = null,
+    val pendingCloudUserId: String? = null
 )
 
 @Entity(

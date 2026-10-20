@@ -13,13 +13,18 @@ sealed interface AuthState {
     data class LoggedIn(val userId: String, val email: String?, val name: String?) : AuthState
 }
 
+fun interface CloudAccountCache {
+    suspend fun clear()
+}
+
 /**
  * Sessão de conta na nuvem. Guardar a sessão equivale a "estar conectado":
  * não existe um passo separado de conectar a nuvem.
  */
 class SupabaseAuthRepository(
     private val api: SupabaseApi,
-    private val preferences: AuthPreferences
+    private val preferences: AuthPreferences,
+    private val accountCache: CloudAccountCache
 ) {
 
     private val _state = MutableStateFlow(currentState())
@@ -44,7 +49,8 @@ class SupabaseAuthRepository(
         persist(session)
     }
 
-    fun signOut() {
+    suspend fun signOut() {
+        accountCache.clear()
         preferences.clearAuth()
         preferences.setAppMode(AppMode.LOCAL_FIRST)
         _state.value = AuthState.LoggedOut
@@ -59,13 +65,16 @@ class SupabaseAuthRepository(
         true
     }.getOrDefault(false)
 
-    private fun persist(session: RemoteAuthSession): AuthState.LoggedIn {
+    private suspend fun persist(session: RemoteAuthSession): AuthState.LoggedIn {
         val access = session.accessToken?.takeIf { it.isNotBlank() }
             ?: throw SupabaseAuthException("Sessão inválida recebida do servidor.")
         val refresh = session.refreshToken.orEmpty()
 
         val userId = session.user?.id ?: preferences.getUserId()
             ?: throw SupabaseAuthException("Resposta de login sem usuário.")
+        if (preferences.getUserId()?.let { it != userId } == true) {
+            accountCache.clear()
+        }
         val email = session.user?.email
         val name = session.user?.userMetadata?.get("name")
             ?.let { (it as? JsonPrimitive)?.contentOrNull }

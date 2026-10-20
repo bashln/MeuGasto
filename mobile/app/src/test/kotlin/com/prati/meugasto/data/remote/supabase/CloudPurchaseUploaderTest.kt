@@ -29,7 +29,11 @@ class CloudPurchaseUploaderTest {
 
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 
-    private fun detail(remoteMarketId: Long?): PurchaseWithSupermarketAndItems {
+    private fun detail(
+        remoteMarketId: Long?,
+        accessKey: String? = null,
+        pendingCloudUserId: String? = null
+    ): PurchaseWithSupermarketAndItems {
         val market = SupermarketEntity(
             id = 7,
             name = "Mercado Teste",
@@ -47,7 +51,9 @@ class CloudPurchaseUploaderTest {
             totalPrice = 19.8,
             isManual = false,
             createdAt = "2026-10-05T10:00:00",
-            updatedAt = "2026-10-05T10:00:00"
+            updatedAt = "2026-10-05T10:00:00",
+            accessKey = accessKey,
+            pendingCloudUserId = pendingCloudUserId
         )
         val items = listOf(
             ItemEntity(id = 1, purchaseId = 1, name = "Arroz", code = null, categoryId = 2, quantity = 1.0, unit = "un", price = 9.9),
@@ -84,6 +90,8 @@ class CloudPurchaseUploaderTest {
             when {
                 request.url.encodedPath.endsWith("/supermarkets") ->
                     respond("""[{"id":10}]""", HttpStatusCode.Created, jsonHeaders)
+                request.url.encodedPath.endsWith("/rpc/create_purchase_with_items") ->
+                    respond("""[{"purchase_id":20}]""", HttpStatusCode.Created, jsonHeaders)
                 request.url.encodedPath.endsWith("/purchases") ->
                     respond("""[{"id":20}]""", HttpStatusCode.Created, jsonHeaders)
                 else -> respond("", HttpStatusCode.Created)
@@ -126,5 +134,52 @@ class CloudPurchaseUploaderTest {
         val result = uploader.upload(1L)
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `uploadPending reenvia compra fiscal pela RPC idempotente`() = runTest {
+        val db = buildDatabase(detail(
+            remoteMarketId = 55L,
+            accessKey = "43260993015006000113651040003070441999999999",
+            pendingCloudUserId = "user-1"
+        ))
+        coEvery { db.purchaseDao.getPendingCloudUploadIds("user-1") } returns listOf(1L)
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            paths += request.url.encodedPath
+            when {
+                request.url.encodedPath.endsWith("/rpc/create_purchase_with_items") ->
+                    respond("""[{"purchase_id":20}]""", HttpStatusCode.Created, jsonHeaders)
+                else -> respond("", HttpStatusCode.Created)
+            }
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val uploader = CloudPurchaseUploader(api, authLoggedIn(), db.database)
+
+        val result = uploader.uploadPendingPurchases()
+
+        assertEquals(1, result.getOrNull())
+        assertTrue(paths.any { it.endsWith("/rpc/create_purchase_with_items") })
+        coVerify { db.purchaseDao.getPendingCloudUploadIds("user-1") }
+        coVerify { db.purchaseDao.setRemoteId(1L, 20L) }
+    }
+
+    @Test
+    fun `upload rejeita compra pendente vinculada a outra conta`() = runTest {
+        val db = buildDatabase(detail(
+            remoteMarketId = null,
+            accessKey = "43260993015006000113651040003070441999999999",
+            pendingCloudUserId = "user-2"
+        ))
+        val uploader = CloudPurchaseUploader(mockApi(), authLoggedIn(), db.database)
+
+        val result = uploader.upload(1L)
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { db.purchaseDao.setRemoteId(any(), any()) }
     }
 }

@@ -163,6 +163,7 @@ fun ScanQrCodeScreen(
                                     ),
                                     date = state.data.date,
                                     totalPrice = state.data.totalPrice,
+                                    accessKey = state.data.accessKey,
                                     products = state.data.items.map { itm ->
                                         Item(
                                             name = itm.name,

@@ -26,8 +26,15 @@ interface PurchaseRepository {
     fun getAllProductNames(): Flow<List<String>>
 }
 
+fun interface RemotePurchaseDeleter {
+    suspend fun delete(remoteId: Long)
+}
+
 class LocalPurchaseRepository(
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val remotePurchaseDeleter: RemotePurchaseDeleter,
+    private val currentAppMode: () -> AppMode,
+    private val currentCloudUserId: () -> String?
 ) : PurchaseRepository {
 
     override fun getPurchases(): Flow<List<Purchase>> {
@@ -102,7 +109,9 @@ class LocalPurchaseRepository(
             totalPrice = safeTotalPrice,
             isManual = purchase.isManual,
             createdAt = purchase.createdAt ?: now,
-            updatedAt = now
+            updatedAt = now,
+            accessKey = purchase.accessKey,
+            pendingCloudUserId = if (currentAppMode() == AppMode.CLOUD) currentCloudUserId() else null
         )
 
         val itemEntities = purchase.products.map { item ->
@@ -124,6 +133,9 @@ class LocalPurchaseRepository(
     override suspend fun deletePurchase(purchaseId: Long) {
         val detail = database.purchaseDao().getById(purchaseId)
         if (detail != null) {
+            if (currentAppMode() == AppMode.CLOUD) {
+                detail.purchase.remoteId?.let { remotePurchaseDeleter.delete(it) }
+            }
             database.purchaseDao().deletePurchase(detail.purchase)
         }
     }

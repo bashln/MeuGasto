@@ -1,10 +1,12 @@
 package com.prati.meugasto.domain.nfce.strategies
 
 import com.prati.meugasto.domain.nfce.NfcePayloadValidator
+import com.prati.meugasto.domain.nfce.NfcePortalDataParser
 import com.prati.meugasto.domain.nfce.NfceScrapedData
 import com.prati.meugasto.domain.nfce.NfceScrapedItem
 import com.prati.meugasto.domain.nfce.NfceStateStrategy
 import com.prati.meugasto.domain.nfce.NfceSupermarketInfo
+import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -18,7 +20,9 @@ class RjNfceStrategy : NfceStateStrategy {
     )
 
     override fun canHandle(url: String): Boolean {
-        return allowedHosts.any { url.contains(it) } || url.contains("p=33")
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            allowedHosts.any { it.equals(uri.host, ignoreCase = true) }
     }
 
     override fun parseHtml(html: String, originalUrl: String): NfceScrapedData {
@@ -40,10 +44,10 @@ class RjNfceStrategy : NfceStateStrategy {
             val name = match.groupValues[1].replace("<[^>]*>".toRegex(), "").trim()
             val qtdStr = match.groupValues[2].replace(",", ".")
             val unit = match.groupValues[3].trim()
-            val priceStr = match.groupValues[4].replace(",", ".")
+            val priceStr = match.groupValues[4]
 
             val qtd = qtdStr.toDoubleOrNull() ?: 1.0
-            val price = priceStr.toDoubleOrNull() ?: 0.0
+            val price = NfcePortalDataParser.parseCurrency(priceStr) ?: 0.0
 
             if (name.isNotBlank() && price > 0.0) {
                 items.add(
@@ -57,9 +61,9 @@ class RjNfceStrategy : NfceStateStrategy {
             }
         }
 
-        val totalRegex = Regex("(?i)(?:Valor a pagar|Valor total)[^0-9]*(\\d+[.,]\\d{2})")
-        val totalMatch = totalRegex.find(html)?.groupValues?.get(1)?.replace(",", ".")
-        val candidateTotal = totalMatch?.toDoubleOrNull()
+        val totalRegex = Regex("(?i)(?:Valor a pagar|Valor total)[^0-9]*([\\d.,]+)")
+        val totalMatch = totalRegex.find(html)?.groupValues?.get(1)
+        val candidateTotal = totalMatch?.let(NfcePortalDataParser::parseCurrency)
         val itemsSum = items.sumOf { it.price }
 
         val total = when {
@@ -68,7 +72,8 @@ class RjNfceStrategy : NfceStateStrategy {
             else -> candidateTotal ?: 0.0
         }
 
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val date = NfcePortalDataParser.parseEmissionDate(html)
+            ?: SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
 
         val rawData = NfceScrapedData(
             accessKey = accessKey,
@@ -79,7 +84,7 @@ class RjNfceStrategy : NfceStateStrategy {
             ),
             items = items,
             totalPrice = total,
-            date = today
+            date = date
         )
 
         return NfcePayloadValidator.validateScrapedData(rawData)

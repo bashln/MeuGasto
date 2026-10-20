@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.json.buildJsonObject
 
 /**
@@ -21,22 +22,45 @@ class CloudPurchaseUploader(
     private val auth: SupabaseAuthRepository,
     private val database: AppDatabase
 ) {
+    private val uploadMutex = Mutex()
 
     suspend fun upload(localPurchaseId: Long): Result<Long> = runCatching {
-        val detail = database.purchaseDao().getById(localPurchaseId)
-            ?: throw SupabaseException("Compra local não encontrada.")
+        uploadMutex.lock()
+        try {
+            val detail = database.purchaseDao().getById(localPurchaseId)
+                ?: throw SupabaseException("Compra local não encontrada.")
+            detail.purchase.remoteId?.let { return@runCatching it }
+
+            val userId = (auth.state.value as? AuthState.LoggedIn)?.userId
+                ?: throw SupabaseAuthException("Entre na conta para enviar compras.")
+            detail.purchase.pendingCloudUserId?.let { ownerId ->
+                if (ownerId != userId) throw SupabaseAuthException("Esta compra pertence a outra conta.")
+            }
+            val token = auth.currentAccessToken()
+                ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
+
+            try {
+                uploadWithToken(token, userId, localPurchaseId, detail)
+            } catch (e: SupabaseAuthException) {
+                if (!auth.refreshSession()) throw e
+                val refreshed = auth.currentAccessToken() ?: throw e
+                uploadWithToken(refreshed, userId, localPurchaseId, detail)
+            }
+        } finally {
+            uploadMutex.unlock()
+        }
+    }
+
+    suspend fun uploadPendingPurchases(): Result<Int> = runCatching {
         val userId = (auth.state.value as? AuthState.LoggedIn)?.userId
             ?: throw SupabaseAuthException("Entre na conta para enviar compras.")
-        val token = auth.currentAccessToken()
-            ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
-
-        try {
-            uploadWithToken(token, userId, localPurchaseId, detail)
-        } catch (e: SupabaseAuthException) {
-            if (!auth.refreshSession()) throw e
-            val refreshed = auth.currentAccessToken() ?: throw e
-            uploadWithToken(refreshed, userId, localPurchaseId, detail)
+        val ids = database.purchaseDao().getPendingCloudUploadIds(userId)
+        var uploaded = 0
+        ids.forEach { id ->
+            upload(id).getOrThrow()
+            uploaded += 1
         }
+        uploaded
     }
 
     private suspend fun uploadWithToken(
@@ -46,12 +70,21 @@ class CloudPurchaseUploader(
         detail: PurchaseWithSupermarketAndItems
     ): Long {
         val marketId = ensureSupermarket(token, userId, detail.supermarket)
-        val remotePurchaseId = api.insertReturningId(
+        val remotePurchaseId = detail.purchase.accessKey?.takeIf { it.isNotBlank() }?.let { accessKey ->
+            api.createPurchaseWithItems(
+                accessToken = token,
+                supermarketId = marketId,
+                accessKey = accessKey,
+                date = normalizeDate(detail.purchase.date),
+                totalPrice = detail.purchase.totalPrice,
+                manual = detail.purchase.isManual,
+                items = rpcItemsBody(detail.items)
+            )
+        } ?: api.insertReturningId(
             token,
             "purchases",
             purchaseBody(userId, marketId, detail.purchase)
-        )
-        api.insertItems(token, itemsBody(remotePurchaseId, detail.items))
+        ).also { api.insertItems(token, itemsBody(it, detail.items)) }
         database.purchaseDao().setRemoteId(localPurchaseId, remotePurchaseId)
         return remotePurchaseId
     }
@@ -98,6 +131,17 @@ class CloudPurchaseUploader(
                 put("name", JsonPrimitive(item.name))
                 put("code", item.code.orNull())
                 put("category_id", item.categoryId?.let { JsonPrimitive(it) } ?: JsonNull)
+                put("quantity", JsonPrimitive(item.quantity))
+                put("unit", JsonPrimitive(item.unit))
+                put("price", JsonPrimitive(item.price))
+            }
+        })
+
+    private fun rpcItemsBody(items: List<ItemEntity>): JsonArray =
+        JsonArray(items.map { item ->
+            buildJsonObject {
+                put("name", JsonPrimitive(item.name))
+                put("code", item.code.orNull())
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
                 put("price", JsonPrimitive(item.price))
