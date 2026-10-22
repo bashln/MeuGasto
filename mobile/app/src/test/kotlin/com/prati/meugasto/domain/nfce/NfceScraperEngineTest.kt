@@ -184,5 +184,34 @@ class NfceScraperEngineTest {
     fun testValidatorRejectsInvalidKey() {
         NfcePayloadValidator.validateAccessKey("123") // Too short
     }
+
+    @Test
+    fun `engine selects RJ strategy by URL`() {
+        val html = """
+            <div class="txtTopo">Mercado RJ</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">10,00</span>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val url = "https://consultadfe.fazenda.rj.gov.br/consultaNFCe/paginas/consultaQRCode.faces?p=33260993015006000113651040003070441999999999"
+
+        val result = NfceScraperEngine().parseWithStrategy(html, url)
+
+        assertTrue(result.isSuccess)
+        assertEquals("RJ", result.getOrThrow().supermarket.state)
+    }
+
+    @Test
+    fun `engine rejects URL from unsupported state`() {
+        val result = NfceScraperEngine().parseWithStrategy(
+            "<html></html>",
+            "https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+    }
 }
 

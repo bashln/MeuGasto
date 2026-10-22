@@ -6,6 +6,7 @@ import com.prati.meugasto.data.local.database.PurchaseEntity
 import com.prati.meugasto.data.local.database.SupermarketEntity
 import com.prati.meugasto.data.local.database.ProductStats
 import com.prati.meugasto.data.local.database.ProductPriceEntry
+import com.prati.meugasto.domain.comparator.ProductCanonicalizer
 import com.prati.meugasto.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -123,7 +124,8 @@ class LocalPurchaseRepository(
                 categoryId = item.categoryId,
                 quantity = item.quantity,
                 unit = item.unit,
-                price = item.price
+                price = item.price,
+                canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code)
             )
         }
 

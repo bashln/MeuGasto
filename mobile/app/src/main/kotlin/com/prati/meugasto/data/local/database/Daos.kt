@@ -142,10 +142,18 @@ interface PurchaseDao {
     @Query("SELECT date, SUM(totalPrice) as total FROM purchases GROUP BY date ORDER BY date ASC")
     fun getSpendingByDate(): Flow<List<DateSpending>>
 
-    @Query("SELECT name, SUM(quantity) as totalQty, SUM(price) as totalSpent, COUNT(DISTINCT purchaseId) as purchaseCount FROM items GROUP BY name ORDER BY totalSpent DESC LIMIT :limit")
+    @Query("SELECT MIN(name) as name, SUM(quantity) as totalQty, SUM(price) as totalSpent, COUNT(DISTINCT purchaseId) as purchaseCount FROM items GROUP BY CASE WHEN canonicalName = '' THEN name ELSE canonicalName END ORDER BY totalSpent DESC LIMIT :limit")
     fun getTopProducts(limit: Int = 10): Flow<List<ProductStats>>
 
-    @Query("SELECT i.name, (i.price / CASE WHEN i.quantity > 0 THEN i.quantity ELSE 1.0 END) as price, i.unit, p.date, s.name as supermarketName FROM items i JOIN purchases p ON i.purchaseId = p.id JOIN supermarkets s ON p.supermarketId = s.id WHERE i.name = :productName ORDER BY p.date ASC")
+    @Query(
+        "SELECT i.name, (i.price / CASE WHEN i.quantity > 0 THEN i.quantity ELSE 1.0 END) as price, " +
+            "i.unit, p.date, s.name as supermarketName " +
+            "FROM items i JOIN purchases p ON i.purchaseId = p.id JOIN supermarkets s ON p.supermarketId = s.id " +
+            "WHERE i.name = :productName OR i.canonicalName = (" +
+            "SELECT i2.canonicalName FROM items i2 " +
+            "WHERE i2.name = :productName AND i2.canonicalName <> '' ORDER BY i2.id LIMIT 1) " +
+            "ORDER BY p.date ASC"
+    )
     fun getProductPriceHistory(productName: String): Flow<List<ProductPriceEntry>>
 
     @Query("SELECT DISTINCT i.name FROM items i ORDER BY i.name ASC")
@@ -180,6 +188,8 @@ interface ShoppingListDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: ShoppingListItemEntity): Long
 
+    @Query("UPDATE shopping_list_items SET estimatedPrice = :price WHERE id = :id")
+    suspend fun updateEstimatedPrice(id: Long, price: Double)
     @Delete
     suspend fun deleteItem(item: ShoppingListItemEntity)
 }

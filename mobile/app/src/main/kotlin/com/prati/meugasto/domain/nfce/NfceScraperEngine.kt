@@ -1,7 +1,5 @@
 package com.prati.meugasto.domain.nfce
 
-import com.prati.meugasto.domain.nfce.strategies.RjNfceStrategy
-import com.prati.meugasto.domain.nfce.strategies.RsNfceStrategy
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.get
@@ -10,10 +8,7 @@ import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 class NfceScraperEngine(
-    private val strategies: List<NfceStateStrategy> = listOf(
-        RsNfceStrategy(),
-        RjNfceStrategy()
-    )
+    private val strategies: List<NfceStateStrategy> = NfceStateRegistry.strategies
 ) {
     private val httpClient by lazy {
         HttpClient(OkHttp) {

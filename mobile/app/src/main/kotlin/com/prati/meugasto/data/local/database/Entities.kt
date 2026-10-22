@@ -1,5 +1,6 @@
 package com.prati.meugasto.data.local.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -69,6 +70,9 @@ data class ItemEntity(
     val quantity: Double,
     val unit: String,
     val price: Double,
+    /** Nome canônico usado para agrupar produtos equivalentes. */
+    @ColumnInfo(defaultValue = "''")
+    val canonicalName: String = "",
     /** Id da linha correspondente no Supabase, quando sincronizada. */
     val remoteId: Long? = null
 )

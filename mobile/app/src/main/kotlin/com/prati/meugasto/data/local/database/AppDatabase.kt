@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ShoppingListEntity::class,
         ShoppingListItemEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -58,13 +58,39 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN canonicalName TEXT NOT NULL DEFAULT ''")
+
+                // SQL não normaliza acentos, pontuação e abreviações como o runtime.
+                // Por isso o backfill usa a mesma função aplicada a novas compras.
+                val rows = mutableListOf<ItemCanonicalNameBackfill.Row>()
+                db.query("SELECT id, name, code FROM items").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        rows += ItemCanonicalNameBackfill.Row(
+                            id = cursor.getLong(0),
+                            name = cursor.getString(1).orEmpty(),
+                            code = if (cursor.isNull(2)) null else cursor.getString(2)
+                        )
+                    }
+                }
+
+                val statement = db.compileStatement("UPDATE items SET canonicalName = ? WHERE id = ?")
+                for ((id, canonicalName) in ItemCanonicalNameBackfill.canonicalNames(rows)) {
+                    statement.bindString(1, canonicalName)
+                    statement.bindLong(2, id)
+                    statement.executeUpdateDelete()
+                }
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "meugasto.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)

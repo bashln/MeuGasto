@@ -5,6 +5,7 @@ import com.prati.meugasto.data.local.database.AppDatabase
 import com.prati.meugasto.data.local.database.ItemEntity
 import com.prati.meugasto.data.local.database.PurchaseEntity
 import com.prati.meugasto.data.local.database.SupermarketEntity
+import com.prati.meugasto.domain.comparator.ProductCanonicalizer
 import com.prati.meugasto.domain.model.EstablishmentDetector
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -84,6 +85,7 @@ class CloudPurchaseSync(
                     quantity = item.quantity,
                     unit = item.unit.orEmpty(),
                     price = item.price,
+                    canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code),
                     remoteId = item.id
                 )
             }

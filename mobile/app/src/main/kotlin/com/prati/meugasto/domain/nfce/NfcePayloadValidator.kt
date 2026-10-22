@@ -1,7 +1,5 @@
 package com.prati.meugasto.domain.nfce
 
-import kotlin.math.abs
-
 object NfcePayloadValidator {
     const val MAX_ITEM_NAME_LENGTH = 200
     const val MAX_TEXT_FIELD_LENGTH = 150
@@ -34,9 +32,8 @@ object NfcePayloadValidator {
         val sanitizedItems = data.items.map { item ->
             val cleanName = sanitizeText(item.name, MAX_ITEM_NAME_LENGTH)
             if (cleanName.isBlank()) throw IllegalArgumentException("Item com nome vazio na nota fiscal.")
-            if (item.quantity <= 0.0) throw IllegalArgumentException("Item '$cleanName' com quantidade inválida (${item.quantity}).")
-            if (item.price < 0.0) throw IllegalArgumentException("Item '$cleanName' com preço negativo (${item.price}).")
-
+            if (!item.quantity.isFinite() || item.quantity <= 0.0) throw IllegalArgumentException("Item '$cleanName' com quantidade inválida (${item.quantity}).")
+            if (!item.price.isFinite() || item.price < 0.0) throw IllegalArgumentException("Item '$cleanName' com preço inválido (${item.price}).")
             item.copy(
                 name = cleanName,
                 unit = sanitizeText(item.unit.uppercase(), 10).ifBlank { "UN" },
@@ -47,13 +44,12 @@ object NfcePayloadValidator {
         val calculatedTotal = sanitizedItems.sumOf { it.price }
         val declaredTotal = data.totalPrice
 
-        // Se total declarado for 0 ou diferir ligeiramente por arredondamento fiscal, aceitar com tolerância de R$ 0.10
-        val finalTotal = if (declaredTotal > 0.0 && abs(declaredTotal - calculatedTotal) <= 0.10) {
+        // "Valor a pagar" é autoritativo (inclui descontos/acréscimos da nota).
+        // A soma dos itens só é usada quando o total declarado está ausente ou inválido.
+        val finalTotal = if (declaredTotal.isFinite() && declaredTotal > 0.0) {
             declaredTotal
-        } else if (declaredTotal <= 0.0) {
-            calculatedTotal
         } else {
-            declaredTotal
+            calculatedTotal
         }
 
         return data.copy(

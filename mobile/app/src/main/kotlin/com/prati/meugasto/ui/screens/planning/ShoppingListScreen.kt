@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.prati.meugasto.data.local.database.AppDatabase
 import com.prati.meugasto.data.local.database.ShoppingListEntity
 import com.prati.meugasto.data.local.database.ShoppingListItemEntity
+import com.prati.meugasto.domain.model.PriceInput
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.EmptyState
 import com.prati.meugasto.ui.components.MoneyText
@@ -38,6 +40,10 @@ fun ShoppingListScreen(
     var newItemName by remember { mutableStateOf("") }
     var newItemQtd by remember { mutableStateOf("1") }
     var newItemPrice by remember { mutableStateOf("") }
+    var editingItem by remember { mutableStateOf<ShoppingListItemEntity?>(null) }
+    var editingPrice by remember { mutableStateOf("") }
+    var formError by remember { mutableStateOf<String?>(null) }
+    var editError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(lists) {
         if (lists.isNotEmpty() && activeList == null) {
@@ -154,15 +160,27 @@ fun ShoppingListScreen(
                         )
                         FilledIconButton(
                             onClick = {
-                                if (newItemName.isNotBlank() && activeList != null) {
+                                val list = activeList
+                                val qtd = PriceInput.parseQuantity(newItemQtd)
+                                // Campo vazio equivale a "sem preço estimado".
+                                val price = if (newItemPrice.isBlank()) {
+                                    0.0
+                                } else {
+                                    PriceInput.parseEstimatedPrice(newItemPrice)
+                                }
+                                formError = when {
+                                    newItemName.isBlank() || list == null -> null
+                                    qtd == null -> "Quantidade inválida."
+                                    price == null -> "Preço inválido."
+                                    else -> null
+                                }
+                                if (newItemName.isNotBlank() && list != null && qtd != null && price != null) {
                                     val now = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                                    val qtd = newItemQtd.replace(",", ".").toDoubleOrNull() ?: 1.0
-                                    val price = newItemPrice.replace(",", ".").toDoubleOrNull() ?: 0.0
 
                                     coroutineScope.launch {
                                         database.shoppingListDao().insertItem(
                                             ShoppingListItemEntity(
-                                                shoppingListId = activeList!!.id,
+                                                shoppingListId = list.id,
                                                 name = newItemName.trim(),
                                                 quantity = qtd,
                                                 unit = "UN",
@@ -187,6 +205,13 @@ fun ShoppingListScreen(
                                 contentDescription = "Adicionar item à lista"
                             )
                         }
+                    }
+                    formError?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
@@ -241,6 +266,15 @@ fun ShoppingListScreen(
                                 }
                                 IconButton(
                                     onClick = {
+                                        editingItem = item
+                                        editError = null
+                                        editingPrice = if (item.estimatedPrice > 0) item.estimatedPrice.toString().replace(".", ",") else ""
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar preço", tint = MaterialTheme.colorScheme.primary)
+                                }
+                                IconButton(
+                                    onClick = {
                                         coroutineScope.launch {
                                             database.shoppingListDao().deleteItem(item)
                                         }
@@ -259,4 +293,49 @@ fun ShoppingListScreen(
             }
         }
     }
+    if (editingItem != null) {
+        AlertDialog(
+            onDismissRequest = { editingItem = null },
+            title = { Text("Editar preço estimado") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = editingPrice,
+                        onValueChange = { editingPrice = it },
+                        label = { Text("Preço") },
+                        prefix = { Text("R$ ") },
+                        singleLine = true
+                    )
+                    editError?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val item = editingItem
+                    val price = PriceInput.parseEstimatedPrice(editingPrice)
+                    when {
+                        item == null -> editingItem = null
+                        price == null -> editError = "Informe um preço válido e não negativo."
+                        else -> {
+                            coroutineScope.launch {
+                                database.shoppingListDao().updateEstimatedPrice(item.id, price)
+                            }
+                            editingItem = null
+                            editError = null
+                        }
+                    }
+                }) { Text("Salvar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingItem = null }) { Text("Cancelar") }
+            }
+        )
+    }
+
 }
