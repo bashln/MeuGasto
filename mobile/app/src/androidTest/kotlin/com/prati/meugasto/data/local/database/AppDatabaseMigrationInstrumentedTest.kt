@@ -36,7 +36,7 @@ class AppDatabaseMigrationInstrumentedTest {
     }
 
     @Test
-    fun `migration valida schema e preserva compras itens e relacionamentos`() {
+    fun migrationValidatesSchemaAndPreservesPurchasesItemsAndRelationships() {
         createV5DatabaseWithRealisticRows()
 
         val db = helper.runMigrationsAndValidate(TEST_DB, 6, true, AppDatabase.MIGRATION_5_6)
@@ -89,7 +89,7 @@ class AppDatabaseMigrationInstrumentedTest {
     }
 
     @Test
-    fun `migration em banco vazio produz schema v6 valido`() {
+    fun migrationOnEmptyDatabaseProducesValidV6Schema() {
         helper.createDatabase(TEST_DB, 5).close()
 
         val db = helper.runMigrationsAndValidate(TEST_DB, 6, true, AppDatabase.MIGRATION_5_6)

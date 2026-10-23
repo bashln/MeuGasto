@@ -32,7 +32,7 @@ class ShoppingListDaoTest {
     }
 
     @Test
-    fun `preco estimado e persistido e recuperado com quantidade maior que um`() = runBlocking {
+    fun estimatedPriceIsPersistedAndReadWithQuantityGreaterThanOne() = runBlocking {
         val listId = dao.insertList(list("Mercado"))
         val itemId = dao.insertItem(item(listId, price = 12.50, quantity = 3.0))
 
@@ -43,7 +43,7 @@ class ShoppingListDaoTest {
     }
 
     @Test
-    fun `updateEstimatedPrice substitui valor sem alterar outros campos`() = runBlocking {
+    fun updateEstimatedPriceReplacesValueWithoutChangingOtherFields() = runBlocking {
         val listId = dao.insertList(list("Mercado"))
         val itemId = dao.insertItem(item(listId, price = 12.50, quantity = 2.0))
 
@@ -59,7 +59,7 @@ class ShoppingListDaoTest {
     }
 
     @Test
-    fun `fluxo da lista observa atualizacao de preco`() = runBlocking {
+    fun listFlowObservesPriceUpdate() = runBlocking {
         val listId = dao.insertList(list("Mercado"))
         val itemId = dao.insertItem(item(listId, price = 10.0))
 
