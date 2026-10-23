@@ -6,9 +6,4 @@ object ProductCanonicalizer {
         if (trimmedCode.isNotBlank()) return "code:$trimmedCode"
         return "name:${StringMatcher.normalize(name)}"
     }
-
-    fun areSameProduct(a: String, b: String, threshold: Double = 0.8): Boolean {
-        if (StringMatcher.normalize(a) == StringMatcher.normalize(b)) return true
-        return StringMatcher.calculateSimilarity(a, b) >= threshold
-    }
 }

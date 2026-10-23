@@ -30,6 +30,7 @@ Consolidar gaps, riscos e melhorias do repositório em tarefas organizadas, alin
 - [ ] Validar coerência quantidade × preço unitário × total com tolerância definida.
 - [x] Canonicalização de produtos: chave canônica por código/nome + agrupamento em relatórios.
 - [ ] Avaliar migração da representação monetária de `Double` para `BigDecimal`/centavos inteiros. Entrada de preço estimado já arredonda para centavos (HALF_UP).
+- [x] Remover similaridade fuzzy sem consumidor (`areSameProduct`/`calculateSimilarity`). Identidade de produto usa somente `canonicalKey` exato; similaridade não decide identidade financeira.
 - [ ] Corrigir drift entre schema versionado e banco Supabase.
 - [ ] Testes contra falsos positivos (ex.: leite vs leite condensado).
 
