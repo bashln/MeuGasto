@@ -16,6 +16,22 @@ class PriceInputTest {
     @Test
     fun `aceita zero para limpar preco estimado`() {
         assertEquals(0.0, PriceInput.parseEstimatedPrice("0")!!, 0.0)
+        assertEquals(0.0, PriceInput.parseEstimatedPrice("0,00")!!, 0.0)
+        assertEquals(0.0, PriceInput.parseEstimatedPrice("0.00")!!, 0.0)
+    }
+
+    @Test
+    fun `arredonda para centavos com HALF_UP`() {
+        assertEquals(12.35, PriceInput.parseEstimatedPrice("12,345")!!, 0.0)
+        assertEquals(12.34, PriceInput.parseEstimatedPrice("12,344")!!, 0.0)
+        assertEquals(1.01, PriceInput.parseEstimatedPrice("1,005")!!, 0.0)
+        assertEquals(0.0, PriceInput.parseEstimatedPrice("0,004")!!, 0.0)
+    }
+
+    @Test
+    fun `aceita valores grandes sem estourar`() {
+        assertEquals(1_000_000_000.99, PriceInput.parseEstimatedPrice("1000000000,99")!!, 0.001)
+        assertNull(PriceInput.parseEstimatedPrice("1e400"))
     }
 
     @Test
