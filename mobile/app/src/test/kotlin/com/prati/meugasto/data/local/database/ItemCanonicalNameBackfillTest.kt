@@ -50,4 +50,19 @@ class ItemCanonicalNameBackfillTest {
         assertEquals(ProductCanonicalizer.canonicalKey("Café Torrado", " 123 "), migrated[1])
         assertEquals(ProductCanonicalizer.canonicalKey("Café Torrado", null), migrated[2])
     }
+
+    @Test
+    fun `backfill e deterministico e idempotente`() {
+        val rows = listOf(
+            ItemCanonicalNameBackfill.Row(id = 1, name = "  ARROZ 5KG ", code = " 789 "),
+            ItemCanonicalNameBackfill.Row(id = 2, name = "Leite", code = "")
+        )
+
+        val first = ItemCanonicalNameBackfill.canonicalNames(rows)
+        val second = ItemCanonicalNameBackfill.canonicalNames(rows)
+
+        assertEquals(first, second)
+        assertEquals("code:789", first[1])
+        assertEquals("name:leite", first[2])
+    }
 }

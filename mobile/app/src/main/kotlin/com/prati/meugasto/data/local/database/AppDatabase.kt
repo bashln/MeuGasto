@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ShoppingListItemEntity::class
     ],
     version = 6,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun supermarketDao(): SupermarketDao
