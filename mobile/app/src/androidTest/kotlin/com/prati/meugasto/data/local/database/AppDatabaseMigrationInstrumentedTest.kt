@@ -44,6 +44,15 @@ class AppDatabaseMigrationInstrumentedTest {
         assertEquals(1, count(db, "supermarkets"))
         assertEquals(1, count(db, "purchases"))
         assertEquals(3, count(db, "items"))
+        assertEquals(1, count(db, "shopping_lists"))
+        assertEquals(1, count(db, "shopping_list_items"))
+
+        db.query(
+            "SELECT estimatedPrice FROM shopping_list_items WHERE id = 1"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(4.79, cursor.getDouble(0), 0.001)
+        }
 
         db.query(
             "SELECT totalPrice, date, accessKey, pendingCloudUserId FROM purchases WHERE id = 10"
