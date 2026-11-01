@@ -56,6 +56,26 @@ class SupabaseAuthRepository(
         _state.value = AuthState.LoggedOut
     }
 
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> = runCatching {
+        val loggedIn = _state.value as? AuthState.LoggedIn
+            ?: throw SupabaseAuthException("Entre na sua conta para alterar a senha.")
+        val email = loggedIn.email?.takeIf { it.isNotBlank() }
+            ?: preferences.getUserEmail()?.takeIf { it.isNotBlank() }
+            ?: throw SupabaseAuthException("Conta sem e-mail vinculado.")
+        if (currentPassword.isBlank()) {
+            throw SupabaseAuthException("Informe sua senha atual.")
+        }
+        if (newPassword.length < 6) {
+            throw SupabaseAuthException("A nova senha deve ter pelo menos 6 caracteres.")
+        }
+
+        val verifiedSession = api.signIn(email, currentPassword)
+        persist(verifiedSession)
+        val freshToken = preferences.getAccessToken()
+            ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
+        api.updatePassword(freshToken, newPassword)
+    }
+
     fun currentAccessToken(): String? = preferences.getAccessToken()
 
     /** Renova a sessão com o refresh token guardado. */

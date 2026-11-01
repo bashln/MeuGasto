@@ -9,6 +9,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -84,7 +85,12 @@ data class IdRow(val id: Long)
 private data class PurchaseIdRow(@SerialName("purchase_id") val id: Long)
 
 @Serializable
-private data class EmailCredentials(val email: String, val password: String)@Serializable
+private data class EmailCredentials(val email: String, val password: String)
+
+@Serializable
+private data class PasswordUpdateRequest(val password: String)
+
+@Serializable
 private data class SignUpRequest(
     val email: String,
     val password: String,
@@ -141,6 +147,23 @@ class SupabaseApi(
             })
         }
         return response.decodeOrThrow()
+    }
+
+    suspend fun updatePassword(accessToken: String, newPassword: String): RemoteUser {
+        val response = client.put("$baseUrl/auth/v1/user") {
+            header("apikey", anonKey)
+            header("Authorization", "Bearer $accessToken")
+            contentType(ContentType.Application.Json)
+            setBody(PasswordUpdateRequest(newPassword))
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toException(
+                auth = response.status == HttpStatusCode.Unauthorized ||
+                    response.status == HttpStatusCode.BadRequest ||
+                    response.status == HttpStatusCode.UnprocessableEntity
+            )
+        }
+        return response.body()
     }
 
     suspend fun fetchPurchases(accessToken: String): List<RemotePurchase> {

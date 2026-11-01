@@ -7,15 +7,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,18 +39,25 @@ fun ProfileScreen(
     preferences: UserPreferences,
     authRepository: SupabaseAuthRepository,
     onNavigateToLogin: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val appMode by preferences.appMode.collectAsState()
 
-    var userName by remember { mutableStateOf(preferences.getUserName() ?: "") }
-    var userEmail by remember { mutableStateOf(preferences.getUserEmail() ?: "") }
+    var userName by rememberSaveable { mutableStateOf(preferences.getUserName() ?: "") }
+    var userEmail by rememberSaveable { mutableStateOf(preferences.getUserEmail() ?: "") }
     val authState by authRepository.state.collectAsState()
-    val isLoggedIn = authState is AuthState.LoggedIn
+    val loggedInState = authState as? AuthState.LoggedIn
+    val isLoggedIn = loggedInState != null
 
-    // Estados de troca de senha
+    LaunchedEffect(loggedInState) {
+        if (loggedInState != null) {
+            loggedInState.name?.takeIf { it.isNotBlank() }?.let { userName = it }
+            loggedInState.email?.takeIf { it.isNotBlank() }?.let { userEmail = it }
+        }
+    }
+
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -95,11 +101,7 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            AppTopBar(
-                title = "Perfil e Conta",
-                navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNavigateBack = onNavigateBack
-            )
+            AppTopBar(title = "Perfil e Conta")
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -113,7 +115,6 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(AppSpacing.SM))
 
-            // Card do Usuário (Avatar e Dados)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppShapes.Medium,
@@ -126,7 +127,6 @@ fun ProfileScreen(
                         .padding(AppSpacing.XL),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Avatar com Iniciais
                     val initials = remember(userName, userEmail) {
                         val base = userName.ifBlank { userEmail.ifBlank { "U" } }
                         base.split(" ").filter { it.isNotBlank() }
@@ -172,7 +172,7 @@ fun ProfileScreen(
 
                     Surface(
                         shape = AppShapes.Full,
-                        color = if (appMode == AppMode.CLOUD) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        color = if (appMode == AppMode.CLOUD && isLoggedIn) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = AppSpacing.MD, vertical = AppSpacing.XS),
@@ -180,22 +180,21 @@ fun ProfileScreen(
                             horizontalArrangement = Arrangement.spacedBy(AppSpacing.XS)
                         ) {
                             Icon(
-                                imageVector = if (appMode == AppMode.CLOUD) Icons.Default.Cloud else Icons.Default.CloudOff,
+                                imageVector = if (appMode == AppMode.CLOUD && isLoggedIn) Icons.Default.Cloud else Icons.Default.CloudOff,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp),
-                                tint = if (appMode == AppMode.CLOUD) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (appMode == AppMode.CLOUD && isLoggedIn) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = if (appMode == AppMode.CLOUD) "Modo Nuvem (Supabase)" else "Modo Local-First",
+                                text = if (appMode == AppMode.CLOUD && isLoggedIn) "Modo Nuvem (Supabase)" else "Modo Local-First",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (appMode == AppMode.CLOUD) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (appMode == AppMode.CLOUD && isLoggedIn) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
             }
 
-            // Dados Cadastrais / Nome
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppShapes.Medium,
@@ -219,32 +218,34 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = userName,
                         onValueChange = { userName = it },
-                        label = { Text("Nome completo") },
+                        label = { Text("Nome de exibição") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = AppShapes.Small
                     )
 
-                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                    if (isLoggedIn) {
+                        Spacer(modifier = Modifier.height(AppSpacing.SM))
 
-                    OutlinedTextField(
-                        value = userEmail,
-                        onValueChange = { userEmail = it },
-                        label = { Text("E-mail") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = AppShapes.Small,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                    )
+                        OutlinedTextField(
+                            value = loggedInState?.email ?: userEmail,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("E-mail da conta") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = AppShapes.Small,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(AppSpacing.MD))
 
                     Button(
                         onClick = {
                             preferences.saveUserName(userName.trim())
-                            preferences.saveUserEmail(userEmail.trim())
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Dados cadastrais salvos com sucesso!")
+                                snackbarHostState.showSnackbar("Nome atualizado com sucesso!")
                             }
                         },
                         modifier = Modifier.align(Alignment.End)
@@ -254,105 +255,125 @@ fun ProfileScreen(
                 }
             }
 
-            // Alterar Senha (Modo Nuvem ou Proteção de Acesso)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = AppShapes.Medium,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(AppSpacing.LG)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
-                    ) {
-                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            if (isLoggedIn) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = AppShapes.Medium,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(AppSpacing.LG)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
+                        ) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Text(
+                                text = "Segurança e Troca de Senha",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(AppSpacing.SM))
                         Text(
-                            text = "Segurança & Troca de Senha",
-                            style = MaterialTheme.typography.titleMedium
+                            text = "Altere a senha de acesso da sua conta na nuvem.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(AppSpacing.SM))
-                    Text(
-                        text = "Altere sua senha de acesso e criptografia da conta.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                        Spacer(modifier = Modifier.height(AppSpacing.MD))
 
-                    Spacer(modifier = Modifier.height(AppSpacing.MD))
+                        OutlinedTextField(
+                            value = currentPassword,
+                            onValueChange = { currentPassword = it },
+                            label = { Text("Senha atual") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = AppShapes.Small,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            visualTransformation = PasswordVisualTransformation()
+                        )
 
-                    OutlinedTextField(
-                        value = currentPassword,
-                        onValueChange = { currentPassword = it },
-                        label = { Text("Senha atual") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = AppShapes.Small,
-                        visualTransformation = PasswordVisualTransformation()
-                    )
+                        Spacer(modifier = Modifier.height(AppSpacing.SM))
 
-                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                        OutlinedTextField(
+                            value = newPassword,
+                            onValueChange = { newPassword = it },
+                            label = { Text("Nova senha (mínimo 6 caracteres)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = AppShapes.Small,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            visualTransformation = PasswordVisualTransformation()
+                        )
 
-                    OutlinedTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it },
-                        label = { Text("Nova senha (mínimo 6 caracteres)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = AppShapes.Small,
-                        visualTransformation = PasswordVisualTransformation()
-                    )
+                        Spacer(modifier = Modifier.height(AppSpacing.SM))
 
-                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it },
+                            label = { Text("Confirmar nova senha") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = AppShapes.Small,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                            visualTransformation = PasswordVisualTransformation()
+                        )
 
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
-                        label = { Text("Confirmar nova senha") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = AppShapes.Small,
-                        visualTransformation = PasswordVisualTransformation()
-                    )
+                        Spacer(modifier = Modifier.height(AppSpacing.MD))
 
-                    Spacer(modifier = Modifier.height(AppSpacing.MD))
-
-                    Button(
-                        onClick = {
-                            when {
-                                newPassword.isBlank() || confirmPassword.isBlank() -> {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Preencha a nova senha e a confirmação.")
+                        Button(
+                            onClick = {
+                                when {
+                                    currentPassword.isBlank() -> {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Informe sua senha atual.")
+                                        }
+                                    }
+                                    newPassword.isBlank() || confirmPassword.isBlank() -> {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Preencha a nova senha e a confirmação.")
+                                        }
+                                    }
+                                    newPassword != confirmPassword -> {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("As senhas não coincidem.")
+                                        }
+                                    }
+                                    newPassword.length < 6 -> {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("A senha deve ter pelo menos 6 caracteres.")
+                                        }
+                                    }
+                                    newPassword == currentPassword -> {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("A nova senha deve ser diferente da atual.")
+                                        }
+                                    }
+                                    else -> {
+                                        coroutineScope.launch {
+                                            isSavingPassword = true
+                                            val result = authRepository.changePassword(currentPassword, newPassword)
+                                            isSavingPassword = false
+                                            result.onSuccess {
+                                                currentPassword = ""
+                                                newPassword = ""
+                                                confirmPassword = ""
+                                                snackbarHostState.showSnackbar("Senha alterada com sucesso!")
+                                            }.onFailure { error ->
+                                                snackbarHostState.showSnackbar(
+                                                    "Não foi possível alterar a senha: ${error.message ?: "verifique sua senha atual"}"
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                                newPassword != confirmPassword -> {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("As senhas não coincidem.")
-                                    }
-                                }
-                                newPassword.length < 6 -> {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("A senha deve ter pelo menos 6 caracteres.")
-                                    }
-                                }
-                                else -> {
-                                    isSavingPassword = true
-                                    // Simula/salva com segurança e limpa campos
-                                    currentPassword = ""
-                                    newPassword = ""
-                                    confirmPassword = ""
-                                    isSavingPassword = false
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Senha alterada com sucesso!")
-                                    }
-                                }
-                            }
-                        },
-                        enabled = !isSavingPassword,
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text(if (isSavingPassword) "Salvando..." else "Salvar Nova Senha")
+                            },
+                            enabled = !isSavingPassword,
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text(if (isSavingPassword) "Salvando..." else "Salvar Nova Senha")
+                        }
                     }
                 }
             }

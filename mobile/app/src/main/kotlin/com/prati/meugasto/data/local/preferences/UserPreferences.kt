@@ -33,26 +33,33 @@ interface AuthPreferences {
 
 class UserPreferences(context: Context) : AuthPreferences {
 
+    private val appContext = context.applicationContext
+
     private val plainPrefs: SharedPreferences =
-        context.getSharedPreferences("meugasto_settings", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("meugasto_settings", Context.MODE_PRIVATE)
 
     private val securePrefs: SharedPreferences by lazy {
-        try {
-            val masterKey = MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-
-            EncryptedSharedPreferences.create(
-                context,
-                "meugasto_secure_prefs",
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (_: Exception) {
-            // Fallback para dispositivos onde KeyStore falhar
-            context.getSharedPreferences("meugasto_secure_fallback", Context.MODE_PRIVATE)
+        runCatching { appContext.deleteSharedPreferences("meugasto_secure_fallback") }
+        createEncryptedPrefs(appContext).getOrElse {
+            runCatching { appContext.deleteSharedPreferences("meugasto_secure_prefs") }
+            createEncryptedPrefs(appContext).getOrElse {
+                InMemorySharedPreferences()
+            }
         }
+    }
+
+    private fun createEncryptedPrefs(ctx: Context): Result<SharedPreferences> = runCatching {
+        val masterKey = MasterKey.Builder(ctx)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        EncryptedSharedPreferences.create(
+            ctx,
+            "meugasto_secure_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
 
     private val _appMode = MutableStateFlow(getAppMode())
@@ -144,4 +151,71 @@ class UserPreferences(context: Context) : AuthPreferences {
     fun getWebDavUser(): String? = securePrefs.getString("webdav_user", null)
     fun getWebDavPass(): String? = securePrefs.getString("webdav_pass", null)
 }
+
+internal class InMemorySharedPreferences : SharedPreferences {
+    private val map = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+    override fun getAll(): MutableMap<String, *> = HashMap(map)
+    override fun getString(key: String?, defValue: String?): String? =
+        (key?.let { map[it] } as? String) ?: defValue
+    @Suppress("UNCHECKED_CAST")
+    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? =
+        (key?.let { map[it] } as? Set<String>)?.toMutableSet() ?: defValues
+    override fun getInt(key: String?, defValue: Int): Int =
+        (key?.let { map[it] } as? Int) ?: defValue
+    override fun getLong(key: String?, defValue: Long): Long =
+        (key?.let { map[it] } as? Long) ?: defValue
+    override fun getFloat(key: String?, defValue: Float): Float =
+        (key?.let { map[it] } as? Float) ?: defValue
+    override fun getBoolean(key: String?, defValue: Boolean): Boolean =
+        (key?.let { map[it] } as? Boolean) ?: defValue
+    override fun contains(key: String?): Boolean = key != null && map.containsKey(key)
+
+    override fun edit(): SharedPreferences.Editor = object : SharedPreferences.Editor {
+        private val staged = LinkedHashMap<String, Any?>()
+        private var clearRequested = false
+
+        override fun putString(key: String?, value: String?): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = value
+        }
+        override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = values?.toSet()
+        }
+        override fun putInt(key: String?, value: Int): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = value
+        }
+        override fun putLong(key: String?, value: Long): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = value
+        }
+        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = value
+        }
+        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = value
+        }
+        override fun remove(key: String?): SharedPreferences.Editor = apply {
+            if (key != null) staged[key] = null
+        }
+        override fun clear(): SharedPreferences.Editor = apply { clearRequested = true }
+        override fun commit(): Boolean {
+            apply()
+            return true
+        }
+        override fun apply() {
+            if (clearRequested) map.clear()
+            for ((k, v) in staged) {
+                if (v == null) map.remove(k) else map[k] = v
+            }
+        }
+    }
+
+    override fun registerOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?
+    ) = Unit
+
+    override fun unregisterOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?
+    ) = Unit
+}
+
 

@@ -3,12 +3,15 @@ package com.prati.meugasto.ui.screens.onboarding
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -20,36 +23,49 @@ import com.prati.meugasto.domain.model.AppMode
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
 
+internal data class OnboardingStep(
+    val icon: ImageVector,
+    val title: String,
+    val description: String
+)
+
+internal fun defaultOnboardingSteps(): List<OnboardingStep> = listOf(
+    OnboardingStep(
+        icon = Icons.Default.CameraAlt,
+        title = "Registro Automático",
+        description = "Aponte a câmera para o QR Code da nota fiscal. O MeuGasto extrai itens, quantidades, preços e supermercados instantaneamente."
+    ),
+    OnboardingStep(
+        icon = Icons.Default.Security,
+        title = "Privacidade por Design",
+        description = "No modo local padrão, suas compras ficam somente no seu aparelho. Se ativar a sincronização em nuvem opcional, os dados trafegam com TLS e isolamento por conta, sem venda ou anúncios."
+    ),
+    OnboardingStep(
+        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+        title = "Consciência Financeira",
+        description = "Monitore a evolução dos seus gastos, compare preços entre estabelecimentos e mantenha controle real das suas compras."
+    )
+)
+
+internal fun completeOnboarding(preferences: UserPreferences) {
+    preferences.setAppMode(AppMode.LOCAL_FIRST)
+    preferences.setOnboardingCompleted(true)
+}
+
 @Composable
 fun OnboardingScreen(
     preferences: UserPreferences,
     onFinish: () -> Unit
 ) {
-    var currentStep by remember { mutableIntStateOf(0) }
-
-    val steps = listOf(
-        OnboardingStep(
-            icon = Icons.Default.CameraAlt,
-            title = "Registro Automático",
-            description = "Aponte a câmera para o QR Code da nota fiscal. O MeuGasto extrai itens, quantidades, preços e supermercados instantaneamente."
-        ),
-        OnboardingStep(
-            icon = Icons.Default.Security,
-            title = "Privacidade por Design",
-            description = "Nem nós sabemos quanto você gasta. Seus dados de consumo pertencem apenas a você e ficam armazenados no seu dispositivo."
-        ),
-        OnboardingStep(
-            icon = Icons.AutoMirrored.Filled.ReceiptLong,
-            title = "Consciência Financeira",
-            description = "Monitore a evolução dos seus gastos por categoria, compare preços entre estabelecimentos e mantenha controle real das suas compras."
-        )
-    )
+    var currentStep by rememberSaveable { mutableIntStateOf(0) }
+    val steps = remember { defaultOnboardingSteps() }
 
     Scaffold { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(AppSpacing.XL),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -64,7 +80,7 @@ fun OnboardingScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                     contentDescription = "MeuGasto Logo",
-                    tint = androidx.compose.ui.graphics.Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(38.dp)
                 )
             }
@@ -98,7 +114,8 @@ fun OnboardingScreen(
 
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1f, fill = false)
+                    .defaultMinSize(minHeight = 320.dp)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
@@ -116,7 +133,7 @@ fun OnboardingScreen(
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = AppSpacing.MD)
+                            .padding(horizontal = AppSpacing.MD, vertical = AppSpacing.LG)
                     ) {
                         Surface(
                             shape = androidx.compose.foundation.shape.CircleShape,
@@ -150,13 +167,14 @@ fun OnboardingScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(AppSpacing.LG))
+
             Button(
                 onClick = {
                     if (currentStep < steps.lastIndex) {
                         currentStep++
                     } else {
-                        preferences.setAppMode(AppMode.LOCAL_FIRST)
-                        preferences.setOnboardingCompleted(true)
+                        completeOnboarding(preferences)
                         onFinish()
                     }
                 },
@@ -187,8 +205,3 @@ fun OnboardingScreen(
     }
 }
 
-private data class OnboardingStep(
-    val icon: ImageVector,
-    val title: String,
-    val description: String
-)

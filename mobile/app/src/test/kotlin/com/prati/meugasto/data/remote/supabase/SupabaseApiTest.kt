@@ -256,4 +256,33 @@ class SupabaseApiTest {
         assertTrue(keys0.contains("code"))
         assertTrue(keys0.contains("category_id"))
     }
+
+    @Test
+    fun `updatePassword envia PUT auth v1 user com bearer e nova senha`() = runTest {
+        var capturedMethod = ""
+        var capturedPath = ""
+        var capturedAuth = ""
+        var capturedBody = ""
+
+        val engine = MockEngine { request ->
+            capturedMethod = request.method.value
+            capturedPath = request.url.encodedPath
+            capturedAuth = request.headers[HttpHeaders.Authorization].orEmpty()
+            capturedBody = (request.body as? TextContent)?.text.orEmpty()
+            respond(
+                content = """{"id":"user-1","email":"ana@example.com"}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders
+            )
+        }
+
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+        val user = api.updatePassword("access-123", "novaSenhaForte")
+
+        assertEquals("PUT", capturedMethod)
+        assertEquals("/auth/v1/user", capturedPath)
+        assertEquals("Bearer access-123", capturedAuth)
+        assertTrue(capturedBody.contains("\"password\":\"novaSenhaForte\""))
+        assertEquals("user-1", user.id)
+    }
 }
