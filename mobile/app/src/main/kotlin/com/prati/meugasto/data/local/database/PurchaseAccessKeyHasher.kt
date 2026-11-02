@@ -13,7 +13,8 @@ internal object PurchaseAccessKeyHasher {
     data class BackfillAction(
         val id: Long,
         val accessKeyHash: String?,
-        val clearPlaintextAccessKey: Boolean
+        val clearPlaintextAccessKey: Boolean,
+        val leaveCloudUploadQueue: Boolean
     )
 
     fun normalizeAccessKey(raw: String?): String? =
@@ -34,17 +35,18 @@ internal object PurchaseAccessKeyHasher {
         val seenHashes = HashSet<String>()
         return rows.sortedBy { it.id }.map { row ->
             val candidateHash = sha256Hex(row.accessKey)
-            val uniqueHash = if (candidateHash != null && seenHashes.add(candidateHash)) {
-                candidateHash
-            } else {
-                null
-            }
+            val duplicate = candidateHash != null && !seenHashes.add(candidateHash)
+            // Notas repetidas continuam no aparelho, mas saem da fila da nuvem:
+            // o servidor deduplica pela mesma chave e a segunda linha nunca conseguiria
+            // gravar um remoteId proprio (índice único), falhando em todo sync.
             val needsTransientKeyForCloudUpload =
-                row.pendingCloudUserId != null && row.remoteId == null
+                !duplicate && candidateHash != null &&
+                    row.pendingCloudUserId != null && row.remoteId == null
             BackfillAction(
                 id = row.id,
-                accessKeyHash = uniqueHash,
-                clearPlaintextAccessKey = !needsTransientKeyForCloudUpload && row.accessKey != null
+                accessKeyHash = if (duplicate) null else candidateHash,
+                clearPlaintextAccessKey = !needsTransientKeyForCloudUpload && row.accessKey != null,
+                leaveCloudUploadQueue = duplicate && row.pendingCloudUserId != null
             )
         }
     }

@@ -58,7 +58,7 @@ class InAppUpdateManager internal constructor(
         try {
             val response = client.get(GITHUB_LATEST_RELEASE_URL)
             if (response.status.value !in 200..299) {
-                throw IllegalStateException("Falha ao consultar atualizacoes (HTTP ${response.status.value}).")
+                throw IllegalStateException("Falha ao consultar atualizações (HTTP ${response.status.value}).")
             }
 
             val body = response.bodyAsText()

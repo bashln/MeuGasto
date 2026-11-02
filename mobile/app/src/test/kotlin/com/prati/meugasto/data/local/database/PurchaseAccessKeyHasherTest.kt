@@ -40,6 +40,21 @@ class PurchaseAccessKeyHasherTest {
         assertTrue(actions[0].clearPlaintextAccessKey)
         assertTrue(actions[1].clearPlaintextAccessKey)
         assertNull(actions[1].accessKeyHash)
+        assertFalse(actions[1].leaveCloudUploadQueue)
+    }
+
+    @Test
+    fun `duplicate pending purchase drops the key and the cloud upload queue`() {
+        val actions = PurchaseAccessKeyHasher.planBackfill(
+            listOf(
+                PurchaseAccessKeyHasher.Row(id = 1, accessKey = key, remoteId = 90, pendingCloudUserId = null),
+                PurchaseAccessKeyHasher.Row(id = 2, accessKey = key, remoteId = null, pendingCloudUserId = "u1")
+            )
+        )
+
+        assertTrue(actions[1].clearPlaintextAccessKey)
+        assertTrue(actions[1].leaveCloudUploadQueue)
+        assertNull(actions[1].accessKeyHash)
     }
 
     @Test

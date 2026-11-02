@@ -102,6 +102,7 @@ abstract class AppDatabase : RoomDatabase() {
 
                 val setHashStmt = db.compileStatement("UPDATE purchases SET accessKeyHash = ? WHERE id = ?")
                 val clearPlainKeyStmt = db.compileStatement("UPDATE purchases SET accessKey = NULL WHERE id = ?")
+                val leaveQueueStmt = db.compileStatement("UPDATE purchases SET pendingCloudUserId = NULL WHERE id = ?")
                 for (action in PurchaseAccessKeyHasher.planBackfill(rows)) {
                     if (action.accessKeyHash != null) {
                         setHashStmt.bindString(1, action.accessKeyHash)
@@ -114,6 +115,11 @@ abstract class AppDatabase : RoomDatabase() {
                     if (action.clearPlaintextAccessKey) {
                         clearPlainKeyStmt.bindLong(1, action.id)
                         clearPlainKeyStmt.executeUpdateDelete()
+                    }
+
+                    if (action.leaveCloudUploadQueue) {
+                        leaveQueueStmt.bindLong(1, action.id)
+                        leaveQueueStmt.executeUpdateDelete()
                     }
                 }
 

@@ -56,12 +56,16 @@ class AppDatabaseMigrationTest {
         val cursor = mockk<Cursor>(relaxed = true)
         val setHashStatement = mockk<SupportSQLiteStatement>(relaxed = true)
         val clearKeyStatement = mockk<SupportSQLiteStatement>(relaxed = true)
+        val leaveQueueStatement = mockk<SupportSQLiteStatement>(relaxed = true)
 
         every {
             db.query("SELECT id, accessKey, remoteId, pendingCloudUserId FROM purchases ORDER BY id ASC")
         } returns cursor
         every { db.compileStatement("UPDATE purchases SET accessKeyHash = ? WHERE id = ?") } returns setHashStatement
         every { db.compileStatement("UPDATE purchases SET accessKey = NULL WHERE id = ?") } returns clearKeyStatement
+        every {
+            db.compileStatement("UPDATE purchases SET pendingCloudUserId = NULL WHERE id = ?")
+        } returns leaveQueueStatement
         every { cursor.moveToNext() } returnsMany listOf(true, true, true, false)
         every { cursor.getLong(0) } returnsMany listOf(1L, 2L, 3L)
         every { cursor.isNull(1) } returnsMany listOf(false, true, false)
@@ -82,7 +86,9 @@ class AppDatabaseMigrationTest {
             setHashStatement.executeUpdateDelete()
         }
         verify(exactly = 1) { clearKeyStatement.bindLong(1, 1L) }
-        verify(exactly = 0) { clearKeyStatement.bindLong(1, 3L) }
+        verify(exactly = 1) { clearKeyStatement.bindLong(1, 3L) }
+        verify(exactly = 1) { leaveQueueStatement.bindLong(1, 3L) }
+        verify(exactly = 0) { leaveQueueStatement.bindLong(1, 1L) }
         verify {
             db.execSQL(
                 "CREATE UNIQUE INDEX IF NOT EXISTS index_purchases_accessKeyHash ON purchases(accessKeyHash)"

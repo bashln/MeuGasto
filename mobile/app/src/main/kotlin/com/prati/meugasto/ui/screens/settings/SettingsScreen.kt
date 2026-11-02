@@ -61,7 +61,7 @@ fun SettingsScreen(
                 actions = listOf(
                     TopBarAction(
                         icon = Icons.Default.Person,
-                        contentDescription = "Perfil do Usuario",
+                        contentDescription = "Perfil do Usuário",
                         onClick = onNavigateToProfile
                     )
                 )
@@ -316,7 +316,7 @@ fun SettingsScreen(
                             onClick = {
                                 isCheckingUpdate = true
                                 updateHasError = false
-                                updateStatus = "Buscando atualizacoes..."
+                                updateStatus = "Buscando atualizações..."
                                 coroutineScope.launch {
                                     val result = updateManager.checkForUpdates(BuildConfig.VERSION_NAME)
                                     isCheckingUpdate = false

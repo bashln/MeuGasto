@@ -14,7 +14,8 @@ import org.junit.runner.RunWith
 
 /**
  * Migration 6→7 em SQLite real: hash único por chave de acesso, remoção da
- * chave em claro quando a nuvem já não precisa dela e preservação para envio.
+ * chave em claro quando a nuvem já não precisa dela, preservação para envio
+ * e expulsão de notas duplicadas da fila da nuvem.
  */
 @RunWith(AndroidJUnit4::class)
 class AccessKeyHashMigrationInstrumentedTest {
@@ -62,11 +63,12 @@ class AccessKeyHashMigrationInstrumentedTest {
         }
 
         db.query(
-            "SELECT accessKey, accessKeyHash FROM purchases WHERE id = 12"
+            "SELECT accessKey, accessKeyHash, pendingCloudUserId FROM purchases WHERE id = 12"
         ).use { cursor ->
             assertTrue(cursor.moveToFirst())
             assertNull("chave repetida não pode violar o índice único", cursor.getString(1))
-            assertEquals("chave repetida ainda pendente deve sobreviver", PENDING_KEY, cursor.getString(0))
+            assertNull("chave repetida não deve ficar em claro", cursor.getString(0))
+            assertNull("nota duplicada sai da fila da nuvem", cursor.getString(2))
         }
 
         db.query("PRAGMA index_list(purchases)").use { cursor ->

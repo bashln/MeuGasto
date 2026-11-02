@@ -52,6 +52,7 @@ fun ShoppingListScreen(
     var editingPrice by remember { mutableStateOf("") }
     var formError by remember { mutableStateOf<String?>(null) }
     var editError by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(listsState) {
         val loadedLists = listsState ?: return@LaunchedEffect
@@ -133,7 +134,8 @@ fun ShoppingListScreen(
                     )
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -247,7 +249,7 @@ fun ShoppingListScreen(
                         ) {
                             Icon(
                                 Icons.Default.Add,
-                                contentDescription = "Adicionar item a lista"
+                                contentDescription = "Adicionar item à lista"
                             )
                         }
                     }
@@ -345,6 +347,14 @@ fun ShoppingListScreen(
                                     onClick = {
                                         coroutineScope.launch {
                                             database.shoppingListDao().deleteItem(item)
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "Item removido",
+                                                actionLabel = "Desfazer",
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                database.shoppingListDao().insertItem(item)
+                                            }
                                         }
                                     }
                                 ) {

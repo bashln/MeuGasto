@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.prati.meugasto.domain.model.AppMode
+import java.io.IOException
+import java.security.GeneralSecurityException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,9 +42,13 @@ class UserPreferences(context: Context) : AuthPreferences {
 
     private val securePrefs: SharedPreferences by lazy {
         runCatching { appContext.deleteSharedPreferences("meugasto_secure_fallback") }
-        createEncryptedPrefs(appContext).getOrElse {
-            runCatching { appContext.deleteSharedPreferences("meugasto_secure_prefs") }
-            createEncryptedPrefs(appContext).getOrElse {
+        createEncryptedPrefs(appContext).getOrElse { error ->
+            // Só apaga o cofre quando o arquivo/keyset está corrompido. Uma falha
+            // transitória do KeyStore não pode destruir a sessão do usuário.
+            if (error is IOException || error is GeneralSecurityException) {
+                runCatching { appContext.deleteSharedPreferences("meugasto_secure_prefs") }
+                createEncryptedPrefs(appContext).getOrElse { InMemorySharedPreferences() }
+            } else {
                 InMemorySharedPreferences()
             }
         }
