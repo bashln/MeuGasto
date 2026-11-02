@@ -137,10 +137,6 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
 
-    // Supabase
-    implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.gotrue)
-
     // CameraX & ML Kit
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
@@ -148,12 +144,12 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.barcode.scanning)
 
-    // Security & WorkManager
+    // Security
     implementation(libs.androidx.security.crypto)
-    implementation(libs.androidx.work.runtime.ktx)
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(kotlin("reflect"))
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)

@@ -55,3 +55,5 @@ Thumbs.db
 
 # Local tools
 .cortexkit/
+.audit/
+supabase/.temp/

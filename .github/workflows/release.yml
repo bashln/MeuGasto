@@ -156,6 +156,16 @@ jobs:
           fi
           echo "✓ APK size: $APK_SIZE bytes"
 
+      - name: Verify APK signature
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/android-sdk}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          if [ -z "$APKSIGNER" ]; then
+            echo "ERROR: apksigner not found under $SDK_ROOT/build-tools"
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose mobile/app/build/outputs/apk/release/app-release.apk
+
       - name: Prepare release asset
         run: |
           VERSION_NAME="${RELEASE_TAG#v}"
