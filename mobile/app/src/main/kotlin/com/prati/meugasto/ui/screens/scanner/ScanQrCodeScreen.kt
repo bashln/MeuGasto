@@ -55,7 +55,7 @@ fun ScanQrCodeScreen(
     repository: PurchaseRepository,
     onNavigateBack: () -> Unit,
     onPurchaseCreated: (Long) -> Unit,
-    onPurchaseSaved: suspend (Long) -> Unit = {}
+    onPurchaseSaved: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -80,6 +80,7 @@ fun ScanQrCodeScreen(
 
     var scanState by remember { mutableStateOf<ScanState>(ScanState.Scanning) }
     var scrapedData by remember { mutableStateOf<NfceScrapedData?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -120,9 +121,10 @@ fun ScanQrCodeScreen(
                                 val result = scraperEngine.scrapeUrl(url)
                                 result.onSuccess { data ->
                                     scrapedData = data
+                                    isSaving = false
                                     scanState = ScanState.Confirmation(data)
-                                }.onFailure {
-                                    scanState = ScanState.Error(ScanFailure.ReceiptReadFailed)
+                                }.onFailure { error ->
+                                    scanState = ScanState.Error(mapScrapeFailure(error))
                                 }
                             }
                         },
@@ -152,35 +154,46 @@ fun ScanQrCodeScreen(
                 is ScanState.Confirmation -> {
                     ConfirmationScreen(
                         data = state.data,
+                        isSaving = isSaving,
                         onConfirm = {
+                            if (isSaving) return@ConfirmationScreen
+                            isSaving = true
                             coroutineScope.launch {
-                                val purchase = Purchase(
-                                    supermarket = Supermarket(
-                                        name = state.data.supermarket.name,
-                                        cnpj = state.data.supermarket.cnpj,
-                                        state = state.data.supermarket.state,
-                                        type = state.data.supermarket.type
-                                    ),
-                                    date = state.data.date,
-                                    totalPrice = state.data.totalPrice,
-                                    accessKey = state.data.accessKey,
-                                    products = state.data.items.map { itm ->
-                                        Item(
-                                            name = itm.name,
-                                            quantity = itm.quantity,
-                                            unit = itm.unit,
-                                            price = itm.price
-                                        )
-                                    }
-                                )
-                                val id = repository.savePurchase(purchase)
-                                onPurchaseSaved(id)
-                                onPurchaseCreated(id)
+                                runCatching {
+                                    val purchase = Purchase(
+                                        supermarket = Supermarket(
+                                            name = state.data.supermarket.name,
+                                            cnpj = state.data.supermarket.cnpj,
+                                            state = state.data.supermarket.state,
+                                            type = state.data.supermarket.type
+                                        ),
+                                        date = state.data.date,
+                                        totalPrice = state.data.totalPrice,
+                                        accessKey = state.data.accessKey,
+                                        products = state.data.items.map { itm ->
+                                            Item(
+                                                name = itm.name,
+                                                quantity = itm.quantity,
+                                                unit = itm.unit,
+                                                price = itm.price
+                                            )
+                                        }
+                                    )
+                                    repository.savePurchase(purchase)
+                                }.onSuccess { id ->
+                                    onPurchaseSaved(id)
+                                    onPurchaseCreated(id)
+                                }.onFailure {
+                                    isSaving = false
+                                    scanState = ScanState.Error(ScanFailure.SaveFailed)
+                                }
                             }
                         },
                         onCancel = {
-                            scanState = ScanState.Scanning
-                            scrapedData = null
+                            if (!isSaving) {
+                                scanState = ScanState.Scanning
+                                scrapedData = null
+                            }
                         }
                     )
                 }
@@ -189,6 +202,7 @@ fun ScanQrCodeScreen(
                     ErrorScreen(
                         failure = state.failure,
                         onRetry = {
+                            isSaving = false
                             scanState = ScanState.Scanning
                         },
                         onBack = onNavigateBack
@@ -206,9 +220,50 @@ sealed class ScanState {
     data class Error(val failure: ScanFailure) : ScanState()
 }
 
-enum class ScanFailure {
-    CameraUnavailable,
-    ReceiptReadFailed
+sealed interface ScanFailure {
+    data object CameraUnavailable : ScanFailure
+    data object InvalidQrCode : ScanFailure
+    data class UnsupportedState(
+        val detectedUf: String?,
+        val supportedUfs: List<String>
+    ) : ScanFailure
+    data object NetworkError : ScanFailure
+    data object ReceiptParseFailed : ScanFailure
+    data object SaveFailed : ScanFailure
+}
+
+internal fun mapScrapeFailure(error: Throwable): ScanFailure = when (error) {
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.UnsupportedState ->
+        ScanFailure.UnsupportedState(error.detectedUf, error.supportedUfs)
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.InvalidUrl ->
+        ScanFailure.InvalidQrCode
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.NetworkFailure ->
+        ScanFailure.NetworkError
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.ParseFailure ->
+        ScanFailure.ReceiptParseFailed
+    else -> ScanFailure.NetworkError
+}
+
+internal fun scanFailureCopy(failure: ScanFailure): Pair<String, String> = when (failure) {
+    ScanFailure.CameraUnavailable -> "Não foi possível iniciar a câmera" to
+        "Verifique se o MeuGasto tem permissão para usar a câmera e tente novamente."
+    ScanFailure.InvalidQrCode -> "QR Code não reconhecido" to
+        "Este código não aponta para uma nota fiscal eletrônica. Escaneie o QR Code impresso no cupom."
+    is ScanFailure.UnsupportedState -> {
+        val supported = failure.supportedUfs.sorted().joinToString(", ")
+        val title = if (failure.detectedUf != null) {
+            "Nota de ${failure.detectedUf} ainda não suportada"
+        } else {
+            "Estado ainda não suportado"
+        }
+        title to "O MeuGasto já lê notas de $supported. A suíte do seu estado está no roteiro."
+    }
+    ScanFailure.NetworkError -> "Não foi possível consultar a SEFAZ" to
+        "Confira sua conexão e tente novamente. O portal do estado também pode estar indisponível."
+    ScanFailure.ReceiptParseFailed -> "Não foi possível ler a NFC-e" to
+        "O portal respondeu, mas os itens não puderam ser extraídos. Confira se o QR Code está legível e tente novamente."
+    ScanFailure.SaveFailed -> "Não foi possível salvar a compra" to
+        "Os dados foram lidos, mas não puderam ser gravados no aparelho. Tente novamente."
 }
 
 @Composable
@@ -410,6 +465,7 @@ fun QrScanOverlay(
 @Composable
 fun ConfirmationScreen(
     data: NfceScrapedData,
+    isSaving: Boolean = false,
     onConfirm: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -437,17 +493,27 @@ fun ConfirmationScreen(
                 ) {
                     OutlinedButton(
                         onClick = onCancel,
+                        enabled = !isSaving,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Escanear Novamente")
                     }
                     Button(
                         onClick = onConfirm,
+                        enabled = !isSaving,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                        }
                         Spacer(modifier = Modifier.width(AppSpacing.SM))
-                        Text("Salvar")
+                        Text(if (isSaving) "Salvando..." else "Salvar")
                     }
                 }
             }
@@ -601,17 +667,12 @@ fun ErrorScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
-    val title = when (failure) {
-        ScanFailure.CameraUnavailable -> "Não foi possível iniciar a câmera"
-        ScanFailure.ReceiptReadFailed -> "Não foi possível ler a NFC-e"
-    }
-    val guidance = when (failure) {
-        ScanFailure.CameraUnavailable -> "Verifique se o MeuGasto tem permissão para usar a câmera e tente novamente."
-        ScanFailure.ReceiptReadFailed -> "Confira sua conexão e se o QR Code está legível. Depois, tente novamente."
-    }
+    val (title, guidance) = scanFailureCopy(failure)
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppSpacing.XL),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

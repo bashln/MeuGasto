@@ -79,6 +79,9 @@ interface PurchaseDao {
     @Query("SELECT id FROM purchases WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findIdByRemoteId(remoteId: Long): Long?
 
+    @Query("SELECT id FROM purchases WHERE accessKeyHash = :accessKeyHash LIMIT 1")
+    suspend fun findIdByAccessKeyHash(accessKeyHash: String): Long?
+
     @Query("SELECT id FROM purchases WHERE remoteId IS NULL AND pendingCloudUserId = :userId ORDER BY id")
     suspend fun getPendingCloudUploadIds(userId: String): List<Long>
 

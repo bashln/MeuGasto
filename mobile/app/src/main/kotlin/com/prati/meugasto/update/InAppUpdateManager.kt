@@ -110,7 +110,7 @@ class InAppUpdateManager internal constructor(
         var tempFile: File? = null
         try {
             if (!isAllowedApkDownloadUrl(downloadUrl, requireReleasePathOnGitHub = true)) {
-                throw SecurityException("URL de atualizacao nao autorizada.")
+                throw SecurityException("URL de atualização não autorizada.")
             }
 
             val updatesDir = File(cacheDirProvider(), "updates").apply { mkdirs() }
@@ -127,13 +127,13 @@ class InAppUpdateManager internal constructor(
                     val status = response.status.value
                     if (status in 300..399) {
                         if (redirectCount >= MAX_REDIRECTS) {
-                            throw IllegalStateException("Excesso de redirecionamentos ao baixar atualizacao.")
+                            throw IllegalStateException("Excesso de redirecionamentos ao baixar atualização.")
                         }
                         val location = response.headers[HttpHeaders.Location]
-                            ?: throw IllegalStateException("Redirecionamento sem destino ao baixar atualizacao.")
+                            ?: throw IllegalStateException("Redirecionamento sem destino ao baixar atualização.")
                         val resolved = URI(currentUrl).resolve(location).toString()
                         if (!isAllowedApkDownloadUrl(resolved, requireReleasePathOnGitHub = false)) {
-                            throw SecurityException("Redirecionamento para host nao autorizado.")
+                            throw SecurityException("Redirecionamento para host não autorizado.")
                         }
                         nextRedirectUrl = resolved
                         redirectCount++
@@ -155,18 +155,18 @@ class InAppUpdateManager internal constructor(
                                 }
                                 totalBytes += read
                                 if (totalBytes > MAX_APK_BYTES) {
-                                    throw IllegalStateException("Arquivo de atualizacao excede o limite permitido.")
+                                    throw IllegalStateException("Arquivo de atualização excede o limite permitido.")
                                 }
                                 out.write(buffer, 0, read)
                             }
                         }
 
                         if (totalBytes < MIN_APK_BYTES || !hasZipMagicHeader(headerBytes, headerRead)) {
-                            throw IllegalStateException("Arquivo baixado nao e um pacote APK valido.")
+                            throw IllegalStateException("Arquivo baixado não é um pacote APK válido.")
                         }
                         downloaded = true
                     } else {
-                        throw IllegalStateException("Falha ao baixar atualizacao (HTTP $status).")
+                        throw IllegalStateException("Falha ao baixar atualização (HTTP $status).")
                     }
                 }
                 if (nextRedirectUrl != null) {
@@ -175,7 +175,7 @@ class InAppUpdateManager internal constructor(
             }
 
             if (finalFile.exists() && !finalFile.delete()) {
-                throw IllegalStateException("Nao foi possivel substituir o pacote de atualizacao anterior.")
+                throw IllegalStateException("Não foi possível substituir o pacote de atualização anterior.")
             }
             if (!tempFile.renameTo(finalFile)) {
                 tempFile.copyTo(finalFile, overwrite = true)

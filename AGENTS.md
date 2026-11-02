@@ -112,7 +112,7 @@ Exemplo: `v0.4.1.0`
 - [ ] Paraná
 - [ ] Pernambuco
 - [ ] Piauí
-- [ ] Rio de Janeiro
+- [x] Rio de Janeiro
 - [ ] Rio Grande do Norte
 - [x] Rio Grande do Sul
 - [ ] Rondônia

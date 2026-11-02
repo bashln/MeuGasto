@@ -33,7 +33,12 @@ data class SupermarketEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["supermarketId"]), Index(value = ["date"]), Index(value = ["remoteId"], unique = true)]
+    indices = [
+        Index(value = ["supermarketId"]),
+        Index(value = ["date"]),
+        Index(value = ["remoteId"], unique = true),
+        Index(value = ["accessKeyHash"], unique = true)
+    ]
 )
 data class PurchaseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -46,7 +51,8 @@ data class PurchaseEntity(
     /** Id da linha correspondente no Supabase, quando sincronizada. */
     val remoteId: Long? = null,
     val accessKey: String? = null,
-    val pendingCloudUserId: String? = null
+    val pendingCloudUserId: String? = null,
+    val accessKeyHash: String? = null
 )
 
 @Entity(

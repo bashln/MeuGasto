@@ -15,23 +15,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.prati.meugasto.BuildConfig
+import com.prati.meugasto.data.local.preferences.ThemeMode
 import com.prati.meugasto.data.local.preferences.UserPreferences
+import com.prati.meugasto.data.remote.supabase.AuthState
 import com.prati.meugasto.domain.model.AppMode
-import com.prati.meugasto.update.InAppUpdateManager
-import com.prati.meugasto.update.UpdateInfo
 import com.prati.meugasto.ui.components.AppTopBar
+import com.prati.meugasto.ui.components.TopBarAction
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
+import com.prati.meugasto.update.InAppUpdateManager
+import com.prati.meugasto.update.UpdateInfo
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     preferences: UserPreferences,
+    authState: AuthState = AuthState.LoggedOut,
     onNavigateBack: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
@@ -43,13 +45,10 @@ fun SettingsScreen(
     val updateManager = remember { InAppUpdateManager(context) }
 
     var updateStatus by remember { mutableStateOf<String?>(null) }
+    var updateHasError by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
-
-    // WebDAV states
-    var webDavUrl by remember { mutableStateOf(preferences.getWebDavUrl() ?: "") }
-    var webDavUser by remember { mutableStateOf(preferences.getWebDavUser() ?: "") }
-    var webDavPass by remember { mutableStateOf(preferences.getWebDavPass() ?: "") }
+    var isInstallingUpdate by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -60,9 +59,9 @@ fun SettingsScreen(
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onNavigateBack = onNavigateBack,
                 actions = listOf(
-                    com.prati.meugasto.ui.components.TopBarAction(
+                    TopBarAction(
                         icon = Icons.Default.Person,
-                        contentDescription = "Perfil do Usuário",
+                        contentDescription = "Perfil do Usuario",
                         onClick = onNavigateToProfile
                     )
                 )
@@ -80,7 +79,6 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(AppSpacing.XS))
 
-            // Seletor de Modo (Cloud vs Local-First)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppShapes.Medium,
@@ -96,10 +94,11 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(AppSpacing.SM))
                     Text(
-                        text = if (appMode == AppMode.CLOUD)
-                            "Modo Nuvem (Supabase): dados sincronizados com sua conta online de forma segura e privada."
-                        else
-                            "Modo Local-First: dados armazenados 100% no seu dispositivo. Opcionalmente faça backup em sua própria nuvem (WebDAV).",
+                        text = if (appMode == AppMode.CLOUD) {
+                            "Modo Nuvem (Supabase). Compras sincronizadas via HTTPS com sua conta e isoladas por usuário no banco de dados."
+                        } else {
+                            "Modo Local-First. Compras e listas ficam gravadas somente no banco local deste aparelho, sem envio para servidores."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -123,7 +122,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Seletor de Tema
             val currentThemeMode by preferences.themeMode.collectAsState()
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -140,27 +138,27 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(AppSpacing.SM))
                     Text(
-                        text = "Escolha entre o tema Claro original (Laranja MeuGasto), Escuro ou Seguir o Sistema.",
+                        text = "Escolha entre o tema Claro, Escuro ou Seguir o Sistema.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(AppSpacing.MD))
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         SegmentedButton(
-                            selected = currentThemeMode == com.prati.meugasto.data.local.preferences.ThemeMode.LIGHT,
-                            onClick = { preferences.setThemeMode(com.prati.meugasto.data.local.preferences.ThemeMode.LIGHT) },
+                            selected = currentThemeMode == ThemeMode.LIGHT,
+                            onClick = { preferences.setThemeMode(ThemeMode.LIGHT) },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                             label = { Text("Claro") }
                         )
                         SegmentedButton(
-                            selected = currentThemeMode == com.prati.meugasto.data.local.preferences.ThemeMode.DARK,
-                            onClick = { preferences.setThemeMode(com.prati.meugasto.data.local.preferences.ThemeMode.DARK) },
+                            selected = currentThemeMode == ThemeMode.DARK,
+                            onClick = { preferences.setThemeMode(ThemeMode.DARK) },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                             label = { Text("Escuro") }
                         )
                         SegmentedButton(
-                            selected = currentThemeMode == com.prati.meugasto.data.local.preferences.ThemeMode.SYSTEM,
-                            onClick = { preferences.setThemeMode(com.prati.meugasto.data.local.preferences.ThemeMode.SYSTEM) },
+                            selected = currentThemeMode == ThemeMode.SYSTEM,
+                            onClick = { preferences.setThemeMode(ThemeMode.SYSTEM) },
                             shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
                             label = { Text("Sistema") }
                         )
@@ -168,9 +166,9 @@ fun SettingsScreen(
                 }
             }
 
-            // Configuração Modo Nuvem (Supabase)
             if (appMode == AppMode.CLOUD) {
-                val isConnected = !preferences.getAccessToken().isNullOrBlank() || !preferences.getUserEmail().isNullOrBlank()
+                val loggedInState = authState as? AuthState.LoggedIn
+                val isConnected = loggedInState != null
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -187,7 +185,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Conta na Nuvem (Supabase)",
+                                text = "Conta na Nuvem",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Surface(
@@ -204,10 +202,11 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(AppSpacing.SM))
                         Text(
-                            text = if (isConnected)
-                                "Sua conta está sincronizada com a infraestrutura Supabase."
-                            else
-                                "Entre com sua conta Supabase para sincronizar suas compras.",
+                            text = if (isConnected) {
+                                "Sua conta está conectada para sincronizar compras entre aparelhos."
+                            } else {
+                                "Entre com sua conta MeuGasto para sincronizar suas compras."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -215,10 +214,10 @@ fun SettingsScreen(
 
                         if (isConnected) {
                             OutlinedTextField(
-                                value = preferences.getUserEmail() ?: "usuario@email.com",
+                                value = loggedInState?.email ?: preferences.getUserEmail().orEmpty(),
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Email Vinculado") },
+                                label = { Text("E-mail vinculado") },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = AppShapes.Small
                             )
@@ -228,7 +227,7 @@ fun SettingsScreen(
                                     coroutineScope.launch {
                                         runCatching { onSignOut() }
                                             .onSuccess {
-                                                snackbarHostState.showSnackbar("Desconectado da conta Supabase.")
+                                                snackbarHostState.showSnackbar("Conta desconectada deste aparelho.")
                                             }
                                             .onFailure { error ->
                                                 snackbarHostState.showSnackbar(
@@ -245,12 +244,6 @@ fun SettingsScreen(
                                 Text("Desconectar")
                             }
                         } else {
-                            Text(
-                                text = "Entre com sua conta MeuGasto para sincronizar. Uma única entrada já conecta este aparelho.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.MD))
                             Button(
                                 onClick = onNavigateToLogin,
                                 modifier = Modifier.align(Alignment.End)
@@ -262,76 +255,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Configuração WebDAV (se no modo Local-First)
-            if (appMode == AppMode.LOCAL_FIRST) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = AppShapes.Medium,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(AppSpacing.LG)) {
-                        Text(
-                            text = "Backup em Nuvem Pessoal (WebDAV)",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Nextcloud, ownCloud ou qualquer servidor WebDAV.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacing.MD))
-
-                        OutlinedTextField(
-                            value = webDavUrl,
-                            onValueChange = { webDavUrl = it },
-                            label = { Text("URL do Servidor WebDAV") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = AppShapes.Small
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacing.SM))
-
-                        OutlinedTextField(
-                            value = webDavUser,
-                            onValueChange = { webDavUser = it },
-                            label = { Text("Usuário") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = AppShapes.Small
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacing.SM))
-
-                        OutlinedTextField(
-                            value = webDavPass,
-                            onValueChange = { webDavPass = it },
-                            label = { Text("Senha ou Token de App") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = AppShapes.Small,
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false)
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacing.MD))
-
-                        Button(
-                            onClick = {
-                                preferences.saveWebDavConfig(webDavUrl, webDavUser, webDavPass)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Configuração WebDAV salva com sucesso!")
-                                }
-                            },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Salvar Configuração")
-                        }
-                    }
-                }
-            }
-
-            // Privacidade e Princípios
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppShapes.Medium,
@@ -347,14 +270,13 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(AppSpacing.SM))
                     Text(
-                        text = "O MeuGasto foi construído sob o princípio de Privacidade por Design. Suas notas fiscais e histórico de compras permanecem sob seu controle e nunca são vendidos.",
+                        text = "No modo Local-First suas notas e listas ficam restritas ao aparelho e a chave fiscal de 44 dígitos não é gravada em texto puro. Na nuvem opcional, o tráfego usa TLS e os dados pertencem exclusivamente à sua conta.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Atualização In-App (Mecanismo GitHub Releases)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppShapes.Medium,
@@ -378,9 +300,9 @@ fun SettingsScreen(
 
                     if (updateStatus != null) {
                         Text(
-                            text = updateStatus ?: "",
+                            text = updateStatus.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = if (updateHasError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(AppSpacing.SM))
                     }
@@ -393,11 +315,12 @@ fun SettingsScreen(
                         Button(
                             onClick = {
                                 isCheckingUpdate = true
-                                updateStatus = "Buscando atualizações..."
+                                updateHasError = false
+                                updateStatus = "Buscando atualizacoes..."
                                 coroutineScope.launch {
                                     val result = updateManager.checkForUpdates(BuildConfig.VERSION_NAME)
+                                    isCheckingUpdate = false
                                     result.onSuccess { info ->
-                                        isCheckingUpdate = false
                                         updateInfo = info
                                         if (info.hasUpdate) {
                                             updateStatus = "Nova versão disponível: v${info.latestVersion}"
@@ -405,12 +328,12 @@ fun SettingsScreen(
                                             updateStatus = "O app já está na versão mais recente."
                                         }
                                     }.onFailure { e ->
-                                        isCheckingUpdate = false
-                                        updateStatus = "Erro ao buscar atualizações: ${e.message}"
+                                        updateHasError = true
+                                        updateStatus = "Erro ao buscar atualizações: ${e.message ?: "verifique sua conexão"}"
                                     }
                                 }
                             },
-                            enabled = !isCheckingUpdate,
+                            enabled = !isCheckingUpdate && !isInstallingUpdate,
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
@@ -418,12 +341,23 @@ fun SettingsScreen(
                             Text("Verificar Atualizações")
                         }
 
-                        if (updateInfo?.hasUpdate == true && updateInfo?.downloadUrl != null) {
+                        val downloadUrl = updateInfo?.downloadUrl
+                        if (updateInfo?.hasUpdate == true && downloadUrl != null) {
                             Button(
+                                enabled = !isInstallingUpdate && !isCheckingUpdate,
                                 onClick = {
+                                    isInstallingUpdate = true
+                                    updateHasError = false
                                     updateStatus = "Baixando atualização..."
                                     coroutineScope.launch {
-                                        updateManager.downloadAndInstallApk(updateInfo!!.downloadUrl!!)
+                                        val result = updateManager.downloadAndInstallApk(downloadUrl)
+                                        isInstallingUpdate = false
+                                        result.onSuccess {
+                                            updateStatus = "Instalador aberto. Confirme a atualização no Android."
+                                        }.onFailure { e ->
+                                            updateHasError = true
+                                            updateStatus = "Falha ao instalar atualização: ${e.message ?: "tente novamente"}"
+                                        }
                                     }
                                 }
                             ) {
@@ -440,4 +374,3 @@ fun SettingsScreen(
         }
     }
 }
-

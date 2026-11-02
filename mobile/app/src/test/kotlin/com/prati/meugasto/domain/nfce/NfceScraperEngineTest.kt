@@ -2,6 +2,13 @@ package com.prati.meugasto.domain.nfce
 
 import com.prati.meugasto.domain.nfce.strategies.RjNfceStrategy
 import com.prati.meugasto.domain.nfce.strategies.RsNfceStrategy
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -210,8 +217,110 @@ class NfceScraperEngineTest {
             "https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260993015006000113651040003070441999999999"
         )
 
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        val error = result.exceptionOrNull()
+        assertTrue(error is NfceScrapeException.UnsupportedState)
+        assertEquals("SP", (error as NfceScrapeException.UnsupportedState).detectedUf)
+    }
+
+    @Test
+    fun `engine rejects non-http schemes and embedded credentials`() = runTest {
+        val engine = NfceScraperEngine()
+
+        assertTrue(
+            engine.scrapeUrl("javascript:alert(1)").exceptionOrNull() is NfceScrapeException.InvalidUrl
+        )
+        assertTrue(
+            engine.scrapeUrl("file:///data/data/com.prati.meugasto/databases/meugasto.db")
+                .exceptionOrNull() is NfceScrapeException.InvalidUrl
+        )
+        assertTrue(
+            engine.scrapeUrl(
+                "https://user:pass@consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+            ).exceptionOrNull() is NfceScrapeException.InvalidUrl
+        )
+    }
+
+    @Test
+    fun `engine promotes http portal to https before parsing`() {
+        val html = """
+            <div class="txtTopo">Mercado RJ</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">10,00</span>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+
+        val result = NfceScraperEngine().parseWithStrategy(
+            html,
+            "http://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `engine blocks redirect to a host outside the state strategy`() = runTest {
+        val client = HttpClient(MockEngine) {
+            followRedirects = false
+            engine {
+                addHandler {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf(HttpHeaders.Location, "https://evil.example.com/nota")
+                    )
+                }
+            }
+        }
+
+        val result = NfceScraperEngine(httpClient = client).scrapeUrl(
+            "https://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.exceptionOrNull() is NfceScrapeException.NetworkFailure)
+    }
+
+    @Test
+    fun `engine follows a redirect between allowed hosts of the same state`() = runTest {
+        val html = """
+            <div class="txtTopo">Mercado RJ</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">10,00</span>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val client = HttpClient(MockEngine) {
+            followRedirects = false
+            engine {
+                addHandler { request ->
+                    if (request.url.host == "consultadfe.fazenda.rj.gov.br") {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf(
+                                HttpHeaders.Location,
+                                "https://nfce.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+                            )
+                        )
+                    } else {
+                        respond(
+                            content = html,
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, "text/html; charset=utf-8")
+                        )
+                    }
+                }
+            }
+        }
+
+        val result = NfceScraperEngine(httpClient = client).scrapeUrl(
+            "https://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals("RJ", result.getOrThrow().supermarket.state)
     }
 }
 

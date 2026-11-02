@@ -49,4 +49,44 @@ class AppDatabaseMigrationTest {
 
         verify { statement.bindString(1, "name:sabao em po"); statement.bindLong(2, 3L) }
     }
+
+    @Test
+    fun `migration 6 to 7 apaga chave em claro de compras ja sincronizadas e indexa o hash`() {
+        val db = mockk<SupportSQLiteDatabase>(relaxed = true)
+        val cursor = mockk<Cursor>(relaxed = true)
+        val setHashStatement = mockk<SupportSQLiteStatement>(relaxed = true)
+        val clearKeyStatement = mockk<SupportSQLiteStatement>(relaxed = true)
+
+        every {
+            db.query("SELECT id, accessKey, remoteId, pendingCloudUserId FROM purchases ORDER BY id ASC")
+        } returns cursor
+        every { db.compileStatement("UPDATE purchases SET accessKeyHash = ? WHERE id = ?") } returns setHashStatement
+        every { db.compileStatement("UPDATE purchases SET accessKey = NULL WHERE id = ?") } returns clearKeyStatement
+        every { cursor.moveToNext() } returnsMany listOf(true, true, true, false)
+        every { cursor.getLong(0) } returnsMany listOf(1L, 2L, 3L)
+        every { cursor.isNull(1) } returnsMany listOf(false, true, false)
+        every { cursor.getString(1) } returns " abc "
+        every { cursor.isNull(2) } returnsMany listOf(false, true, true)
+        every { cursor.getLong(2) } returns 90L
+        every { cursor.isNull(3) } returnsMany listOf(false, true, false)
+        every { cursor.getString(3) } returns "account-1"
+
+        AppDatabase.MIGRATION_6_7.migrate(db)
+
+        verify { db.execSQL("ALTER TABLE purchases ADD COLUMN accessKeyHash TEXT DEFAULT NULL") }
+        verify {
+            setHashStatement.bindString(
+                1,
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+            )
+            setHashStatement.executeUpdateDelete()
+        }
+        verify(exactly = 1) { clearKeyStatement.bindLong(1, 1L) }
+        verify(exactly = 0) { clearKeyStatement.bindLong(1, 3L) }
+        verify {
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_purchases_accessKeyHash ON purchases(accessKeyHash)"
+            )
+        }
+    }
 }

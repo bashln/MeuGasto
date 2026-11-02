@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ShoppingListEntity::class,
         ShoppingListItemEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -84,13 +84,50 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE purchases ADD COLUMN accessKeyHash TEXT DEFAULT NULL")
+
+                val rows = mutableListOf<PurchaseAccessKeyHasher.Row>()
+                db.query("SELECT id, accessKey, remoteId, pendingCloudUserId FROM purchases ORDER BY id ASC").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        rows += PurchaseAccessKeyHasher.Row(
+                            id = cursor.getLong(0),
+                            accessKey = if (cursor.isNull(1)) null else cursor.getString(1),
+                            remoteId = if (cursor.isNull(2)) null else cursor.getLong(2),
+                            pendingCloudUserId = if (cursor.isNull(3)) null else cursor.getString(3)
+                        )
+                    }
+                }
+
+                val setHashStmt = db.compileStatement("UPDATE purchases SET accessKeyHash = ? WHERE id = ?")
+                val clearPlainKeyStmt = db.compileStatement("UPDATE purchases SET accessKey = NULL WHERE id = ?")
+                for (action in PurchaseAccessKeyHasher.planBackfill(rows)) {
+                    if (action.accessKeyHash != null) {
+                        setHashStmt.bindString(1, action.accessKeyHash)
+                    } else {
+                        setHashStmt.bindNull(1)
+                    }
+                    setHashStmt.bindLong(2, action.id)
+                    setHashStmt.executeUpdateDelete()
+
+                    if (action.clearPlaintextAccessKey) {
+                        clearPlainKeyStmt.bindLong(1, action.id)
+                        clearPlainKeyStmt.executeUpdateDelete()
+                    }
+                }
+
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_purchases_accessKeyHash ON purchases(accessKeyHash)")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "meugasto.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)

@@ -80,9 +80,16 @@ class LocalPurchaseRepository(
     }
 
     override suspend fun savePurchase(purchase: Purchase): Long {
+        val normalizedKey = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.normalizeAccessKey(purchase.accessKey)
+        val keyHash = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(normalizedKey)
+        if (purchase.id == 0L && keyHash != null) {
+            database.purchaseDao().findIdByAccessKeyHash(keyHash)?.let { existingId ->
+                return existingId
+            }
+        }
+
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
-        
-        // Obter ou criar supermercado
+
         val existingMarket = database.supermarketDao().findByName(purchase.supermarket.name)
         val marketId = existingMarket?.id ?: database.supermarketDao().insert(
             SupermarketEntity(
@@ -103,6 +110,7 @@ class LocalPurchaseRepository(
             purchase.totalPrice
         }
 
+        val pendingCloudUser = if (currentAppMode() == AppMode.CLOUD) currentCloudUserId() else null
         val purchaseEntity = PurchaseEntity(
             id = purchase.id,
             supermarketId = marketId,
@@ -111,8 +119,9 @@ class LocalPurchaseRepository(
             isManual = purchase.isManual,
             createdAt = purchase.createdAt ?: now,
             updatedAt = now,
-            accessKey = purchase.accessKey,
-            pendingCloudUserId = if (currentAppMode() == AppMode.CLOUD) currentCloudUserId() else null
+            accessKey = if (pendingCloudUser != null) normalizedKey else null,
+            pendingCloudUserId = pendingCloudUser,
+            accessKeyHash = keyHash
         )
 
         val itemEntities = purchase.products.map { item ->

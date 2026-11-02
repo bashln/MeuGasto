@@ -235,10 +235,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPurchaseSaved = { purchaseId ->
                                     if (authRepository.state.value is AuthState.LoggedIn && appMode == AppMode.CLOUD) {
-                                        cloudUploader.upload(purchaseId).onFailure { error ->
-                                            snackbarHostState.showSnackbar(
-                                                "Compra salva no aparelho, mas não sincronizada: ${error.message ?: "verifique sua conexão"}"
-                                            )
+                                        coroutineScope.launch {
+                                            cloudUploader.upload(purchaseId).onFailure { error ->
+                                                snackbarHostState.showSnackbar(
+                                                    "Compra salva no aparelho, mas não sincronizada: ${error.message ?: "verifique sua conexão"}"
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -248,6 +250,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Planning.route) {
                             ShoppingListScreen(
                                 database = database,
+                                onNavigateBack = { navController.popBackStack() },
                                 onNavigateToComparison = {
                                     navController.navigate(Screen.PriceComparison.route)
                                 }
@@ -284,6 +287,7 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Settings.route) {
                             SettingsScreen(
                                 preferences = preferences,
+                                authState = authState,
                                 onNavigateBack = { navController.popBackStack() },
                                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
