@@ -66,6 +66,11 @@ interface SupermarketDao {
     suspend fun clearRemoteIds()
 }
 
+data class PurchaseSaveOutcome(
+    val id: Long,
+    val alreadyExisted: Boolean
+)
+
 @Dao
 interface PurchaseDao {
     @Transaction
@@ -107,6 +112,9 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPurchase(purchase: PurchaseEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPurchaseIfAbsent(purchase: PurchaseEntity): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItems(items: List<ItemEntity>)
 
@@ -120,14 +128,22 @@ interface PurchaseDao {
     suspend fun deleteItemsByPurchaseId(purchaseId: Long)
 
     @Transaction
-    suspend fun insertPurchaseWithItems(
+    suspend fun savePurchaseWithItems(
         purchase: PurchaseEntity,
         items: List<ItemEntity>
-    ): Long {
-        val purchaseId = insertPurchase(purchase)
-        val itemsWithId = items.map { it.copy(purchaseId = purchaseId) }
-        insertItems(itemsWithId)
-        return purchaseId
+    ): PurchaseSaveOutcome {
+        val existingId = purchase.accessKeyHash?.let { findIdByAccessKeyHash(it) }
+        if (existingId != null) return PurchaseSaveOutcome(existingId, alreadyExisted = true)
+
+        val purchaseId = insertPurchaseIfAbsent(purchase)
+        if (purchaseId == -1L) {
+            val racedId = purchase.accessKeyHash?.let { findIdByAccessKeyHash(it) }
+                ?: throw IllegalStateException("Conflito ao salvar compra sem chave de acesso.")
+            return PurchaseSaveOutcome(racedId, alreadyExisted = true)
+        }
+
+        insertItems(items.map { it.copy(purchaseId = purchaseId) })
+        return PurchaseSaveOutcome(purchaseId, alreadyExisted = false)
     }
 
     @Query("SELECT SUM(totalPrice) FROM purchases")

@@ -39,18 +39,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.prati.meugasto.data.repository.PurchaseRepository
-import com.prati.meugasto.domain.model.Item
-import com.prati.meugasto.domain.model.Purchase
-import com.prati.meugasto.domain.model.Supermarket
 import com.prati.meugasto.domain.nfce.NfceScrapedData
-import com.prati.meugasto.domain.nfce.NfceScraperEngine
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.min
 
@@ -64,8 +61,21 @@ fun ScanQrCodeScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coroutineScope = rememberCoroutineScope()
-    val scraperEngine = remember { NfceScraperEngine() }
+    val viewModel: ScanViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { ScanViewModel(repository) }
+        }
+    )
+    val uiState by viewModel.state.collectAsState()
+    val currentOnPurchaseCreated by rememberUpdatedState(onPurchaseCreated)
+    val currentOnPurchaseSaved by rememberUpdatedState(onPurchaseSaved)
+
+    LaunchedEffect(Unit) {
+        viewModel.savedPurchases.collect { event ->
+            currentOnPurchaseSaved(event.id)
+            currentOnPurchaseCreated(event.id)
+        }
+    }
 
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val barcodeScanner = remember { BarcodeScanning.getClient() }
@@ -83,17 +93,10 @@ fun ScanQrCodeScreen(
         )
     }
 
-    var scanState by remember { mutableStateOf<ScanState>(ScanState.Scanning) }
-    var scrapedData by remember { mutableStateOf<NfceScrapedData?>(null) }
-    var isSaving by remember { mutableStateOf(false) }
-
     val handleBack: () -> Unit = {
         when {
-            isSaving -> Unit
-            scanState is ScanState.Confirmation -> {
-                scanState = ScanState.Scanning
-                scrapedData = null
-            }
+            uiState.isSaving -> Unit
+            uiState.step is ScanState.Confirmation -> viewModel.cancelConfirmation()
             else -> onNavigateBack()
         }
     }
@@ -125,29 +128,15 @@ fun ScanQrCodeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            when (val state = scanState) {
+            when (val state = uiState.step) {
                 is ScanState.Scanning -> {
                     CameraPreview(
                         hasCameraPermission = hasCameraPermission,
                         lifecycleOwner = lifecycleOwner,
                         cameraExecutor = cameraExecutor,
                         barcodeScanner = barcodeScanner,
-                        onQrDetected = { url ->
-                            scanState = ScanState.Processing
-                            coroutineScope.launch {
-                                val result = scraperEngine.scrapeUrl(url)
-                                result.onSuccess { data ->
-                                    scrapedData = data
-                                    isSaving = false
-                                    scanState = ScanState.Confirmation(data)
-                                }.onFailure { error ->
-                                    scanState = ScanState.Error(mapScrapeFailure(error))
-                                }
-                            }
-                        },
-                        onError = {
-                            scanState = ScanState.Error(ScanFailure.CameraUnavailable)
-                        },
+                        onQrDetected = viewModel::onQrDetected,
+                        onError = viewModel::onCameraUnavailable,
                         permissionLauncher = permissionLauncher
                     )
                 }
@@ -171,63 +160,26 @@ fun ScanQrCodeScreen(
                 is ScanState.Confirmation -> {
                     ConfirmationScreen(
                         data = state.data,
-                        isSaving = isSaving,
-                        onConfirm = {
-                            if (isSaving) return@ConfirmationScreen
-                            isSaving = true
-                            coroutineScope.launch {
-                                try {
-                                    val purchase = Purchase(
-                                        supermarket = Supermarket(
-                                            name = state.data.supermarket.name,
-                                            cnpj = state.data.supermarket.cnpj,
-                                            state = state.data.supermarket.state,
-                                            type = state.data.supermarket.type
-                                        ),
-                                        date = state.data.date,
-                                        totalPrice = state.data.totalPrice,
-                                        accessKey = state.data.accessKey,
-                                        products = state.data.items.map { itm ->
-                                            Item(
-                                                name = itm.name,
-                                                quantity = itm.quantity,
-                                                unit = itm.unit,
-                                                price = itm.price
-                                            )
-                                        }
-                                    )
-                                    val id = repository.savePurchase(purchase)
-                                    onPurchaseSaved(id)
-                                    onPurchaseCreated(id)
-                                } catch (e: CancellationException) {
-                                    throw e
-                                } catch (e: Exception) {
-                                    isSaving = false
-                                    scanState = ScanState.Error(ScanFailure.SaveFailed)
-                                }
-                            }
+                        isSaving = uiState.isSaving,
+                        onConfirm = viewModel::confirmPurchase,
+                        onCancel = viewModel::cancelConfirmation
+                    )
+                }
+
+                is ScanState.Duplicate -> {
+                    DuplicateReceiptScreen(
+                        onViewPurchase = {
+                            currentOnPurchaseSaved(state.purchaseId)
+                            currentOnPurchaseCreated(state.purchaseId)
                         },
-                        onCancel = {
-                            if (!isSaving) {
-                                scanState = ScanState.Scanning
-                                scrapedData = null
-                            }
-                        }
+                        onScanAnother = viewModel::cancelConfirmation
                     )
                 }
 
                 is ScanState.Error -> {
                     ErrorScreen(
                         failure = state.failure,
-                        onRetry = {
-                            isSaving = false
-                            val pendingData = scrapedData
-                            scanState = if (state.failure == ScanFailure.SaveFailed && pendingData != null) {
-                                ScanState.Confirmation(pendingData)
-                            } else {
-                                ScanState.Scanning
-                            }
-                        },
+                        onRetry = viewModel::retry,
                         onBack = onNavigateBack
                     )
                 }
@@ -240,6 +192,7 @@ sealed class ScanState {
     data object Scanning : ScanState()
     data object Processing : ScanState()
     data class Confirmation(val data: NfceScrapedData) : ScanState()
+    data class Duplicate(val purchaseId: Long) : ScanState()
     data class Error(val failure: ScanFailure) : ScanState()
 }
 
@@ -701,6 +654,48 @@ fun ConfirmationScreen(
                     Spacer(modifier = Modifier.width(AppSpacing.SM))
                     Text(if (isSaving) "Salvando..." else "Salvar")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun DuplicateReceiptScreen(
+    onViewPurchase: () -> Unit,
+    onScanAnother: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppSpacing.XL),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.MD))
+        Text(
+            text = "Nota já registrada",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.SM))
+        Text(
+            text = "Esta compra já está no seu histórico. Nada foi duplicado.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.XL))
+        Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)) {
+            OutlinedButton(onClick = onScanAnother) {
+                Text("Escanear outra")
+            }
+            Button(onClick = onViewPurchase) {
+                Text("Ver compra")
             }
         }
     }

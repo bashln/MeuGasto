@@ -226,9 +226,6 @@ fun SettingsScreen(
                                 onClick = {
                                     coroutineScope.launch {
                                         runCatching { onSignOut() }
-                                            .onSuccess {
-                                                snackbarHostState.showSnackbar("Conta desconectada deste aparelho.")
-                                            }
                                             .onFailure { error ->
                                                 snackbarHostState.showSnackbar(
                                                     "Não foi possível sair: ${error.message ?: "tente novamente"}"

@@ -4,6 +4,7 @@ import com.prati.meugasto.data.local.database.AppDatabase
 import com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher
 import com.prati.meugasto.data.local.database.PurchaseDao
 import com.prati.meugasto.data.local.database.PurchaseEntity
+import com.prati.meugasto.data.local.database.PurchaseSaveOutcome
 import com.prati.meugasto.data.local.database.SupermarketDao
 import com.prati.meugasto.domain.model.AppMode
 import com.prati.meugasto.domain.model.Purchase
@@ -16,6 +17,7 @@ import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LocalPurchaseRepositoryTest {
@@ -25,7 +27,11 @@ class LocalPurchaseRepositoryTest {
         val savedPurchase: io.mockk.CapturingSlot<PurchaseEntity>
     )
 
-    private fun fixture(mode: AppMode, existingId: Long? = null): Fixture {
+    private fun fixture(
+        mode: AppMode,
+        existingId: Long? = null,
+        daoOutcome: PurchaseSaveOutcome = PurchaseSaveOutcome(10L, alreadyExisted = false)
+    ): Fixture {
         val database = mockk<AppDatabase>()
         val purchases = mockk<PurchaseDao>()
         val supermarkets = mockk<SupermarketDao>()
@@ -35,7 +41,7 @@ class LocalPurchaseRepositoryTest {
         coEvery { purchases.findIdByAccessKeyHash(any()) } returns existingId
         coEvery { supermarkets.findByName(any()) } returns null
         coEvery { supermarkets.insert(any()) } returns 5L
-        coEvery { purchases.insertPurchaseWithItems(capture(savedPurchase), any()) } returns 10L
+        coEvery { purchases.savePurchaseWithItems(capture(savedPurchase), any()) } returns daoOutcome
 
         return Fixture(
             repository = LocalPurchaseRepository(
@@ -104,9 +110,23 @@ class LocalPurchaseRepositoryTest {
     fun `nota ja registrada nao e inserida de novo`() = runTest {
         val fixture = fixture(AppMode.LOCAL_FIRST, existingId = 42L)
 
-        val id = fixture.repository.savePurchase(purchase())
+        val result = fixture.repository.savePurchase(purchase())
 
-        assertEquals(42L, id)
-        coVerify(exactly = 0) { fixture.purchases.insertPurchaseWithItems(any(), any()) }
+        assertEquals(42L, result.id)
+        assertTrue(result.alreadyExisted)
+        coVerify(exactly = 0) { fixture.purchases.savePurchaseWithItems(any(), any()) }
+    }
+
+    @Test
+    fun `corrida na gravacao devolve a compra existente como duplicata`() = runTest {
+        val fixture = fixture(
+            mode = AppMode.LOCAL_FIRST,
+            daoOutcome = PurchaseSaveOutcome(55L, alreadyExisted = true)
+        )
+
+        val result = fixture.repository.savePurchase(purchase())
+
+        assertEquals(55L, result.id)
+        assertTrue(result.alreadyExisted)
     }
 }

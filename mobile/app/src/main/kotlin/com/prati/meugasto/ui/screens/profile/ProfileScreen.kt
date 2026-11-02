@@ -77,7 +77,6 @@ fun ProfileScreen(
                             runCatching { authRepository.signOut() }
                                 .onSuccess {
                                     showLogoutConfirm = false
-                                    snackbarHostState.showSnackbar("Você saiu da conta.")
                                 }
                                 .onFailure { error ->
                                     snackbarHostState.showSnackbar(

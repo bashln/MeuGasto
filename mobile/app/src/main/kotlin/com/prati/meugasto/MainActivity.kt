@@ -65,15 +65,24 @@ class MainActivity : ComponentActivity() {
                 val appMode by preferences.appMode.collectAsState()
                 var cloudCacheReady by remember { mutableStateOf(authState is AuthState.LoggedIn) }
                 var cloudCacheError by remember { mutableStateOf<String?>(null) }
+                var wasLoggedIn by remember { mutableStateOf(authState is AuthState.LoggedIn) }
 
                 LaunchedEffect(authState) {
                     if (authState is AuthState.LoggedOut) {
+                        val shouldConfirmSignOut = wasLoggedIn
+                        wasLoggedIn = false
                         cloudCacheReady = false
                         cloudCacheError = null
                         runCatching { app.cloudPurchaseSync.clear() }
-                            .onSuccess { cloudCacheReady = true }
+                            .onSuccess {
+                                cloudCacheReady = true
+                                if (shouldConfirmSignOut) {
+                                    snackbarHostState.showSnackbar("Conta desconectada deste aparelho.")
+                                }
+                            }
                             .onFailure { cloudCacheError = it.message ?: "cache cleanup failed" }
                     } else {
+                        wasLoggedIn = true
                         cloudCacheReady = true
                         cloudCacheError = null
                     }

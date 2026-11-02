@@ -15,9 +15,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class SavePurchaseResult(
+    val id: Long,
+    val alreadyExisted: Boolean
+)
+
 interface PurchaseRepository {
     fun getPurchases(): Flow<List<Purchase>>
-    suspend fun savePurchase(purchase: Purchase): Long
+    suspend fun savePurchase(purchase: Purchase): SavePurchaseResult
     suspend fun deletePurchase(purchaseId: Long)
     fun getDashboardStats(): Flow<DashboardStats>
     fun getSpendingByMarket(): Flow<List<Pair<String, Double>>>
@@ -79,12 +84,12 @@ class LocalPurchaseRepository(
         }
     }
 
-    override suspend fun savePurchase(purchase: Purchase): Long {
+    override suspend fun savePurchase(purchase: Purchase): SavePurchaseResult {
         val normalizedKey = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.normalizeAccessKey(purchase.accessKey)
         val keyHash = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(normalizedKey)
         if (purchase.id == 0L && keyHash != null) {
             database.purchaseDao().findIdByAccessKeyHash(keyHash)?.let { existingId ->
-                return existingId
+                return SavePurchaseResult(existingId, alreadyExisted = true)
             }
         }
 
@@ -138,7 +143,8 @@ class LocalPurchaseRepository(
             )
         }
 
-        return database.purchaseDao().insertPurchaseWithItems(purchaseEntity, itemEntities)
+        val outcome = database.purchaseDao().savePurchaseWithItems(purchaseEntity, itemEntities)
+        return SavePurchaseResult(outcome.id, outcome.alreadyExisted)
     }
 
     override suspend fun deletePurchase(purchaseId: Long) {

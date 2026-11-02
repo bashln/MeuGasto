@@ -50,10 +50,14 @@ sealed class NfceScrapeException(
     ) : NfceScrapeException(message, cause)
 }
 
+interface NfceScraper {
+    suspend fun scrapeUrl(url: String): Result<NfceScrapedData>
+}
+
 class NfceScraperEngine(
     private val strategies: List<NfceStateStrategy> = NfceStateRegistry.strategies,
     httpClient: HttpClient? = null
-) {
+) : NfceScraper {
     private val client: HttpClient by lazy {
         httpClient ?: HttpClient(OkHttp) {
             followRedirects = false
@@ -68,7 +72,7 @@ class NfceScraperEngine(
         }
     }
 
-    suspend fun scrapeUrl(url: String): Result<NfceScrapedData> = withContext(Dispatchers.IO) {
+    override suspend fun scrapeUrl(url: String): Result<NfceScrapedData> = withContext(Dispatchers.IO) {
         try {
             val normalizedUrl = NfceStateRegistry.promoteKnownPortalToHttps(url, strategies)
             val strategy = resolveStrategyOrThrow(normalizedUrl)
