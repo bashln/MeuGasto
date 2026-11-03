@@ -1,7 +1,11 @@
 package com.prati.meugasto.ui.screens.scanner
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
@@ -35,17 +39,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.prati.meugasto.data.repository.PurchaseRepository
-import com.prati.meugasto.domain.model.Item
-import com.prati.meugasto.domain.model.Purchase
-import com.prati.meugasto.domain.model.Supermarket
 import com.prati.meugasto.domain.nfce.NfceScrapedData
-import com.prati.meugasto.domain.nfce.NfceScraperEngine
 import com.prati.meugasto.ui.components.AppTopBar
 import com.prati.meugasto.ui.components.MoneyText
 import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
-import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.math.min
 
@@ -55,12 +57,25 @@ fun ScanQrCodeScreen(
     repository: PurchaseRepository,
     onNavigateBack: () -> Unit,
     onPurchaseCreated: (Long) -> Unit,
-    onPurchaseSaved: suspend (Long) -> Unit = {}
+    onPurchaseSaved: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coroutineScope = rememberCoroutineScope()
-    val scraperEngine = remember { NfceScraperEngine() }
+    val viewModel: ScanViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer { ScanViewModel(repository) }
+        }
+    )
+    val uiState by viewModel.state.collectAsState()
+    val currentOnPurchaseCreated by rememberUpdatedState(onPurchaseCreated)
+    val currentOnPurchaseSaved by rememberUpdatedState(onPurchaseSaved)
+
+    LaunchedEffect(Unit) {
+        viewModel.savedPurchases.collect { event ->
+            currentOnPurchaseSaved(event.id)
+            currentOnPurchaseCreated(event.id)
+        }
+    }
 
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val barcodeScanner = remember { BarcodeScanning.getClient() }
@@ -78,8 +93,14 @@ fun ScanQrCodeScreen(
         )
     }
 
-    var scanState by remember { mutableStateOf<ScanState>(ScanState.Scanning) }
-    var scrapedData by remember { mutableStateOf<NfceScrapedData?>(null) }
+    val handleBack: () -> Unit = {
+        when {
+            uiState.isSaving -> Unit
+            uiState.step is ScanState.Confirmation -> viewModel.cancelConfirmation()
+            else -> onNavigateBack()
+        }
+    }
+    BackHandler(onBack = handleBack)
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -98,7 +119,7 @@ fun ScanQrCodeScreen(
             AppTopBar(
                 title = "Escanear NFC-e",
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNavigateBack = onNavigateBack
+                onNavigateBack = handleBack
             )
         }
     ) { padding ->
@@ -107,28 +128,15 @@ fun ScanQrCodeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            when (val state = scanState) {
+            when (val state = uiState.step) {
                 is ScanState.Scanning -> {
                     CameraPreview(
                         hasCameraPermission = hasCameraPermission,
                         lifecycleOwner = lifecycleOwner,
                         cameraExecutor = cameraExecutor,
                         barcodeScanner = barcodeScanner,
-                        onQrDetected = { url ->
-                            scanState = ScanState.Processing
-                            coroutineScope.launch {
-                                val result = scraperEngine.scrapeUrl(url)
-                                result.onSuccess { data ->
-                                    scrapedData = data
-                                    scanState = ScanState.Confirmation(data)
-                                }.onFailure {
-                                    scanState = ScanState.Error(ScanFailure.ReceiptReadFailed)
-                                }
-                            }
-                        },
-                        onError = {
-                            scanState = ScanState.Error(ScanFailure.CameraUnavailable)
-                        },
+                        onQrDetected = viewModel::onQrDetected,
+                        onError = viewModel::onCameraUnavailable,
                         permissionLauncher = permissionLauncher
                     )
                 }
@@ -152,45 +160,26 @@ fun ScanQrCodeScreen(
                 is ScanState.Confirmation -> {
                     ConfirmationScreen(
                         data = state.data,
-                        onConfirm = {
-                            coroutineScope.launch {
-                                val purchase = Purchase(
-                                    supermarket = Supermarket(
-                                        name = state.data.supermarket.name,
-                                        cnpj = state.data.supermarket.cnpj,
-                                        state = state.data.supermarket.state,
-                                        type = state.data.supermarket.type
-                                    ),
-                                    date = state.data.date,
-                                    totalPrice = state.data.totalPrice,
-                                    accessKey = state.data.accessKey,
-                                    products = state.data.items.map { itm ->
-                                        Item(
-                                            name = itm.name,
-                                            quantity = itm.quantity,
-                                            unit = itm.unit,
-                                            price = itm.price
-                                        )
-                                    }
-                                )
-                                val id = repository.savePurchase(purchase)
-                                onPurchaseSaved(id)
-                                onPurchaseCreated(id)
-                            }
+                        isSaving = uiState.isSaving,
+                        onConfirm = viewModel::confirmPurchase,
+                        onCancel = viewModel::cancelConfirmation
+                    )
+                }
+
+                is ScanState.Duplicate -> {
+                    DuplicateReceiptScreen(
+                        onViewPurchase = {
+                            currentOnPurchaseSaved(state.purchaseId)
+                            currentOnPurchaseCreated(state.purchaseId)
                         },
-                        onCancel = {
-                            scanState = ScanState.Scanning
-                            scrapedData = null
-                        }
+                        onScanAnother = viewModel::cancelConfirmation
                     )
                 }
 
                 is ScanState.Error -> {
                     ErrorScreen(
                         failure = state.failure,
-                        onRetry = {
-                            scanState = ScanState.Scanning
-                        },
+                        onRetry = viewModel::retry,
                         onBack = onNavigateBack
                     )
                 }
@@ -203,12 +192,54 @@ sealed class ScanState {
     data object Scanning : ScanState()
     data object Processing : ScanState()
     data class Confirmation(val data: NfceScrapedData) : ScanState()
+    data class Duplicate(val purchaseId: Long) : ScanState()
     data class Error(val failure: ScanFailure) : ScanState()
 }
 
-enum class ScanFailure {
-    CameraUnavailable,
-    ReceiptReadFailed
+sealed interface ScanFailure {
+    data object CameraUnavailable : ScanFailure
+    data object InvalidQrCode : ScanFailure
+    data class UnsupportedState(
+        val detectedUf: String?,
+        val supportedUfs: List<String>
+    ) : ScanFailure
+    data object NetworkError : ScanFailure
+    data object ReceiptParseFailed : ScanFailure
+    data object SaveFailed : ScanFailure
+}
+
+internal fun mapScrapeFailure(error: Throwable): ScanFailure = when (error) {
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.UnsupportedState ->
+        ScanFailure.UnsupportedState(error.detectedUf, error.supportedUfs)
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.InvalidUrl ->
+        ScanFailure.InvalidQrCode
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.NetworkFailure ->
+        ScanFailure.NetworkError
+    is com.prati.meugasto.domain.nfce.NfceScrapeException.ParseFailure ->
+        ScanFailure.ReceiptParseFailed
+    else -> ScanFailure.NetworkError
+}
+
+internal fun scanFailureCopy(failure: ScanFailure): Pair<String, String> = when (failure) {
+    ScanFailure.CameraUnavailable -> "Não foi possível iniciar a câmera" to
+        "Verifique se o MeuGasto tem permissão para usar a câmera e tente novamente."
+    ScanFailure.InvalidQrCode -> "QR Code não reconhecido" to
+        "Este código não aponta para uma nota fiscal eletrônica. Escaneie o QR Code impresso no cupom."
+    is ScanFailure.UnsupportedState -> {
+        val supported = failure.supportedUfs.sorted().joinToString(", ")
+        val title = if (failure.detectedUf != null) {
+            "Nota de ${failure.detectedUf} ainda não suportada"
+        } else {
+            "Estado ainda não suportado"
+        }
+        title to "O MeuGasto já lê notas de $supported. Novos estados são adicionados aos poucos."
+    }
+    ScanFailure.NetworkError -> "Não foi possível consultar a SEFAZ" to
+        "Confira sua conexão e tente novamente. O portal do estado também pode estar indisponível."
+    ScanFailure.ReceiptParseFailed -> "Não foi possível ler a NFC-e" to
+        "O portal respondeu, mas os itens não puderam ser extraídos. Confira se o QR Code está legível e tente novamente."
+    ScanFailure.SaveFailed -> "Não foi possível salvar a compra" to
+        "Os dados foram lidos, mas não puderam ser gravados no aparelho. Tente novamente."
 }
 
 @Composable
@@ -221,6 +252,18 @@ fun CameraPreview(
     onError: () -> Unit,
     permissionLauncher: androidx.activity.result.ActivityResultLauncher<String>
 ) {
+    val context = LocalContext.current
+    val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    val released = remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            released.value = true
+            cameraProviderRef.value?.unbindAll()
+            cameraProviderRef.value = null
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (hasCameraPermission) {
             var isProcessing by remember { mutableStateOf(false) }
@@ -231,7 +274,9 @@ fun CameraPreview(
                     val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
                     cameraProviderFuture.addListener({
+                        if (released.value) return@addListener
                         val cameraProvider = cameraProviderFuture.get()
+                        cameraProviderRef.value = cameraProvider
                         val preview = Preview.Builder().build().also {
                             it.setSurfaceProvider(previewView.surfaceProvider)
                         }
@@ -333,6 +378,17 @@ fun CameraPreview(
                 Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
                     Text("Conceder Permissão")
                 }
+                TextButton(
+                    onClick = {
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null)
+                        )
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Abrir Ajustes do App")
+                }
             }
         }
     }
@@ -406,57 +462,23 @@ fun QrScanOverlay(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfirmationScreen(
     data: NfceScrapedData,
+    isSaving: Boolean = false,
     onConfirm: () -> Unit,
     onCancel: () -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Confirmar Compra") },
-                navigationIcon = {
-                    IconButton(onClick = onCancel) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Cancelar")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 3.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(AppSpacing.LG),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)
-                ) {
-                    OutlinedButton(
-                        onClick = onCancel,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Escanear Novamente")
-                    }
-                    Button(
-                        onClick = onConfirm,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(AppSpacing.SM))
-                        Text("Salvar")
-                    }
-                }
-            }
-        }
-    ) { padding ->
+    val displayDate = remember(data.date) {
+        val parts = data.date.split("-")
+        if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else data.date
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .weight(1f)
+                .fillMaxWidth()
                 .padding(horizontal = AppSpacing.LG),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.SM)
         ) {
@@ -500,7 +522,7 @@ fun ConfirmationScreen(
                             )
                         }
                         Text(
-                            text = "Data: ${data.date}",
+                            text = "Data: $displayDate",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -537,11 +559,16 @@ fun ConfirmationScreen(
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             val unitPriceText = remember(item) {
+                                val quantity = if (item.quantity % 1.0 == 0.0) {
+                                    item.quantity.toLong().toString()
+                                } else {
+                                    item.quantity.toString().replace('.', ',')
+                                }
                                 if (item.quantity != 1.0 && item.quantity > 0.0) {
                                     val formatted = java.text.NumberFormat.getCurrencyInstance(java.util.Locale("pt", "BR")).format(item.unitPrice)
-                                    "${item.quantity} ${item.unit} • $formatted / ${item.unit}"
+                                    "$quantity ${item.unit} • $formatted / ${item.unit}"
                                 } else {
-                                    "${item.quantity} ${item.unit}"
+                                    "$quantity ${item.unit}"
                                 }
                             }
                             Text(
@@ -589,7 +616,86 @@ fun ConfirmationScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(100.dp))
+                Spacer(modifier = Modifier.height(AppSpacing.LG))
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 3.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppSpacing.LG),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Escanear Novamente")
+                }
+                Button(
+                    onClick = onConfirm,
+                    enabled = !isSaving,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                    }
+                    Spacer(modifier = Modifier.width(AppSpacing.SM))
+                    Text(if (isSaving) "Salvando..." else "Salvar")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DuplicateReceiptScreen(
+    onViewPurchase: () -> Unit,
+    onScanAnother: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppSpacing.XL),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.MD))
+        Text(
+            text = "Nota já registrada",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.SM))
+        Text(
+            text = "Esta compra já está no seu histórico. Nada foi duplicado.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(AppSpacing.XL))
+        Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)) {
+            OutlinedButton(onClick = onScanAnother) {
+                Text("Escanear outra")
+            }
+            Button(onClick = onViewPurchase) {
+                Text("Ver compra")
             }
         }
     }
@@ -601,17 +707,12 @@ fun ErrorScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
-    val title = when (failure) {
-        ScanFailure.CameraUnavailable -> "Não foi possível iniciar a câmera"
-        ScanFailure.ReceiptReadFailed -> "Não foi possível ler a NFC-e"
-    }
-    val guidance = when (failure) {
-        ScanFailure.CameraUnavailable -> "Verifique se o MeuGasto tem permissão para usar a câmera e tente novamente."
-        ScanFailure.ReceiptReadFailed -> "Confira sua conexão e se o QR Code está legível. Depois, tente novamente."
-    }
+    val (title, guidance) = scanFailureCopy(failure)
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppSpacing.XL),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

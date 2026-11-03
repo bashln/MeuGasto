@@ -98,6 +98,26 @@ class SupabaseApiTest {
     }
 
     @Test
+    fun `fetchPurchases pagina o snapshot inteiro usando id como cursor`() = runTest {
+        val filters = mutableListOf<String?>()
+        val engine = MockEngine { request ->
+            val cursor = request.url.parameters["id"]
+            filters += cursor
+            val ids = if (cursor == null) 1L..500L else 501L..502L
+            val content = ids.joinToString(prefix = "[", postfix = "]") { id ->
+                "{\"id\":$id,\"date\":\"2026-10-01\"}"
+            }
+            respond(content, HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+
+        val purchases = api.fetchPurchases("access-123")
+
+        assertEquals(502, purchases.size)
+        assertEquals(listOf(null, "gt.500"), filters)
+    }
+
+    @Test
     fun `fetchPurchases com token invalido lanca SupabaseAuthException`() = runTest {
         val engine = MockEngine {
             respond(
@@ -255,5 +275,34 @@ class SupabaseApiTest {
         assertEquals(keys0, keys1)
         assertTrue(keys0.contains("code"))
         assertTrue(keys0.contains("category_id"))
+    }
+
+    @Test
+    fun `updatePassword envia PUT auth v1 user com bearer e nova senha`() = runTest {
+        var capturedMethod = ""
+        var capturedPath = ""
+        var capturedAuth = ""
+        var capturedBody = ""
+
+        val engine = MockEngine { request ->
+            capturedMethod = request.method.value
+            capturedPath = request.url.encodedPath
+            capturedAuth = request.headers[HttpHeaders.Authorization].orEmpty()
+            capturedBody = (request.body as? TextContent)?.text.orEmpty()
+            respond(
+                content = """{"id":"user-1","email":"ana@example.com"}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders
+            )
+        }
+
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+        val user = api.updatePassword("access-123", "novaSenhaForte")
+
+        assertEquals("PUT", capturedMethod)
+        assertEquals("/auth/v1/user", capturedPath)
+        assertEquals("Bearer access-123", capturedAuth)
+        assertTrue(capturedBody.contains("\"password\":\"novaSenhaForte\""))
+        assertEquals("user-1", user.id)
     }
 }

@@ -156,4 +156,111 @@ class SupabaseAuthRepositoryTest {
         assertEquals(1, cache.clearCount)
         assertEquals("user-1", prefs.getUserId())
     }
+
+    @Test
+    fun `changePassword reautentica senha atual antes de atualizar senha`() = runTest {
+        val calls = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            calls += "${request.method.value} ${request.url.encodedPath}"
+            when (request.url.encodedPath) {
+                "/auth/v1/token" -> respond(
+                    content = """{"access_token":"fresh-token","refresh_token":"refresh-456",
+                        "user":{"id":"user-1","email":"ana@example.com"}}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                "/auth/v1/user" -> respond(
+                    content = """{"id":"user-1","email":"ana@example.com"}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                else -> error("Unexpected path: ${request.url.encodedPath}")
+            }
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val prefs = FakePrefs(accessToken = "tok", userId = "user-1", mode = AppMode.CLOUD).apply {
+            saveUserEmail("ana@example.com")
+        }
+        val repository = SupabaseAuthRepository(api, prefs, FakeCloudAccountCache())
+
+        val result = repository.changePassword("senhaAtual123", "novaSenha456")
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf("POST /auth/v1/token", "PUT /auth/v1/user"), calls)
+    }
+
+    @Test
+    fun `changePassword em modo local nao troca o usuario para a nuvem`() = runTest {
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/auth/v1/token" -> respond(
+                    content = """{"access_token":"fresh-token","refresh_token":"refresh-456",
+                        "user":{"id":"user-1","email":"ana@example.com"}}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                "/auth/v1/user" -> respond(
+                    content = """{"id":"user-1","email":"ana@example.com"}""",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json")
+                )
+                else -> error("Unexpected path: ${request.url.encodedPath}")
+            }
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val prefs = FakePrefs(accessToken = "tok", userId = "user-1", mode = AppMode.LOCAL_FIRST).apply {
+            saveUserEmail("ana@example.com")
+        }
+        val repository = SupabaseAuthRepository(api, prefs, FakeCloudAccountCache())
+
+        val result = repository.changePassword("senhaAtual123", "novaSenha456")
+
+        assertTrue(result.isSuccess)
+        assertNull(prefs.appModeSet)
+    }
+
+    @Test
+    fun `changePassword falha sem chamar PUT quando senha atual esta incorreta`() = runTest {
+        val calls = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            calls += "${request.method.value} ${request.url.encodedPath}"
+            respond(
+                content = """{"error_description":"Invalid login credentials"}""",
+                status = HttpStatusCode.BadRequest,
+                headers = headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val prefs = FakePrefs(accessToken = "tok", userId = "user-1", mode = AppMode.CLOUD).apply {
+            saveUserEmail("ana@example.com")
+        }
+        val repository = SupabaseAuthRepository(api, prefs, FakeCloudAccountCache())
+
+        val result = repository.changePassword("errada", "novaSenha456")
+
+        assertTrue(result.isFailure)
+        assertEquals(listOf("POST /auth/v1/token"), calls)
+    }
+
+    @Test
+    fun `changePassword falha quando usuario esta desconectado`() = runTest {
+        val prefs = FakePrefs(mode = AppMode.LOCAL_FIRST)
+        val repository = SupabaseAuthRepository(apiReturningSession(), prefs, FakeCloudAccountCache())
+
+        val result = repository.changePassword("senhaAtual123", "novaSenha456")
+
+        assertTrue(result.isFailure)
+    }
 }

@@ -1,5 +1,6 @@
 package com.prati.meugasto.data.local.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -32,7 +33,12 @@ data class SupermarketEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["supermarketId"]), Index(value = ["date"]), Index(value = ["remoteId"], unique = true)]
+    indices = [
+        Index(value = ["supermarketId"]),
+        Index(value = ["date"]),
+        Index(value = ["remoteId"], unique = true),
+        Index(value = ["accessKeyHash"], unique = true)
+    ]
 )
 data class PurchaseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -45,7 +51,8 @@ data class PurchaseEntity(
     /** Id da linha correspondente no Supabase, quando sincronizada. */
     val remoteId: Long? = null,
     val accessKey: String? = null,
-    val pendingCloudUserId: String? = null
+    val pendingCloudUserId: String? = null,
+    val accessKeyHash: String? = null
 )
 
 @Entity(
@@ -69,6 +76,9 @@ data class ItemEntity(
     val quantity: Double,
     val unit: String,
     val price: Double,
+    /** Nome canônico usado para agrupar produtos equivalentes. */
+    @ColumnInfo(defaultValue = "''")
+    val canonicalName: String = "",
     /** Id da linha correspondente no Supabase, quando sincronizada. */
     val remoteId: Long? = null
 )

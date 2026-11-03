@@ -6,6 +6,7 @@ import com.prati.meugasto.data.local.database.PurchaseEntity
 import com.prati.meugasto.data.local.database.SupermarketEntity
 import com.prati.meugasto.data.local.database.ProductStats
 import com.prati.meugasto.data.local.database.ProductPriceEntry
+import com.prati.meugasto.domain.comparator.ProductCanonicalizer
 import com.prati.meugasto.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -14,9 +15,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class SavePurchaseResult(
+    val id: Long,
+    val alreadyExisted: Boolean
+)
+
 interface PurchaseRepository {
     fun getPurchases(): Flow<List<Purchase>>
-    suspend fun savePurchase(purchase: Purchase): Long
+    suspend fun savePurchase(purchase: Purchase): SavePurchaseResult
     suspend fun deletePurchase(purchaseId: Long)
     fun getDashboardStats(): Flow<DashboardStats>
     fun getSpendingByMarket(): Flow<List<Pair<String, Double>>>
@@ -78,10 +84,17 @@ class LocalPurchaseRepository(
         }
     }
 
-    override suspend fun savePurchase(purchase: Purchase): Long {
+    override suspend fun savePurchase(purchase: Purchase): SavePurchaseResult {
+        val normalizedKey = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.normalizeAccessKey(purchase.accessKey)
+        val keyHash = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(normalizedKey)
+        if (purchase.id == 0L && keyHash != null) {
+            database.purchaseDao().findIdByAccessKeyHash(keyHash)?.let { existingId ->
+                return SavePurchaseResult(existingId, alreadyExisted = true)
+            }
+        }
+
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
-        
-        // Obter ou criar supermercado
+
         val existingMarket = database.supermarketDao().findByName(purchase.supermarket.name)
         val marketId = existingMarket?.id ?: database.supermarketDao().insert(
             SupermarketEntity(
@@ -102,6 +115,7 @@ class LocalPurchaseRepository(
             purchase.totalPrice
         }
 
+        val pendingCloudUser = if (currentAppMode() == AppMode.CLOUD) currentCloudUserId() else null
         val purchaseEntity = PurchaseEntity(
             id = purchase.id,
             supermarketId = marketId,
@@ -110,8 +124,9 @@ class LocalPurchaseRepository(
             isManual = purchase.isManual,
             createdAt = purchase.createdAt ?: now,
             updatedAt = now,
-            accessKey = purchase.accessKey,
-            pendingCloudUserId = if (currentAppMode() == AppMode.CLOUD) currentCloudUserId() else null
+            accessKey = if (pendingCloudUser != null) normalizedKey else null,
+            pendingCloudUserId = pendingCloudUser,
+            accessKeyHash = keyHash
         )
 
         val itemEntities = purchase.products.map { item ->
@@ -123,11 +138,13 @@ class LocalPurchaseRepository(
                 categoryId = item.categoryId,
                 quantity = item.quantity,
                 unit = item.unit,
-                price = item.price
+                price = item.price,
+                canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code)
             )
         }
 
-        return database.purchaseDao().insertPurchaseWithItems(purchaseEntity, itemEntities)
+        val outcome = database.purchaseDao().savePurchaseWithItems(purchaseEntity, itemEntities)
+        return SavePurchaseResult(outcome.id, outcome.alreadyExisted)
     }
 
     override suspend fun deletePurchase(purchaseId: Long) {

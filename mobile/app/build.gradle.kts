@@ -26,8 +26,8 @@ android {
         applicationId = "com.prati.meugasto"
         minSdk = 26
         targetSdk = 35
-        versionCode = 76
-        versionName = "0.5.4.0"
+        versionCode = 77
+        versionName = "0.5.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -92,11 +92,19 @@ android {
         buildConfig = true
     }
 
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -129,10 +137,6 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
 
-    // Supabase
-    implementation(libs.supabase.postgrest)
-    implementation(libs.supabase.gotrue)
-
     // CameraX & ML Kit
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
@@ -140,16 +144,17 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.barcode.scanning)
 
-    // Security & WorkManager
+    // Security
     implementation(libs.androidx.security.crypto)
-    implementation(libs.androidx.work.runtime.ktx)
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(kotlin("reflect"))
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)

@@ -8,31 +8,35 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OnboardingFlowTest {
 
     @Test
-    fun testOnboardingCompletesWithLocalFirstModeByDefault() {
+    fun `completeOnboarding sets local first mode and marks onboarding completed`() {
         val preferences = mockk<UserPreferences>(relaxed = true)
         every { preferences.setAppMode(any()) } just Runs
         every { preferences.setOnboardingCompleted(any()) } just Runs
 
-        // Simula conclusão do onboarding
-        preferences.setAppMode(AppMode.LOCAL_FIRST)
-        preferences.setOnboardingCompleted(true)
+        completeOnboarding(preferences)
 
         verify(exactly = 1) { preferences.setAppMode(AppMode.LOCAL_FIRST) }
         verify(exactly = 1) { preferences.setOnboardingCompleted(true) }
     }
 
     @Test
-    fun testOnboardingStepsContainCoreValuePropositionsWithoutTechnicalClutter() {
-        val steps = listOf(
-            "Registro Automático",
-            "Privacidade por Design",
-            "Consciência Financeira"
+    fun `defaultOnboardingSteps exposes three core steps and aligns privacy copy with ADR 0001`() {
+        val steps = defaultOnboardingSteps()
+
+        assertEquals(
+            listOf("Registro Automático", "Privacidade por Design", "Consciência Financeira"),
+            steps.map { it.title }
         )
-        assertEquals(3, steps.size)
+        val privacyText = steps[1].description
+        assertFalse(privacyText.contains("Nem nós sabemos", ignoreCase = true))
+        assertTrue(privacyText.contains("modo local", ignoreCase = true))
+        assertTrue(privacyText.contains("TLS", ignoreCase = false))
     }
 }

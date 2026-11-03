@@ -9,6 +9,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -84,7 +85,12 @@ data class IdRow(val id: Long)
 private data class PurchaseIdRow(@SerialName("purchase_id") val id: Long)
 
 @Serializable
-private data class EmailCredentials(val email: String, val password: String)@Serializable
+private data class EmailCredentials(val email: String, val password: String)
+
+@Serializable
+private data class PasswordUpdateRequest(val password: String)
+
+@Serializable
 private data class SignUpRequest(
     val email: String,
     val password: String,
@@ -143,15 +149,43 @@ class SupabaseApi(
         return response.decodeOrThrow()
     }
 
-    suspend fun fetchPurchases(accessToken: String): List<RemotePurchase> {
-        val response = client.get("$baseUrl/rest/v1/purchases") {
+    suspend fun updatePassword(accessToken: String, newPassword: String): RemoteUser {
+        val response = client.put("$baseUrl/auth/v1/user") {
             header("apikey", anonKey)
             header("Authorization", "Bearer $accessToken")
-            parameter("select", PURCHASE_SELECT)
-            parameter("order", "date.desc")
+            contentType(ContentType.Application.Json)
+            setBody(PasswordUpdateRequest(newPassword))
         }
-        if (!response.status.isSuccess()) throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+        if (!response.status.isSuccess()) {
+            throw response.toException(
+                auth = response.status == HttpStatusCode.Unauthorized ||
+                    response.status == HttpStatusCode.BadRequest ||
+                    response.status == HttpStatusCode.UnprocessableEntity
+            )
+        }
         return response.body()
+    }
+
+    suspend fun fetchPurchases(accessToken: String): List<RemotePurchase> {
+        val purchases = mutableListOf<RemotePurchase>()
+        var lastId: Long? = null
+        while (true) {
+            val response = client.get("$baseUrl/rest/v1/purchases") {
+                header("apikey", anonKey)
+                header("Authorization", "Bearer $accessToken")
+                parameter("select", PURCHASE_SELECT)
+                parameter("order", "id.asc")
+                parameter("limit", PURCHASE_PAGE_SIZE)
+                lastId?.let { parameter("id", "gt.$it") }
+            }
+            if (!response.status.isSuccess()) {
+                throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+            }
+            val page = response.body<List<RemotePurchase>>()
+            purchases += page
+            if (page.size < PURCHASE_PAGE_SIZE) return purchases
+            lastId = page.last().id
+        }
     }
 
     /** Insere um registo e devolve o id gerado pelo Postgres. */
@@ -252,6 +286,7 @@ class SupabaseApi(
             "id,date,total_price,manual,created_at,updated_at," +
                 "supermarket:supermarkets(id,name,cnpj,city,state,manual)," +
                 "items(id,name,code,category_id,quantity,unit,price)"
+        private const val PURCHASE_PAGE_SIZE = 500
 
         internal val json = Json {
             ignoreUnknownKeys = true

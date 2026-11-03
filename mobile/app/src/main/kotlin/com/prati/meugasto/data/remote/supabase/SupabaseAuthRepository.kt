@@ -40,13 +40,13 @@ class SupabaseAuthRepository(
     val isConfigured: Boolean get() = api.isConfigured
 
     suspend fun signIn(email: String, password: String): Result<AuthState.LoggedIn> = runCatching {
-        persist(api.signIn(email, password))
+        persist(api.signIn(email, password), forceCloudMode = true)
     }
 
     suspend fun signUp(email: String, password: String, name: String?): Result<AuthState.LoggedIn> = runCatching {
         val session = api.signUp(email, password, name)
             ?: throw SupabaseAuthException("Confirme seu e-mail para ativar a conta.")
-        persist(session)
+        persist(session, forceCloudMode = true)
     }
 
     suspend fun signOut() {
@@ -56,16 +56,39 @@ class SupabaseAuthRepository(
         _state.value = AuthState.LoggedOut
     }
 
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> = runCatching {
+        val loggedIn = _state.value as? AuthState.LoggedIn
+            ?: throw SupabaseAuthException("Entre na sua conta para alterar a senha.")
+        val email = loggedIn.email?.takeIf { it.isNotBlank() }
+            ?: preferences.getUserEmail()?.takeIf { it.isNotBlank() }
+            ?: throw SupabaseAuthException("Conta sem e-mail vinculado.")
+        if (currentPassword.isBlank()) {
+            throw SupabaseAuthException("Informe sua senha atual.")
+        }
+        if (newPassword.length < 6) {
+            throw SupabaseAuthException("A nova senha deve ter pelo menos 6 caracteres.")
+        }
+
+        val verifiedSession = api.signIn(email, currentPassword)
+        persist(verifiedSession, forceCloudMode = false)
+        val freshToken = preferences.getAccessToken()
+            ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
+        api.updatePassword(freshToken, newPassword)
+    }
+
     fun currentAccessToken(): String? = preferences.getAccessToken()
 
     /** Renova a sessão com o refresh token guardado. */
     suspend fun refreshSession(): Boolean = runCatching {
         val refreshToken = preferences.getRefreshToken() ?: return@runCatching false
-        persist(api.refresh(refreshToken))
+        persist(api.refresh(refreshToken), forceCloudMode = false)
         true
     }.getOrDefault(false)
 
-    private suspend fun persist(session: RemoteAuthSession): AuthState.LoggedIn {
+    private suspend fun persist(
+        session: RemoteAuthSession,
+        forceCloudMode: Boolean
+    ): AuthState.LoggedIn {
         val access = session.accessToken?.takeIf { it.isNotBlank() }
             ?: throw SupabaseAuthException("Sessão inválida recebida do servidor.")
         val refresh = session.refreshToken.orEmpty()
@@ -85,7 +108,9 @@ class SupabaseAuthRepository(
         if (email != null) preferences.saveUserEmail(email)
         if (name != null) preferences.saveUserName(name)
 
-        preferences.setAppMode(AppMode.CLOUD)
+        if (forceCloudMode || preferences.getAppMode() == AppMode.CLOUD) {
+            preferences.setAppMode(AppMode.CLOUD)
+        }
 
         return AuthState.LoggedIn(
             userId = userId,
