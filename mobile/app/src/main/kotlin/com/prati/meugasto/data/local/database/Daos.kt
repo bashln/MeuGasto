@@ -84,6 +84,9 @@ interface PurchaseDao {
     @Query("SELECT id FROM purchases WHERE remoteId = :remoteId LIMIT 1")
     suspend fun findIdByRemoteId(remoteId: Long): Long?
 
+    @Query("SELECT accessKeyHash FROM purchases WHERE id = :id LIMIT 1")
+    suspend fun getAccessKeyHash(id: Long): String?
+
     @Query("SELECT id FROM purchases WHERE accessKeyHash = :accessKeyHash LIMIT 1")
     suspend fun findIdByAccessKeyHash(accessKeyHash: String): Long?
 
@@ -93,8 +96,36 @@ interface PurchaseDao {
     @Query("DELETE FROM purchases WHERE remoteId IS NOT NULL OR pendingCloudUserId IS NOT NULL")
     suspend fun deleteCloudAccountPurchases()
 
+    @Query("DELETE FROM purchases WHERE remoteId IS NOT NULL")
+    suspend fun deleteAllRemotePurchases()
+
+    @Query("DELETE FROM purchases WHERE remoteId IS NOT NULL AND remoteId NOT IN (:remoteIds)")
+    suspend fun deleteRemotePurchasesNotIn(remoteIds: List<Long>)
+
+    @Query("UPDATE purchases SET accessKeyHash = :accessKeyHash WHERE id = :id AND accessKeyHash IS NULL")
+    suspend fun setAccessKeyHashIfAbsent(id: Long, accessKeyHash: String)
+
+    @Query("DELETE FROM purchases WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("UPDATE purchases SET remoteId = :remoteId, accessKey = NULL, pendingCloudUserId = NULL WHERE id = :id")
     suspend fun setRemoteId(id: Long, remoteId: Long)
+
+    @Transaction
+    suspend fun reconcileUploadedPurchase(localId: Long, remoteId: Long) {
+        val cachedId = findIdByRemoteId(remoteId)
+        if (cachedId == null || cachedId == localId) {
+            setRemoteId(localId, remoteId)
+            return
+        }
+
+        val accessKeyHash = getAccessKeyHash(localId)
+        val hashOwnerId = accessKeyHash?.let { findIdByAccessKeyHash(it) }
+        if (accessKeyHash != null && (hashOwnerId == null || hashOwnerId == localId || hashOwnerId == cachedId)) {
+            setAccessKeyHashIfAbsent(cachedId, accessKeyHash)
+        }
+        deleteById(localId)
+    }
 
     @Query(
         "UPDATE purchases SET supermarketId = :supermarketId, date = :date, totalPrice = :totalPrice, " +
@@ -227,4 +258,3 @@ interface DraftDao {
     @Delete
     suspend fun delete(draft: DraftEntity)
 }
-

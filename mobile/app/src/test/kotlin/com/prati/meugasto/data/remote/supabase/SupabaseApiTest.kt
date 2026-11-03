@@ -98,6 +98,26 @@ class SupabaseApiTest {
     }
 
     @Test
+    fun `fetchPurchases pagina o snapshot inteiro usando id como cursor`() = runTest {
+        val filters = mutableListOf<String?>()
+        val engine = MockEngine { request ->
+            val cursor = request.url.parameters["id"]
+            filters += cursor
+            val ids = if (cursor == null) 1L..500L else 501L..502L
+            val content = ids.joinToString(prefix = "[", postfix = "]") { id ->
+                "{\"id\":$id,\"date\":\"2026-10-01\"}"
+            }
+            respond(content, HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+
+        val purchases = api.fetchPurchases("access-123")
+
+        assertEquals(502, purchases.size)
+        assertEquals(listOf(null, "gt.500"), filters)
+    }
+
+    @Test
     fun `fetchPurchases com token invalido lanca SupabaseAuthException`() = runTest {
         val engine = MockEngine {
             respond(

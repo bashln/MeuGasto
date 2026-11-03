@@ -14,6 +14,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -21,6 +22,10 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -109,8 +114,41 @@ class CloudPurchaseUploaderTest {
         val result = uploader.upload(1L)
 
         assertEquals(20L, result.getOrNull())
-        coVerify { db.purchaseDao.setRemoteId(1L, 20L) }
+        coVerify { db.purchaseDao.reconcileUploadedPurchase(1L, 20L) }
         coVerify { db.supermarketDao.setRemoteId(7L, 10L) }
+    }
+
+    @Test
+    fun `upload envia preco unitario mantendo total local da linha`() = runTest {
+        var itemBody = ""
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/purchases") ->
+                    respond("[{\"id\":20}]", HttpStatusCode.Created, jsonHeaders)
+                request.url.encodedPath.endsWith("/items") -> {
+                    itemBody = (request.body as? TextContent)?.text.orEmpty()
+                    respond("", HttpStatusCode.Created)
+                }
+                else -> respond("[{\"id\":10}]", HttpStatusCode.Created, jsonHeaders)
+            }
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val original = detail(remoteMarketId = 55L)
+        val purchaseDetail = original.copy(
+            items = original.items.map { if (it.name == "Leite") it.copy(price = 10.0) else it }
+        )
+        val db = buildDatabase(purchaseDetail)
+
+        val result = CloudPurchaseUploader(api, authLoggedIn(), db.database).upload(1L)
+
+        assertEquals(20L, result.getOrNull())
+        val milk = Json.parseToJsonElement(itemBody).jsonArray
+            .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
+        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
     }
 
     @Test
@@ -138,18 +176,24 @@ class CloudPurchaseUploaderTest {
 
     @Test
     fun `uploadPending reenvia compra fiscal pela RPC idempotente`() = runTest {
-        val db = buildDatabase(detail(
+        val original = detail(
             remoteMarketId = 55L,
             accessKey = "43260993015006000113651040003070441999999999",
             pendingCloudUserId = "user-1"
+        )
+        val db = buildDatabase(original.copy(
+            items = original.items.map { if (it.name == "Leite") it.copy(price = 10.0) else it }
         ))
         coEvery { db.purchaseDao.getPendingCloudUploadIds("user-1") } returns listOf(1L)
         val paths = mutableListOf<String>()
+        var rpcBody = ""
         val engine = MockEngine { request ->
             paths += request.url.encodedPath
             when {
-                request.url.encodedPath.endsWith("/rpc/create_purchase_with_items") ->
+                request.url.encodedPath.endsWith("/rpc/create_purchase_with_items") -> {
+                    rpcBody = (request.body as? TextContent)?.text.orEmpty()
                     respond("""[{"purchase_id":20}]""", HttpStatusCode.Created, jsonHeaders)
+                }
                 else -> respond("", HttpStatusCode.Created)
             }
         }
@@ -165,7 +209,10 @@ class CloudPurchaseUploaderTest {
         assertEquals(1, result.getOrNull())
         assertTrue(paths.any { it.endsWith("/rpc/create_purchase_with_items") })
         coVerify { db.purchaseDao.getPendingCloudUploadIds("user-1") }
-        coVerify { db.purchaseDao.setRemoteId(1L, 20L) }
+        coVerify { db.purchaseDao.reconcileUploadedPurchase(1L, 20L) }
+        val milk = Json.parseToJsonElement(rpcBody).jsonObject.getValue("p_items").jsonArray
+            .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
+        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
     }
 
     @Test
@@ -180,6 +227,6 @@ class CloudPurchaseUploaderTest {
         val result = uploader.upload(1L)
 
         assertTrue(result.isFailure)
-        coVerify(exactly = 0) { db.purchaseDao.setRemoteId(any(), any()) }
+        coVerify(exactly = 0) { db.purchaseDao.reconcileUploadedPurchase(any(), any()) }
     }
 }

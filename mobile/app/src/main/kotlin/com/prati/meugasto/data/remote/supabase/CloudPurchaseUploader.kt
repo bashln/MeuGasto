@@ -85,7 +85,7 @@ class CloudPurchaseUploader(
             "purchases",
             purchaseBody(userId, marketId, detail.purchase)
         ).also { api.insertItems(token, itemsBody(it, detail.items)) }
-        database.purchaseDao().setRemoteId(localPurchaseId, remotePurchaseId)
+        database.purchaseDao().reconcileUploadedPurchase(localPurchaseId, remotePurchaseId)
         return remotePurchaseId
     }
 
@@ -133,7 +133,7 @@ class CloudPurchaseUploader(
                 put("category_id", item.categoryId?.let { JsonPrimitive(it) } ?: JsonNull)
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
-                put("price", JsonPrimitive(item.price))
+                put("price", JsonPrimitive(CloudItemPrice.toCloudUnitPrice(item.price, item.quantity)))
             }
         })
 
@@ -144,7 +144,7 @@ class CloudPurchaseUploader(
                 put("code", item.code.orNull())
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
-                put("price", JsonPrimitive(item.price))
+                put("price", JsonPrimitive(CloudItemPrice.toCloudUnitPrice(item.price, item.quantity)))
             }
         })
 

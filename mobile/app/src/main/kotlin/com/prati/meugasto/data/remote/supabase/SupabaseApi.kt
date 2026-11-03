@@ -167,14 +167,25 @@ class SupabaseApi(
     }
 
     suspend fun fetchPurchases(accessToken: String): List<RemotePurchase> {
-        val response = client.get("$baseUrl/rest/v1/purchases") {
-            header("apikey", anonKey)
-            header("Authorization", "Bearer $accessToken")
-            parameter("select", PURCHASE_SELECT)
-            parameter("order", "date.desc")
+        val purchases = mutableListOf<RemotePurchase>()
+        var lastId: Long? = null
+        while (true) {
+            val response = client.get("$baseUrl/rest/v1/purchases") {
+                header("apikey", anonKey)
+                header("Authorization", "Bearer $accessToken")
+                parameter("select", PURCHASE_SELECT)
+                parameter("order", "id.asc")
+                parameter("limit", PURCHASE_PAGE_SIZE)
+                lastId?.let { parameter("id", "gt.$it") }
+            }
+            if (!response.status.isSuccess()) {
+                throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+            }
+            val page = response.body<List<RemotePurchase>>()
+            purchases += page
+            if (page.size < PURCHASE_PAGE_SIZE) return purchases
+            lastId = page.last().id
         }
-        if (!response.status.isSuccess()) throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
-        return response.body()
     }
 
     /** Insere um registo e devolve o id gerado pelo Postgres. */
@@ -275,6 +286,7 @@ class SupabaseApi(
             "id,date,total_price,manual,created_at,updated_at," +
                 "supermarket:supermarkets(id,name,cnpj,city,state,manual)," +
                 "items(id,name,code,category_id,quantity,unit,price)"
+        private const val PURCHASE_PAGE_SIZE = 500
 
         internal val json = Json {
             ignoreUnknownKeys = true

@@ -18,7 +18,10 @@ private const val UNKNOWN_MARKET = "Estabelecimento não informado"
  * `remoteId` único, portanto sincronizar várias vezes não duplica dados.
  */
 class CloudPurchaseSync(
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val runInTransaction: suspend (suspend () -> Unit) -> Unit = { operation ->
+        database.withTransaction { operation() }
+    }
 ) : CloudAccountCache {
 
     override suspend fun clear() {
@@ -29,8 +32,15 @@ class CloudPurchaseSync(
     }
 
     suspend fun sync(remote: List<RemotePurchase>): Int {
-        database.withTransaction {
+        runInTransaction {
+            val purchaseDao = database.purchaseDao()
             remote.forEach { purchase -> upsertPurchase(purchase) }
+            val remoteIds = remote.map { it.id }.distinct()
+            if (remoteIds.isEmpty()) {
+                purchaseDao.deleteAllRemotePurchases()
+            } else {
+                purchaseDao.deleteRemotePurchasesNotIn(remoteIds)
+            }
         }
         return remote.size
     }
@@ -84,7 +94,7 @@ class CloudPurchaseSync(
                     categoryId = item.categoryId,
                     quantity = item.quantity,
                     unit = item.unit.orEmpty(),
-                    price = item.price,
+                    price = CloudItemPrice.toLocalLineTotal(item.price, item.quantity),
                     canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code),
                     remoteId = item.id
                 )
