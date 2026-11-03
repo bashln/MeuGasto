@@ -169,7 +169,8 @@ class NfceScraperEngine(
                         }
                         val location = response.headers[HttpHeaders.Location]
                             ?: throw NfceScrapeException.NetworkFailure("Redirecionamento sem destino no portal da SEFAZ.")
-                        val resolved = runCatching { URI(currentUrl).resolve(location).toString() }.getOrNull()
+                        val normalizedLocation = NfceStateRegistry.normalizeQrUrl(location)
+                        val resolved = runCatching { URI(currentUrl).resolve(normalizedLocation).toString() }.getOrNull()
                             ?: throw NfceScrapeException.NetworkFailure("URL de redirecionamento inválida.")
                         val promoted = NfceStateRegistry.promoteKnownPortalToHttps(resolved, listOf(strategy))
                         if (!isAllowedStrategyRedirectTarget(promoted, strategy)) {

@@ -60,7 +60,7 @@ object NfceStateRegistry {
         rawUrl: String,
         activeStrategies: List<NfceStateStrategy> = strategies
     ): String {
-        val trimmed = rawUrl.trim()
+        val trimmed = normalizeQrUrl(rawUrl)
         val uri = runCatching { URI(trimmed) }.getOrNull() ?: return trimmed
         if (!uri.scheme.equals("http", ignoreCase = true)) return trimmed
         val host = uri.host ?: return trimmed
@@ -80,6 +80,9 @@ object NfceStateRegistry {
             ).toString()
         }.getOrDefault(trimmed)
     }
+
+    /** NFC-e QR payloads commonly contain raw pipes, which java.net.URI rejects. */
+    fun normalizeQrUrl(rawUrl: String): String = rawUrl.trim().replace("|", "%7C")
 
     fun detectUfFromUrl(rawUrl: String): String? {
         val keyMatch = Regex("(?:[?&](?:p|chNFe)=|\\b)([0-9]{2})[0-9]{42}\\b").find(rawUrl)
