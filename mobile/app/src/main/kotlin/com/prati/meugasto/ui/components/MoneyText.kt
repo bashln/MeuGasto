@@ -19,7 +19,7 @@ fun MoneyText(
     Text(
         text = format.format(value),
         modifier = modifier,
-        style = style,
+        style = style.copy(fontFeatureSettings = "tnum"),
         color = color
     )
 }

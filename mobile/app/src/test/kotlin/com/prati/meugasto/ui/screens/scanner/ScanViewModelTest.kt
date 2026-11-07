@@ -105,6 +105,31 @@ class ScanViewModelTest {
         assertTrue(viewModel.state.value.step is ScanState.Confirmation)
     }
 
+    @Test
+    fun `frames repetidos e toque duplo salvam uma unica compra com os dados fiscais intactos`() = runTest(dispatcher) {
+        val repository = FakePurchaseRepository()
+        val viewModel = ScanViewModel(repository, successfulScraper())
+
+        repeat(3) { viewModel.onQrDetected(RJ_URL) }
+        advanceUntilIdle()
+        viewModel.confirmPurchase()
+        viewModel.confirmPurchase()
+        advanceUntilIdle()
+
+        val purchase = repository.saved.single()
+        assertEquals("33260993015006000113651040003070441999999999", purchase.accessKey)
+        assertEquals("Mercado RJ", purchase.supermarket.name)
+        assertEquals("RJ", purchase.supermarket.state)
+        assertEquals("2024-07-03", purchase.date)
+        assertEquals(10.0, purchase.totalPrice, 0.001)
+        val item = purchase.products.single()
+        assertEquals("Produto", item.name)
+        assertEquals(1.0, item.quantity, 0.001)
+        assertEquals("UN", item.unit)
+        assertEquals(10.0, item.price, 0.001)
+        assertTrue(viewModel.state.value.step is ScanState.Scanning)
+    }
+
     private fun successfulScraper(): NfceScraper = object : NfceScraper {
         override suspend fun scrapeUrl(url: String): Result<NfceScrapedData> = Result.success(
             NfceScrapedData(
