@@ -277,7 +277,7 @@ fun DashboardScreen(
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = AppSpacing.MD, vertical = AppSpacing.XS)
                             ) {
-                                Text("Abrir", color = Color.White)
+                                Text("Abrir")
                             }
                         }
                     }
