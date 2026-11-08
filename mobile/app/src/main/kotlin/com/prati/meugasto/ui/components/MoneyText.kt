@@ -18,6 +18,8 @@ fun MoneyText(
     val format = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
     Text(
         text = format.format(value),
+        maxLines = 1,
+        softWrap = false,
         modifier = modifier,
         style = style.copy(fontFeatureSettings = "tnum"),
         color = color
