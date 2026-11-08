@@ -168,6 +168,8 @@ fun ScanQrCodeScreen(
 
                 is ScanState.Duplicate -> {
                     DuplicateReceiptScreen(
+                        warning = state.warning,
+                        onRetryVerification = viewModel::retryPriceVerification,
                         onViewPurchase = {
                             currentOnPurchaseSaved(state.purchaseId)
                             currentOnPurchaseCreated(state.purchaseId)
@@ -192,7 +194,7 @@ sealed class ScanState {
     data object Scanning : ScanState()
     data object Processing : ScanState()
     data class Confirmation(val data: NfceScrapedData) : ScanState()
-    data class Duplicate(val purchaseId: Long) : ScanState()
+    data class Duplicate(val purchaseId: Long, val warning: String? = null) : ScanState()
     data class Error(val failure: ScanFailure) : ScanState()
 }
 
@@ -662,7 +664,9 @@ fun ConfirmationScreen(
 @Composable
 fun DuplicateReceiptScreen(
     onViewPurchase: () -> Unit,
-    onScanAnother: () -> Unit
+    onScanAnother: () -> Unit,
+    warning: String? = null,
+    onRetryVerification: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -689,6 +693,12 @@ fun DuplicateReceiptScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (warning != null) {
+            Spacer(modifier = Modifier.height(AppSpacing.MD))
+            Text(text = warning, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = onRetryVerification) { Text("Tentar verificar preços") }
+        }
         Spacer(modifier = Modifier.height(AppSpacing.XL))
         Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.MD)) {
             OutlinedButton(onClick = onScanAnother) {
