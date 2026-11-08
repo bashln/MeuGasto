@@ -359,6 +359,9 @@ CREATE OR REPLACE FUNCTION "public"."run_analytics_aggregation"("p_bucket_date" 
 DECLARE
   v_min_contributors INTEGER := 5;
 BEGIN
+  DELETE FROM public.analytics_item_prices WHERE bucket_date = p_bucket_date;
+  DELETE FROM public.analytics_price_trends WHERE bucket_month = date_trunc('month', p_bucket_date)::date;
+
   -- analytics_item_prices: preço por item normalizado, por mercado, por dia
   INSERT INTO analytics_item_prices (
     bucket_date,
@@ -475,3 +478,14 @@ BEGIN
 
 END;
 $$;
+
+-- Historical price formats cannot be recovered from aggregate rows.
+DELETE FROM public.analytics_item_prices;
+DELETE FROM public.analytics_price_trends;
+DO $$
+DECLARE bucket date;
+BEGIN
+ FOR bucket IN SELECT DISTINCT p.date FROM public.purchases p JOIN public.items i ON i.purchase_id=p.id WHERE i.price_basis <> 'unknown' ORDER BY p.date LOOP
+  PERFORM public.run_analytics_aggregation(bucket);
+ END LOOP;
+END $$;

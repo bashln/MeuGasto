@@ -1,3 +1,6 @@
+DO $$ BEGIN
+ IF EXISTS(SELECT FROM analytics_item_prices WHERE normalized_item_name='stale') OR EXISTS(SELECT FROM analytics_price_trends WHERE normalized_item_name='stale') THEN RAISE EXCEPTION 'Historical ambiguous aggregates must be invalidated'; END IF;
+END $$;
 \set ON_ERROR_STOP on
 DO $$ BEGIN
  IF (SELECT price_basis FROM items WHERE id=1) IS DISTINCT FROM 'unknown' THEN RAISE EXCEPTION 'Existing prices must remain unknown'; END IF;
@@ -35,59 +38,6 @@ DO $$ BEGIN
  IF public.get_item_average_price('Reimportado') IS DISTINCT FROM 3.33 THEN RAISE EXCEPTION 'Reimport average must use exact total'; END IF;
 END $$;
 
-CREATE TABLE public.supermarkets(id integer, name text);
-
-CREATE TABLE IF NOT EXISTS "public"."analytics_item_prices" (
-    "id" bigserial NOT NULL,
-    "bucket_date" "date" NOT NULL,
-    "city" "text",
-    "state" "text",
-    "supermarket_id" integer,
-    "normalized_item_name" "text" NOT NULL,
-    "unit" "text",
-    "avg_unit_price" numeric(10,4) NOT NULL,
-    "min_unit_price" numeric(10,4) NOT NULL,
-    "max_unit_price" numeric(10,4) NOT NULL,
-    "sample_count" integer NOT NULL,
-    "contributor_count" integer NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "analytics_item_prices_contributor_min" CHECK (("contributor_count" >= 5)),
-    CONSTRAINT "analytics_item_prices_sample_min" CHECK (("sample_count" >= 1))
-);
-CREATE UNIQUE INDEX "idx_analytics_item_prices_bucket" ON "public"."analytics_item_prices" USING "btree" ("bucket_date", "normalized_item_name", COALESCE("supermarket_id", 0), COALESCE("city", ''::"text"), COALESCE("unit", ''::"text"));
-
-CREATE TABLE IF NOT EXISTS "public"."analytics_market_baskets" (
-    "id" bigserial NOT NULL,
-    "bucket_date" "date" NOT NULL,
-    "city" "text",
-    "state" "text",
-    "supermarket_id" integer,
-    "basket_key" "text" NOT NULL,
-    "avg_basket_price" numeric(10,2) NOT NULL,
-    "min_basket_price" numeric(10,2) NOT NULL,
-    "max_basket_price" numeric(10,2) NOT NULL,
-    "sample_count" integer NOT NULL,
-    "contributor_count" integer NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "analytics_market_baskets_contributor_min" CHECK (("contributor_count" >= 5))
-);
-CREATE UNIQUE INDEX "idx_analytics_market_baskets_bucket" ON "public"."analytics_market_baskets" USING "btree" ("bucket_date", "basket_key", COALESCE("supermarket_id", 0), COALESCE("city", ''::"text"));
-
-CREATE TABLE IF NOT EXISTS "public"."analytics_price_trends" (
-    "id" bigserial NOT NULL,
-    "bucket_month" "date" NOT NULL,
-    "city" "text",
-    "state" "text",
-    "normalized_item_name" "text" NOT NULL,
-    "avg_price" numeric(10,4) NOT NULL,
-    "price_change_percent" numeric(8,4),
-    "sample_count" integer NOT NULL,
-    "contributor_count" integer NOT NULL,
-    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "analytics_price_trends_contributor_min" CHECK (("contributor_count" >= 5))
-);
-CREATE UNIQUE INDEX "idx_analytics_price_trends_bucket" ON "public"."analytics_price_trends" USING "btree" ("bucket_month", "normalized_item_name", COALESCE("city", ''::"text"));
-
 DO $$ DECLARE n integer; purchase_id integer; BEGIN
  FOR n IN 1..5 LOOP
   INSERT INTO purchases(user_id,supermarket_id,date,total_price)
@@ -114,4 +64,10 @@ SELECT public.create_purchase_with_items(NULL,repeat('1',44),'2026-11-08',999,fa
 DO $$ BEGIN
  IF (SELECT count(*) FROM purchases WHERE access_key_hash IS NOT NULL) IS DISTINCT FROM 2::bigint THEN RAISE EXCEPTION 'Receipt hash identity must remain scoped to user'; END IF;
  IF (SELECT line_total FROM items WHERE name='Reimportado') IS DISTINCT FROM 10 THEN RAISE EXCEPTION 'Other user must not change original receipt'; END IF;
+END $$;
+
+UPDATE items SET price_basis='unknown', line_total=NULL WHERE normalized_name='analytics';
+SELECT public.run_analytics_aggregation('2026-11-08');
+DO $$ BEGIN
+ IF EXISTS(SELECT FROM analytics_item_prices WHERE normalized_item_name='analytics') OR EXISTS(SELECT FROM analytics_price_trends WHERE normalized_item_name='analytics') THEN RAISE EXCEPTION 'Recalculation must remove buckets below contributor threshold'; END IF;
 END $$;
