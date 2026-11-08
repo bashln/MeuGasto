@@ -76,7 +76,8 @@ class SupabaseApiTest {
                       "created_at":"2026-10-01T10:00:00Z","updated_at":"2026-10-01T10:00:00Z",
                       "supermarket":{"id":3,"name":"Mercado Central","cnpj":"123","manual":false},
                       "items":[{"id":77,"name":"Arroz 5kg","code":"789","category_id":2,
-                                "quantity":1,"unit":"un","price":24.9}]}]
+                                "quantity":1,"unit":"un","price":24.9,"price_basis":"unit","line_total":24.9},
+                               {"id":78,"name":"Legado","quantity":2,"price":10}]}]
                 """.trimIndent(),
                 status = HttpStatusCode.OK,
                 headers = jsonHeaders
@@ -88,13 +89,17 @@ class SupabaseApiTest {
 
         assertEquals("Bearer access-123", capturedAuth)
         assertEquals("anon-key", capturedApiKey)
-        assertTrue(capturedSelect.contains("items(id,name,code,category_id,quantity,unit,price)"))
+        assertTrue(capturedSelect.contains("items(id,name,code,category_id,quantity,unit,price,price_basis,line_total)"))
         assertTrue(capturedSelect.contains("supermarket:supermarkets"))
         assertEquals(1, purchases.size)
         assertEquals(10L, purchases.first().id)
         assertEquals("Mercado Central", purchases.first().supermarket?.name)
         assertEquals("Arroz 5kg", purchases.first().items.first().name)
         assertEquals(24.9, purchases.first().items.first().price, 0.0001)
+        assertEquals("unit", purchases.first().items.first().priceBasis)
+        assertEquals(24.9, purchases.first().items.first().lineTotal!!, 0.0001)
+        assertEquals("unknown", purchases.first().items[1].priceBasis)
+        assertEquals(null, purchases.first().items[1].lineTotal)
     }
 
     @Test

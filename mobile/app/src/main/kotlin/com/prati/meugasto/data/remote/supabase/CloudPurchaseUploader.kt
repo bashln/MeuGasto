@@ -51,6 +51,41 @@ class CloudPurchaseUploader(
         }
     }
 
+    suspend fun repairReceipt(localPurchaseId: Long, receipt: com.prati.meugasto.domain.model.Purchase): Result<Unit> = runCatching {
+        uploadMutex.lock()
+        try {
+            val detail = database.purchaseDao().getById(localPurchaseId)
+                ?: throw SupabaseException("Compra local não encontrada.")
+            val expectedRemoteId = detail.purchase.remoteId ?: return@runCatching
+            val normalizedKey = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.normalizeAccessKey(receipt.accessKey)
+                ?: throw SupabaseException("Confira o QR Code original da nota para verificar os preços.")
+            if (com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(normalizedKey) != detail.purchase.accessKeyHash) {
+                throw SupabaseException("A nota lida não corresponde à compra armazenada.")
+            }
+            val userId = (auth.state.value as? AuthState.LoggedIn)?.userId
+                ?: throw SupabaseAuthException("Entre na conta para verificar os preços.")
+            suspend fun repair(token: String) {
+                val marketId = ensureSupermarket(token, userId, detail.supermarket)
+                val items = receipt.products.map { item ->
+                    ItemEntity(purchaseId = localPurchaseId, name = item.name, code = item.code,
+                        categoryId = item.categoryId, quantity = item.quantity, unit = item.unit, price = item.price)
+                }
+                val remoteId = api.createPurchaseWithItems(token, marketId, normalizedKey,
+                    normalizeDate(receipt.date), receipt.totalPrice, receipt.isManual, rpcItemsBody(items))
+                if (remoteId != expectedRemoteId) throw SupabaseException("A compra retornada não corresponde à nota armazenada.")
+            }
+            val token = auth.currentAccessToken() ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
+            try {
+                repair(token)
+            } catch (error: SupabaseAuthException) {
+                if (!auth.refreshSession()) throw error
+                repair(auth.currentAccessToken() ?: throw error)
+            }
+        } finally {
+            uploadMutex.unlock()
+        }
+    }
+
     suspend fun uploadPendingPurchases(): Result<Int> = runCatching {
         val userId = (auth.state.value as? AuthState.LoggedIn)?.userId
             ?: throw SupabaseAuthException("Entre na conta para enviar compras.")
@@ -134,6 +169,8 @@ class CloudPurchaseUploader(
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
                 put("price", JsonPrimitive(CloudItemPrice.toCloudUnitPrice(item.price, item.quantity)))
+                put("price_basis", JsonPrimitive("unit"))
+                put("line_total", JsonPrimitive(item.price))
             }
         })
 
@@ -145,6 +182,8 @@ class CloudPurchaseUploader(
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
                 put("price", JsonPrimitive(CloudItemPrice.toCloudUnitPrice(item.price, item.quantity)))
+                put("price_basis", JsonPrimitive("unit"))
+                put("line_total", JsonPrimitive(item.price))
             }
         })
 

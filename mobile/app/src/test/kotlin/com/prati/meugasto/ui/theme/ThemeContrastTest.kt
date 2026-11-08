@@ -33,6 +33,22 @@ class ThemeContrastTest {
     }
 
     @Test
+    fun secondaryTextAndActionLabelsRemainReadableInBothThemes() {
+        val pairs = listOf(
+            OnSurfaceVariant to Surface,
+            OnSurfaceVariant to SurfaceVariant,
+            OnSurfaceVariantDark to SurfaceDark,
+            OnSurfaceVariantDark to SurfaceVariantDark,
+            OnPrimary to Primary,
+            OnPrimaryDark to PrimaryDark
+        )
+        pairs.forEach { (foreground, background) ->
+            val ratio = contrastRatio(foreground, background)
+            assertTrue("Text contrast must be at least 4.5, was $ratio", ratio >= 4.5)
+        }
+    }
+
+    @Test
     fun testLightTextContrastMeetsWcagAA() {
         val onBgRatio = contrastRatio(OnBackground, Background)
         assertTrue("OnBackground on Background ratio ($onBgRatio) must be >= 4.5", onBgRatio >= 4.5)

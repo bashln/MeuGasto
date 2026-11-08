@@ -71,9 +71,9 @@ class ScanViewModel(
         viewModelScope.launch {
             try {
                 val result = repository.savePurchase(data.toPurchase())
-                lastScrapedData = null
+                if (result.warning == null) lastScrapedData = null
                 if (result.alreadyExisted) {
-                    _state.value = ScanUiState(step = ScanState.Duplicate(result.id))
+                    _state.value = ScanUiState(step = ScanState.Duplicate(result.id, result.warning))
                 } else {
                     _state.value = ScanUiState()
                     savedPurchaseEvents.send(PurchaseSavedEvent(result.id))
@@ -87,6 +87,15 @@ class ScanViewModel(
                 )
             }
         }
+    }
+
+    fun retryPriceVerification() {
+        if (_state.value.isSaving) return
+        val duplicate = _state.value.step as? ScanState.Duplicate ?: return
+        if (duplicate.warning == null) return
+        val data = lastScrapedData ?: return
+        _state.value = ScanUiState(step = ScanState.Confirmation(data))
+        confirmPurchase()
     }
 
     fun retry() {

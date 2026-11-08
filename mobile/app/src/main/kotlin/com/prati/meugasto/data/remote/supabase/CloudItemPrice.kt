@@ -3,7 +3,6 @@ package com.prati.meugasto.data.remote.supabase
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-/** Cloud rows store a unit price; local item rows store the line total. */
 internal object CloudItemPrice {
     fun toCloudUnitPrice(lineTotal: Double, quantity: Double): Double {
         val safeQuantity = quantity.takeIf { it.isFinite() && it > 0.0 } ?: 1.0

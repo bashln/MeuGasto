@@ -11,6 +11,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+class UnverifiedCloudPricesException : SupabaseException(
+    "Totais das compras sincronizados. Itens antigos têm formato de preço não identificado; confira ou reimporte essas notas antes de usar análises por item."
+)
+
 private const val UNKNOWN_MARKET = "Estabelecimento não informado"
 
 /**
@@ -42,6 +46,9 @@ class CloudPurchaseSync(
                 purchaseDao.deleteRemotePurchasesNotIn(remoteIds)
             }
         }
+        if (remote.any { purchase -> purchase.items.any { it.priceBasis !in setOf("unit", "line_total") } }) {
+            throw UnverifiedCloudPricesException()
+        }
         return remote.size
     }
 
@@ -51,7 +58,11 @@ class CloudPurchaseSync(
         val total = if (remote.totalPrice > 0.0) {
             remote.totalPrice
         } else {
-            remote.items.sumOf { it.price }
+            remote.items.sumOf { item -> when (item.priceBasis) {
+                "unit" -> item.lineTotal ?: CloudItemPrice.toLocalLineTotal(item.price, item.quantity)
+                "line_total" -> item.price
+                else -> 0.0
+            } }
         }
         val now = nowIso()
         val createdAt = remote.createdAt ?: now
@@ -84,6 +95,8 @@ class CloudPurchaseSync(
             existingId
         }
 
+        if (remote.items.any { it.priceBasis !in setOf("unit", "line_total") }) return
+
         purchaseDao.deleteItemsByPurchaseId(purchaseId)
         purchaseDao.insertItems(
             remote.items.map { item ->
@@ -94,7 +107,7 @@ class CloudPurchaseSync(
                     categoryId = item.categoryId,
                     quantity = item.quantity,
                     unit = item.unit.orEmpty(),
-                    price = CloudItemPrice.toLocalLineTotal(item.price, item.quantity),
+                    price = if (item.priceBasis == "unit") item.lineTotal ?: CloudItemPrice.toLocalLineTotal(item.price, item.quantity) else item.price,
                     canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code),
                     remoteId = item.id
                 )

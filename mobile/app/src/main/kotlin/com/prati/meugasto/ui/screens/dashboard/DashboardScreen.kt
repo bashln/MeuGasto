@@ -130,27 +130,27 @@ fun DashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = AppShapes.Large,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(AppSpacing.XL)) {
                         Text(
                             text = "Total Gasto",
                             style = MaterialTheme.typography.labelLarge,
-                            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(AppSpacing.SM))
                         MoneyText(
                             value = periodTotal,
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = androidx.compose.ui.graphics.Color.White
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         trendBadge?.let { (spentMore, label) ->
                             Spacer(modifier = Modifier.height(AppSpacing.SM))
                             Surface(
                                 shape = AppShapes.Full,
-                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f)
+                                color = MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Row(
                                     modifier = Modifier.padding(
@@ -164,12 +164,12 @@ fun DashboardScreen(
                                         imageVector = if (spentMore) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                                         contentDescription = null,
                                         modifier = Modifier.size(14.dp),
-                                        tint = androidx.compose.ui.graphics.Color.White
+                                        tint = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = label,
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
-                                        color = androidx.compose.ui.graphics.Color.White
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -182,12 +182,12 @@ fun DashboardScreen(
                             Text(
                                 text = "$periodCount compras",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = "$periodItems itens",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -277,7 +277,7 @@ fun DashboardScreen(
                                 shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = AppSpacing.MD, vertical = AppSpacing.XS)
                             ) {
-                                Text("Abrir", color = Color.White)
+                                Text("Abrir")
                             }
                         }
                     }
