@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.prati.meugasto.data.local.database.ProductStats
 import com.prati.meugasto.data.repository.PurchaseRepository
 import com.prati.meugasto.ui.components.AppTopBar
@@ -84,9 +85,13 @@ fun ReportsScreen(
                         ) {
                             Column(modifier = Modifier.padding(AppSpacing.LG)) {
                                 Text(
-                                    text = "Gastos por data",
+                                    text = "Maior gasto diário",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                MoneyText(
+                                    value = spendingByDate.maxOf { it.second },
+                                    style = MaterialTheme.typography.titleLarge
                                 )
                                 Spacer(modifier = Modifier.height(AppSpacing.SM))
                                 SpendingTrendChart(
@@ -97,6 +102,15 @@ fun ReportsScreen(
                                         )
                                     }
                                 )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(DateFormatters.chartLabel(spendingByDate.first().first), style = MaterialTheme.typography.bodySmall)
+                                    if (spendingByDate.size > 1) {
+                                        Text(DateFormatters.chartLabel(spendingByDate.last().first), style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
                             }
                         }
                     }
@@ -139,6 +153,9 @@ fun ReportsScreen(
                                     ) {
                                         Text(
                                             text = name,
+                                            modifier = Modifier.weight(1f).padding(end = AppSpacing.MD),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
@@ -196,7 +213,7 @@ fun ProductStatItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).padding(end = AppSpacing.MD)) {
                 Text(
                     text = product.name,
                     style = MaterialTheme.typography.bodyMedium,
