@@ -133,7 +133,7 @@ class CloudPurchaseUploader(
                 put("category_id", item.categoryId?.let { JsonPrimitive(it) } ?: JsonNull)
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
-                put("price", JsonPrimitive(CloudItemPrice.toCloudUnitPrice(item.price, item.quantity)))
+                put("price", JsonPrimitive(item.price))
             }
         })
 
@@ -144,7 +144,7 @@ class CloudPurchaseUploader(
                 put("code", item.code.orNull())
                 put("quantity", JsonPrimitive(item.quantity))
                 put("unit", JsonPrimitive(item.unit))
-                put("price", JsonPrimitive(CloudItemPrice.toCloudUnitPrice(item.price, item.quantity)))
+                put("price", JsonPrimitive(item.price))
             }
         })
 
