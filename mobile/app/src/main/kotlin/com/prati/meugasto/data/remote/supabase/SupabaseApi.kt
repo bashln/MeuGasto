@@ -63,7 +63,9 @@ data class RemoteItem(
     @SerialName("category_id") val categoryId: Int? = null,
     val quantity: Double = 1.0,
     val unit: String? = null,
-    val price: Double = 0.0
+    val price: Double = 0.0,
+    @SerialName("price_basis") val priceBasis: String = "unknown",
+    @SerialName("line_total") val lineTotal: Double? = null
 )
 
 @Serializable
@@ -285,7 +287,7 @@ class SupabaseApi(
         private const val PURCHASE_SELECT =
             "id,date,total_price,manual,created_at,updated_at," +
                 "supermarket:supermarkets(id,name,cnpj,city,state,manual)," +
-                "items(id,name,code,category_id,quantity,unit,price)"
+                "items(id,name,code,category_id,quantity,unit,price,price_basis,line_total)"
         private const val PURCHASE_PAGE_SIZE = 500
 
         internal val json = Json {

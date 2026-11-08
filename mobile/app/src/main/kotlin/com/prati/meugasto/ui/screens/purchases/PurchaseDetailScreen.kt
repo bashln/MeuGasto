@@ -263,6 +263,16 @@ fun PurchaseDetailScreen(
                     )
                 }
 
+                if (purchase.products.isEmpty()) {
+                    item {
+                        Text(
+                            text = "Os detalhes dos itens não estão disponíveis. Em compras antigas da nuvem, o formato dos preços precisa ser verificado. O total da compra continua disponível; confira a nota antes de usar análises por item.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
                 if (purchase.products.size > 5) {
                     item {
                         OutlinedTextField(

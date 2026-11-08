@@ -107,6 +107,35 @@ class CloudPurchaseUploaderTest {
     }
 
     @Test
+    fun `repair sends freshly scanned receipt even when local purchase is already remote`() = runTest {
+        var requestBody = ""
+        val engine = MockEngine { request ->
+            requestBody = (request.body as? TextContent)?.text.orEmpty()
+            respond("[{\"purchase_id\":20}]", HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } })
+        val key = "43260993015006000113651040003070441999999999"
+        val original = detail(remoteMarketId = 55L)
+        val db = buildDatabase(original.copy(purchase = original.purchase.copy(remoteId = 20L,
+            accessKeyHash = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(key))))
+        val receipt = com.prati.meugasto.domain.model.Purchase(
+            supermarket = com.prati.meugasto.domain.model.Supermarket(name = "Mercado"),
+            date = "2026-10-05", totalPrice = 10.0, accessKey = key,
+            products = listOf(com.prati.meugasto.domain.model.Item(name = "Leite", quantity = 3.0, unit = "UN", price = 10.0)))
+
+        val result = CloudPurchaseUploader(api, authLoggedIn(), db.database).repairReceipt(1L, receipt)
+
+        assertTrue(result.exceptionOrNull()?.message.orEmpty(), result.isSuccess)
+        val body = Json.parseToJsonElement(requestBody).jsonObject
+        assertEquals(key, body.getValue("p_access_key").jsonPrimitive.content)
+        val item = body.getValue("p_items").jsonArray.single().jsonObject
+        assertEquals("unit", item.getValue("price_basis").jsonPrimitive.content)
+        assertEquals(10.0, item.getValue("line_total").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals(3.33, item.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+    }
+
+    @Test
     fun `upload cria supermercado, compra e itens e guarda remoteId`() = runTest {
         val db = buildDatabase(detail(remoteMarketId = null))
         val uploader = CloudPurchaseUploader(mockApi(), authLoggedIn(), db.database)
@@ -119,7 +148,7 @@ class CloudPurchaseUploaderTest {
     }
 
     @Test
-    fun `upload preserva o total da linha`() = runTest {
+    fun `upload envia preco unitario com formato explicito`() = runTest {
         var itemBody = ""
         val engine = MockEngine { request ->
             when {
@@ -148,7 +177,9 @@ class CloudPurchaseUploaderTest {
         assertEquals(20L, result.getOrNull())
         val milk = Json.parseToJsonElement(itemBody).jsonArray
             .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
-        assertEquals(10.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals("unit", milk.jsonObject.getValue("price_basis").jsonPrimitive.content)
+        assertEquals(10.0, milk.jsonObject.getValue("line_total").jsonPrimitive.content.toDouble(), 0.001)
     }
 
     @Test
@@ -212,7 +243,9 @@ class CloudPurchaseUploaderTest {
         coVerify { db.purchaseDao.reconcileUploadedPurchase(1L, 20L) }
         val milk = Json.parseToJsonElement(rpcBody).jsonObject.getValue("p_items").jsonArray
             .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
-        assertEquals(10.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals("unit", milk.jsonObject.getValue("price_basis").jsonPrimitive.content)
+        assertEquals(10.0, milk.jsonObject.getValue("line_total").jsonPrimitive.content.toDouble(), 0.001)
     }
 
     @Test

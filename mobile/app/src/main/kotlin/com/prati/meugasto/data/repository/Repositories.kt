@@ -8,6 +8,7 @@ import com.prati.meugasto.data.local.database.ProductStats
 import com.prati.meugasto.data.local.database.ProductPriceEntry
 import com.prati.meugasto.domain.comparator.ProductCanonicalizer
 import com.prati.meugasto.domain.model.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -17,7 +18,8 @@ import java.util.Locale
 
 data class SavePurchaseResult(
     val id: Long,
-    val alreadyExisted: Boolean
+    val alreadyExisted: Boolean,
+    val warning: String? = null
 )
 
 interface PurchaseRepository {
@@ -40,7 +42,8 @@ class LocalPurchaseRepository(
     private val database: AppDatabase,
     private val remotePurchaseDeleter: RemotePurchaseDeleter,
     private val currentAppMode: () -> AppMode,
-    private val currentCloudUserId: () -> String?
+    private val currentCloudUserId: () -> String?,
+    private val repairCloudReceipt: (suspend (Long, Purchase) -> Unit)? = null
 ) : PurchaseRepository {
 
     override fun getPurchases(): Flow<List<Purchase>> {
@@ -89,6 +92,16 @@ class LocalPurchaseRepository(
         val keyHash = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(normalizedKey)
         if (purchase.id == 0L && keyHash != null) {
             database.purchaseDao().findIdByAccessKeyHash(keyHash)?.let { existingId ->
+                if (currentAppMode() == AppMode.CLOUD && currentCloudUserId() != null) {
+                    try {
+                        repairCloudReceipt?.invoke(existingId, purchase)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        return SavePurchaseResult(existingId, alreadyExisted = true,
+                            warning = "Não foi possível verificar os preços na nuvem. A compra continua salva. Tente novamente quando estiver conectado.")
+                    }
+                }
                 return SavePurchaseResult(existingId, alreadyExisted = true)
             }
         }

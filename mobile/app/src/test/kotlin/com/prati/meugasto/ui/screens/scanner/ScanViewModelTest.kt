@@ -130,6 +130,26 @@ class ScanViewModelTest {
         assertTrue(viewModel.state.value.step is ScanState.Scanning)
     }
 
+    @Test
+    fun `duplicate verification warning can retry without rescanning receipt`() = runTest(dispatcher) {
+        val repository = FakePurchaseRepository(SavePurchaseResult(7L, alreadyExisted = true, warning = "Sem conexão"))
+        val viewModel = ScanViewModel(repository, successfulScraper())
+        viewModel.onQrDetected(RJ_URL)
+        advanceUntilIdle()
+        viewModel.confirmPurchase()
+        advanceUntilIdle()
+        assertEquals("Sem conexão", (viewModel.state.value.step as ScanState.Duplicate).warning)
+
+        repository.result = SavePurchaseResult(7L, alreadyExisted = true)
+        viewModel.retryPriceVerification()
+        advanceUntilIdle()
+
+        assertEquals(ScanState.Duplicate(7L), viewModel.state.value.step)
+        assertEquals(2, repository.saved.size)
+        assertEquals("Produto", repository.saved[1].products.single().name)
+        assertEquals(10.0, repository.saved[1].products.single().price, 0.001)
+    }
+
     private fun successfulScraper(): NfceScraper = object : NfceScraper {
         override suspend fun scrapeUrl(url: String): Result<NfceScrapedData> = Result.success(
             NfceScrapedData(
@@ -145,7 +165,7 @@ class ScanViewModelTest {
     }
 
     private class FakePurchaseRepository(
-        private val result: SavePurchaseResult = SavePurchaseResult(1L, alreadyExisted = false),
+        var result: SavePurchaseResult = SavePurchaseResult(1L, alreadyExisted = false),
         private val failSaves: Boolean = false
     ) : PurchaseRepository {
         val saved = mutableListOf<Purchase>()

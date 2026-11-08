@@ -30,7 +30,8 @@ class LocalPurchaseRepositoryTest {
     private fun fixture(
         mode: AppMode,
         existingId: Long? = null,
-        daoOutcome: PurchaseSaveOutcome = PurchaseSaveOutcome(10L, alreadyExisted = false)
+        daoOutcome: PurchaseSaveOutcome = PurchaseSaveOutcome(10L, alreadyExisted = false),
+        repairCloudReceipt: (suspend (Long, Purchase) -> Unit)? = null
     ): Fixture {
         val database = mockk<AppDatabase>()
         val purchases = mockk<PurchaseDao>()
@@ -48,7 +49,8 @@ class LocalPurchaseRepositoryTest {
                 database = database,
                 remotePurchaseDeleter = RemotePurchaseDeleter { _ -> },
                 currentAppMode = { mode },
-                currentCloudUserId = { "account-1" }
+                currentCloudUserId = { "account-1" },
+                repairCloudReceipt = repairCloudReceipt
             ),
             purchases = purchases,
             savedPurchase = savedPurchase
@@ -61,6 +63,34 @@ class LocalPurchaseRepositoryTest {
         totalPrice = 12.0,
         accessKey = "43260993015006000113651040003070441999999999"
     )
+
+    @Test
+    fun `offline receipt verification keeps duplicate purchase available with retry warning`() = runTest {
+        val fixture = fixture(AppMode.CLOUD, existingId = 30L,
+            repairCloudReceipt = { _, _ -> throw IllegalStateException("sem conexão") })
+
+        val result = fixture.repository.savePurchase(purchase())
+
+        assertEquals(30L, result.id)
+        assertTrue(result.alreadyExisted)
+        assertEquals("Não foi possível verificar os preços na nuvem. A compra continua salva. Tente novamente quando estiver conectado.", result.warning)
+        coVerify(exactly = 0) { fixture.purchases.savePurchaseWithItems(any(), any()) }
+    }
+
+    @Test
+    fun `scanner duplicate in cloud mode forwards verified receipt for remote repair`() = runTest {
+        var repairedId: Long? = null
+        var repairedReceipt: Purchase? = null
+        val fixture = fixture(AppMode.CLOUD, existingId = 30L,
+            repairCloudReceipt = { id, receipt -> repairedId = id; repairedReceipt = receipt })
+
+        val result = fixture.repository.savePurchase(purchase())
+
+        assertEquals(SavePurchaseResult(30L, alreadyExisted = true), result)
+        assertEquals(30L, repairedId)
+        assertEquals(12.0, repairedReceipt!!.totalPrice, 0.001)
+        assertEquals("43260993015006000113651040003070441999999999", repairedReceipt!!.accessKey)
+    }
 
     @Test
     fun `compra salva em modo nuvem fica na fila da conta atual`() = runTest {

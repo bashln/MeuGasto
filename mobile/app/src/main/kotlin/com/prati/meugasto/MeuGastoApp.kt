@@ -50,7 +50,13 @@ class MeuGastoApp : Application() {
             database,
             CloudPurchaseDeleter(supabaseApi, authRepository),
             preferences::getAppMode,
-            { (authRepository.state.value as? AuthState.LoggedIn)?.userId }
+            { (authRepository.state.value as? AuthState.LoggedIn)?.userId },
+            repairCloudReceipt = { localId, receipt ->
+                cloudUploader.repairReceipt(localId, receipt).getOrThrow()
+                cloudSyncManager.syncNow().exceptionOrNull()?.let { error ->
+                    if (error !is com.prati.meugasto.data.remote.supabase.UnverifiedCloudPricesException) throw error
+                }
+            }
         )
         cloudSyncManager = CloudSyncManager(
             api = supabaseApi,

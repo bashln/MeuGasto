@@ -245,7 +245,11 @@ class MainActivity : ComponentActivity() {
                                 onPurchaseSaved = { purchaseId ->
                                     if (authRepository.state.value is AuthState.LoggedIn && appMode == AppMode.CLOUD) {
                                         coroutineScope.launch {
-                                            cloudUploader.upload(purchaseId).onFailure { error ->
+                                            cloudUploader.upload(purchaseId).onSuccess {
+                                                cloudSyncManager.syncNow().onFailure { error ->
+                                                    snackbarHostState.showSnackbar(error.message ?: "Confira a sincronização das compras.")
+                                                }
+                                            }.onFailure { error ->
                                                 snackbarHostState.showSnackbar(
                                                     "Compra salva no aparelho, mas não sincronizada: ${error.message ?: "verifique sua conexão"}"
                                                 )
