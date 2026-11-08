@@ -3,7 +3,7 @@
     "name": "MeuGasto",
     "slug": "meugasto",
     "owner": "bashln",
-    "version": "0.5.6.0",
+    "version": "0.5.7.0",
     "scheme": "com.prati.meugasto",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,7 +19,7 @@
       "bundleIdentifier": "com.prati.meugasto"
     },
     "android": {
-      "versionCode": 78,
+      "versionCode": 79,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#C2410C"
