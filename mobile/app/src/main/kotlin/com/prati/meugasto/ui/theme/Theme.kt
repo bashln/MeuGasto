@@ -14,6 +14,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -35,6 +36,10 @@ private val LightColorScheme = lightColorScheme(
     background = Background,
     onBackground = OnBackground,
     surface = Surface,
+    surfaceContainer = Surface,
+    surfaceContainerLow = Background,
+    surfaceContainerHigh = SurfaceVariant,
+    surfaceContainerHighest = SurfaceVariant,
     onSurface = OnSurface,
     surfaceVariant = SurfaceVariant,
     onSurfaceVariant = OnSurfaceVariant,
@@ -66,6 +71,10 @@ private val DarkColorScheme = darkColorScheme(
     background = BackgroundDark,
     onBackground = OnBackgroundDark,
     surface = SurfaceDark,
+    surfaceContainer = SurfaceDark,
+    surfaceContainerLow = BackgroundDark,
+    surfaceContainerHigh = SurfaceVariantDark,
+    surfaceContainerHighest = SurfaceVariantDark,
     onSurface = OnSurfaceDark,
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
@@ -194,8 +203,8 @@ fun MeuGastoTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                window.statusBarColor = colorScheme.primary.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                window.statusBarColor = colorScheme.background.toArgb()
+                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = colorScheme.background.luminance() > 0.5f
             }
         }
     }

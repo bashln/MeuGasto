@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
                         if (shouldShowBottomBar) {
                             NavigationBar(
                                 containerColor = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 8.dp
+                                tonalElevation = 0.dp
                             ) {
                                 BottomNavItems.forEach { screen ->
                                     val isSelected = currentDestination?.route == screen.route
@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity() {
                                         colors = NavigationBarItemDefaults.colors(
                                             selectedIconColor = MaterialTheme.colorScheme.primary,
                                             selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                            indicatorColor = MaterialTheme.colorScheme.surfaceVariant,
                                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                         ),
