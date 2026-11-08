@@ -24,7 +24,7 @@ class CloudPurchaseSyncTest {
     }
 
     @Test
-    fun `sync converts cloud unit price to local line total and prunes missing remote ids`() = runTest {
+    fun `sync preserves legacy cloud line total and prunes missing remote ids`() = runTest {
         val (database, purchaseDao, supermarketDao) = databaseFixture()
         coEvery { purchaseDao.findIdByRemoteId(100L) } returns null
         coEvery { purchaseDao.insertPurchase(any()) } returns 30L
@@ -36,14 +36,14 @@ class CloudPurchaseSyncTest {
             date = "2026-10-05",
             totalPrice = 10.0,
             supermarket = RemoteSupermarket(id = 7L, name = "Mercado Teste"),
-            items = listOf(RemoteItem(id = 200L, name = "Leite", quantity = 2.0, unit = "un", price = 5.0))
+            items = listOf(RemoteItem(id = 200L, name = "Leite", quantity = 2.0, unit = "un", price = 12.0))
         )
         val sync = CloudPurchaseSync(database, runInTransaction = { it() })
 
         val synced = sync.sync(listOf(remote))
 
         assertEquals(1, synced)
-        assertEquals(10.0, insertedItems.captured.single().price, 0.001)
+        assertEquals(12.0, insertedItems.captured.single().price, 0.001)
         coVerify { purchaseDao.deleteRemotePurchasesNotIn(listOf(100L)) }
     }
 

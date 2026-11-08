@@ -121,10 +121,10 @@ interface PurchaseDao {
 
         val accessKeyHash = getAccessKeyHash(localId)
         val hashOwnerId = accessKeyHash?.let { findIdByAccessKeyHash(it) }
+        deleteById(localId)
         if (accessKeyHash != null && (hashOwnerId == null || hashOwnerId == localId || hashOwnerId == cachedId)) {
             setAccessKeyHashIfAbsent(cachedId, accessKeyHash)
         }
-        deleteById(localId)
     }
 
     @Query(

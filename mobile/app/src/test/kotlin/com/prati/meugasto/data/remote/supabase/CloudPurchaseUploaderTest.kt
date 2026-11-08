@@ -119,7 +119,7 @@ class CloudPurchaseUploaderTest {
     }
 
     @Test
-    fun `upload envia preco unitario mantendo total local da linha`() = runTest {
+    fun `upload preserva o total da linha`() = runTest {
         var itemBody = ""
         val engine = MockEngine { request ->
             when {
@@ -148,7 +148,7 @@ class CloudPurchaseUploaderTest {
         assertEquals(20L, result.getOrNull())
         val milk = Json.parseToJsonElement(itemBody).jsonArray
             .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
-        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals(10.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
     }
 
     @Test
@@ -212,7 +212,7 @@ class CloudPurchaseUploaderTest {
         coVerify { db.purchaseDao.reconcileUploadedPurchase(1L, 20L) }
         val milk = Json.parseToJsonElement(rpcBody).jsonObject.getValue("p_items").jsonArray
             .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
-        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals(10.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
     }
 
     @Test

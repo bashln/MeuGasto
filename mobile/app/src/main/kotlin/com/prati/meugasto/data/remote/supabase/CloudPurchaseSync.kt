@@ -94,7 +94,7 @@ class CloudPurchaseSync(
                     categoryId = item.categoryId,
                     quantity = item.quantity,
                     unit = item.unit.orEmpty(),
-                    price = CloudItemPrice.toLocalLineTotal(item.price, item.quantity),
+                    price = item.price,
                     canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code),
                     remoteId = item.id
                 )
