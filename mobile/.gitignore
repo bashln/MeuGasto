@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build
+build/
+.gradle/
+local.properties
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env*.local
+
+# Generated native folders
+/android

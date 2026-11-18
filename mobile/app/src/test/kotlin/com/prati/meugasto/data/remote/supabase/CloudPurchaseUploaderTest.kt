@@ -1,0 +1,265 @@
+package com.prati.meugasto.data.remote.supabase
+
+import com.prati.meugasto.data.local.database.AppDatabase
+import com.prati.meugasto.data.local.database.ItemEntity
+import com.prati.meugasto.data.local.database.PurchaseDao
+import com.prati.meugasto.data.local.database.PurchaseEntity
+import com.prati.meugasto.data.local.database.PurchaseWithSupermarketAndItems
+import com.prati.meugasto.data.local.database.SupermarketDao
+import com.prati.meugasto.data.local.database.SupermarketEntity
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.http.content.TextContent
+import io.ktor.serialization.kotlinx.json.json
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class CloudPurchaseUploaderTest {
+
+    private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
+
+    private fun detail(
+        remoteMarketId: Long?,
+        accessKey: String? = null,
+        pendingCloudUserId: String? = null
+    ): PurchaseWithSupermarketAndItems {
+        val market = SupermarketEntity(
+            id = 7,
+            name = "Mercado Teste",
+            cnpj = "123",
+            city = "POA",
+            state = "RS",
+            isManual = false,
+            createdAt = "2026-10-01T10:00:00",
+            remoteId = remoteMarketId
+        )
+        val purchase = PurchaseEntity(
+            id = 1,
+            supermarketId = 7,
+            date = "2026-10-05",
+            totalPrice = 19.8,
+            isManual = false,
+            createdAt = "2026-10-05T10:00:00",
+            updatedAt = "2026-10-05T10:00:00",
+            accessKey = accessKey,
+            pendingCloudUserId = pendingCloudUserId
+        )
+        val items = listOf(
+            ItemEntity(id = 1, purchaseId = 1, name = "Arroz", code = null, categoryId = 2, quantity = 1.0, unit = "un", price = 9.9),
+            ItemEntity(id = 2, purchaseId = 1, name = "Leite", code = "789", categoryId = null, quantity = 2.0, unit = "un", price = 4.95)
+        )
+        return PurchaseWithSupermarketAndItems(purchase, market, items)
+    }
+
+    private data class FakeDb(
+        val database: AppDatabase,
+        val purchaseDao: PurchaseDao,
+        val supermarketDao: SupermarketDao
+    )
+
+    private fun buildDatabase(detail: PurchaseWithSupermarketAndItems): FakeDb {
+        val purchaseDao = mockk<PurchaseDao>(relaxed = true)
+        val supermarketDao = mockk<SupermarketDao>(relaxed = true)
+        coEvery { purchaseDao.getById(1L) } returns detail
+        val database = mockk<AppDatabase>(relaxed = true)
+        every { database.purchaseDao() } returns purchaseDao
+        every { database.supermarketDao() } returns supermarketDao
+        return FakeDb(database, purchaseDao, supermarketDao)
+    }
+
+    private fun authLoggedIn(): SupabaseAuthRepository {
+        val auth = mockk<SupabaseAuthRepository>(relaxed = true)
+        every { auth.state } returns MutableStateFlow(AuthState.LoggedIn("user-1", "a@b.com", "A"))
+        every { auth.currentAccessToken() } returns "tok"
+        return auth
+    }
+
+    private fun mockApi(): SupabaseApi {
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/supermarkets") ->
+                    respond("""[{"id":10}]""", HttpStatusCode.Created, jsonHeaders)
+                request.url.encodedPath.endsWith("/rpc/create_purchase_with_items") ->
+                    respond("""[{"purchase_id":20}]""", HttpStatusCode.Created, jsonHeaders)
+                request.url.encodedPath.endsWith("/purchases") ->
+                    respond("""[{"id":20}]""", HttpStatusCode.Created, jsonHeaders)
+                else -> respond("", HttpStatusCode.Created)
+            }
+        }
+        val client = HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        return SupabaseApi("https://proj.supabase.co", "anon-key", client)
+    }
+
+    @Test
+    fun `repair sends freshly scanned receipt even when local purchase is already remote`() = runTest {
+        var requestBody = ""
+        val engine = MockEngine { request ->
+            requestBody = (request.body as? TextContent)?.text.orEmpty()
+            respond("[{\"purchase_id\":20}]", HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } })
+        val key = "43260993015006000113651040003070441999999999"
+        val original = detail(remoteMarketId = 55L)
+        val db = buildDatabase(original.copy(purchase = original.purchase.copy(remoteId = 20L,
+            accessKeyHash = com.prati.meugasto.data.local.database.PurchaseAccessKeyHasher.sha256Hex(key))))
+        val receipt = com.prati.meugasto.domain.model.Purchase(
+            supermarket = com.prati.meugasto.domain.model.Supermarket(name = "Mercado"),
+            date = "2026-10-05", totalPrice = 10.0, accessKey = key,
+            products = listOf(com.prati.meugasto.domain.model.Item(name = "Leite", quantity = 3.0, unit = "UN", price = 10.0)))
+
+        val result = CloudPurchaseUploader(api, authLoggedIn(), db.database).repairReceipt(1L, receipt)
+
+        assertTrue(result.exceptionOrNull()?.message.orEmpty(), result.isSuccess)
+        val body = Json.parseToJsonElement(requestBody).jsonObject
+        assertEquals(key, body.getValue("p_access_key").jsonPrimitive.content)
+        val item = body.getValue("p_items").jsonArray.single().jsonObject
+        assertEquals("unit", item.getValue("price_basis").jsonPrimitive.content)
+        assertEquals(10.0, item.getValue("line_total").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals(3.33, item.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+    }
+
+    @Test
+    fun `upload cria supermercado, compra e itens e guarda remoteId`() = runTest {
+        val db = buildDatabase(detail(remoteMarketId = null))
+        val uploader = CloudPurchaseUploader(mockApi(), authLoggedIn(), db.database)
+
+        val result = uploader.upload(1L)
+
+        assertEquals(20L, result.getOrNull())
+        coVerify { db.purchaseDao.reconcileUploadedPurchase(1L, 20L) }
+        coVerify { db.supermarketDao.setRemoteId(7L, 10L) }
+    }
+
+    @Test
+    fun `upload envia preco unitario com formato explicito`() = runTest {
+        var itemBody = ""
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/purchases") ->
+                    respond("[{\"id\":20}]", HttpStatusCode.Created, jsonHeaders)
+                request.url.encodedPath.endsWith("/items") -> {
+                    itemBody = (request.body as? TextContent)?.text.orEmpty()
+                    respond("", HttpStatusCode.Created)
+                }
+                else -> respond("[{\"id\":10}]", HttpStatusCode.Created, jsonHeaders)
+            }
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val original = detail(remoteMarketId = 55L)
+        val purchaseDetail = original.copy(
+            items = original.items.map { if (it.name == "Leite") it.copy(price = 10.0) else it }
+        )
+        val db = buildDatabase(purchaseDetail)
+
+        val result = CloudPurchaseUploader(api, authLoggedIn(), db.database).upload(1L)
+
+        assertEquals(20L, result.getOrNull())
+        val milk = Json.parseToJsonElement(itemBody).jsonArray
+            .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
+        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals("unit", milk.jsonObject.getValue("price_basis").jsonPrimitive.content)
+        assertEquals(10.0, milk.jsonObject.getValue("line_total").jsonPrimitive.content.toDouble(), 0.001)
+    }
+
+    @Test
+    fun `upload reutiliza supermercado ja remoto`() = runTest {
+        val db = buildDatabase(detail(remoteMarketId = 55L))
+        val uploader = CloudPurchaseUploader(mockApi(), authLoggedIn(), db.database)
+
+        val result = uploader.upload(1L)
+
+        assertEquals(20L, result.getOrNull())
+        coVerify(exactly = 0) { db.supermarketDao.setRemoteId(any(), any()) }
+    }
+
+    @Test
+    fun `upload sem sessao falha`() = runTest {
+        val db = buildDatabase(detail(remoteMarketId = null))
+        val auth = mockk<SupabaseAuthRepository>(relaxed = true)
+        every { auth.state } returns MutableStateFlow(AuthState.LoggedOut)
+        val uploader = CloudPurchaseUploader(mockApi(), auth, db.database)
+
+        val result = uploader.upload(1L)
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `uploadPending reenvia compra fiscal pela RPC idempotente`() = runTest {
+        val original = detail(
+            remoteMarketId = 55L,
+            accessKey = "43260993015006000113651040003070441999999999",
+            pendingCloudUserId = "user-1"
+        )
+        val db = buildDatabase(original.copy(
+            items = original.items.map { if (it.name == "Leite") it.copy(price = 10.0) else it }
+        ))
+        coEvery { db.purchaseDao.getPendingCloudUploadIds("user-1") } returns listOf(1L)
+        val paths = mutableListOf<String>()
+        var rpcBody = ""
+        val engine = MockEngine { request ->
+            paths += request.url.encodedPath
+            when {
+                request.url.encodedPath.endsWith("/rpc/create_purchase_with_items") -> {
+                    rpcBody = (request.body as? TextContent)?.text.orEmpty()
+                    respond("""[{"purchase_id":20}]""", HttpStatusCode.Created, jsonHeaders)
+                }
+                else -> respond("", HttpStatusCode.Created)
+            }
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val uploader = CloudPurchaseUploader(api, authLoggedIn(), db.database)
+
+        val result = uploader.uploadPendingPurchases()
+
+        assertEquals(1, result.getOrNull())
+        assertTrue(paths.any { it.endsWith("/rpc/create_purchase_with_items") })
+        coVerify { db.purchaseDao.getPendingCloudUploadIds("user-1") }
+        coVerify { db.purchaseDao.reconcileUploadedPurchase(1L, 20L) }
+        val milk = Json.parseToJsonElement(rpcBody).jsonObject.getValue("p_items").jsonArray
+            .first { it.jsonObject["name"]?.jsonPrimitive?.content == "Leite" }
+        assertEquals(5.0, milk.jsonObject.getValue("price").jsonPrimitive.content.toDouble(), 0.001)
+        assertEquals("unit", milk.jsonObject.getValue("price_basis").jsonPrimitive.content)
+        assertEquals(10.0, milk.jsonObject.getValue("line_total").jsonPrimitive.content.toDouble(), 0.001)
+    }
+
+    @Test
+    fun `upload rejeita compra pendente vinculada a outra conta`() = runTest {
+        val db = buildDatabase(detail(
+            remoteMarketId = null,
+            accessKey = "43260993015006000113651040003070441999999999",
+            pendingCloudUserId = "user-2"
+        ))
+        val uploader = CloudPurchaseUploader(mockApi(), authLoggedIn(), db.database)
+
+        val result = uploader.upload(1L)
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { db.purchaseDao.reconcileUploadedPurchase(any(), any()) }
+    }
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Apenas builds de debug. Permite HTTP em claro para apontar o app a um
+  servidor Supabase falso local durante verificacao end-to-end.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true" />
+</manifest>

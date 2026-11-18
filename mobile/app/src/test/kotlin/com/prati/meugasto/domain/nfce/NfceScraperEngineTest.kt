@@ -1,0 +1,402 @@
+package com.prati.meugasto.domain.nfce
+
+import com.prati.meugasto.domain.nfce.strategies.RjNfceStrategy
+import com.prati.meugasto.domain.nfce.strategies.RsNfceStrategy
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class NfceScraperEngineTest {
+
+    @Test
+    fun `parser converte milhares e decimais brasileiros`() {
+        assertEquals(1234.56, NfcePortalDataParser.parseCurrency("R$ 1.234,56")!!, 0.001)
+        assertEquals(1234567.89, NfcePortalDataParser.parseCurrency("1.234.567,89")!!, 0.001)
+        assertEquals(1234.56, NfcePortalDataParser.parseCurrency("1234.56")!!, 0.001)
+    }
+
+    @Test
+    fun `estrategia RJ le total com milhares e data fiscal`() {
+        val html = """
+            <div class="txtTopo">Mercado Central</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">1.234,56</span>
+            <div>Valor a pagar R$ 1.234,56</div>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val url = "https://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+
+        val data = RjNfceStrategy().parseHtml(html, url)
+
+        assertEquals(1234.56, data.totalPrice, 0.001)
+        assertEquals("2024-07-03", data.date)
+    }
+
+    @Test
+    fun `estrategia RS le total com milhares`() {
+        val html = """
+            <tr id="Item1">
+                <span class="txtTit">Produto</span>
+                <span class="Rqtd"><strong>Qtde.:</strong>1</span>
+                <span class="RUN"><strong>UN: </strong>UN</span>
+                <span class="valor">1.234,56</span>
+            </tr>
+            <div id="linhaTotal"><label>Valor a pagar R$:</label><span class="totalNumb">1.234,56</span></div>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val url = "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=43260993015006000113651040003070441999999999"
+
+        val data = RsNfceStrategy().parseHtml(html, url)
+
+        assertEquals(1234.56, data.items.single().price, 0.001)
+        assertEquals(1234.56, data.totalPrice, 0.001)
+    }
+
+    @Test
+    fun `estrategia RS le total no HTML oficial com valor pago logo depois`() {
+        val html = """
+            <div id="u20" class="txtTopo">CIA APOLO DE SUPERMERCADOS CAXIAS DO SUL</div>
+            <div class="text">CNPJ: 87.558.037/0020-80</div>
+            <table>
+              <tr id="Item + 1"><td><span class="txtTit">QUEIJO MUSSARELA DAL</span>
+                <span class="Rqtd"><strong>Qtde.:</strong>0,344</span><span class="RUN"><strong>UN: </strong>KG</span>
+                <span class="RvlUnit"><strong>Vl. Unit.:</strong> 44,9</span></td><td><span class="valor">15,45</span></td></tr>
+              <tr id="Item + 2"><td><span class="txtTit">PAO FRANCES kg</span>
+                <span class="Rqtd"><strong>Qtde.:</strong>0,23</span><span class="RUN"><strong>UN: </strong>KG</span>
+                <span class="RvlUnit"><strong>Vl. Unit.:</strong> 14,9</span></td><td><span class="valor">3,43</span></td></tr>
+              <tr id="Item + 3"><td><span class="txtTit">CIGARRO LUCKY STRIKE</span>
+                <span class="Rqtd"><strong>Qtde.:</strong>1</span><span class="RUN"><strong>UN: </strong>UN</span>
+                <span class="RvlUnit"><strong>Vl. Unit.:</strong> 14</span></td><td><span class="valor">14,00</span></td></tr>
+            </table>
+            <div id="linhaTotal" class="linhaShade"><label>Valor a pagar R$:</label><span class="totalNumb txtMax">32,88</span></div>
+            <div id="linhaForma"><label>Forma de pagamento:</label><span class="totalNumb txtTitR">Valor pago R$:</span></div>
+            <div id="linhaTotal"><label>Cartão de Crédito</label><span class="totalNumb">32,88</span></div>
+            <div><strong>Emissão: </strong>03/11/2026 17:40:38</div>
+        """.trimIndent()
+        val url = "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx?p=43261187558037002080650240003941799006082750%7C2%7C1%7C03%7C32.88%7C366e6f394842722f3455456867706d7a4c664f685178726d66396b3d%7C1%7C18fc3f99e31befa0568cda0d7a7d095b748af61e"
+
+        val data = RsNfceStrategy().parseHtml(html, url)
+
+        assertEquals("CIA APOLO DE SUPERMERCADOS CAXIAS DO SUL", data.supermarket.name)
+        assertEquals("87.558.037/0020-80", data.supermarket.cnpj)
+        assertEquals(3, data.items.size)
+        assertEquals(32.88, data.totalPrice, 0.001)
+        assertEquals("2026-11-03", data.date)
+    }
+
+    @Test
+    fun `estrategias recusam hosts que apenas contem dominio permitido`() {
+        assertFalse(RsNfceStrategy().canHandle("https://evil.example/?p=43"))
+        assertFalse(RjNfceStrategy().canHandle("http://consultadfe.fazenda.rj.gov.br/consulta"))
+    }
+
+    @Test
+    fun testRsStrategyParsesValidHtml() {
+        val strategy = RsNfceStrategy()
+        val mockHtml = """
+            <html>
+                <div class="txtTopo">Supermercado Zaffari</div>
+                <span class="text">CNPJ: 93.015.006/0001-13</span>
+                <span class="chave">4326 0993 0150 0600 0113 6510 4000 3070 4419 9999 9999</span>
+                <table>
+                    <tr id="Item + 1">
+                        <td><span class="txtTit">ARROZ BRANCO 5KG</span>
+                            <span class="Rqtd"><strong>Qtde.:</strong>1</span>
+                            <span class="RUN"><strong>UN: </strong>UN1</span>
+                            <span class="RvlUnit"><strong>Vl. Unit.:</strong> 24,90</span>
+                        </td>
+                        <td><span class="valor">24,90</span></td>
+                    </tr>
+                </table>
+                <div id="linhaTotal"><label>Valor a pagar R$:</label><span class="totalNumb txtMax">24,90</span></div>
+                <div>Emissão: 01/08/2026 09:30:31</div>
+            </html>
+        """.trimIndent()
+
+        val url = "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=43260993015006000113651040003070441999999999"
+        val data = strategy.parseHtml(mockHtml, url)
+
+        assertEquals("Supermercado Zaffari", data.supermarket.name)
+        assertEquals("43260993015006000113651040003070441999999999", data.accessKey)
+        assertEquals(1, data.items.size)
+        assertEquals("ARROZ BRANCO 5KG", data.items[0].name)
+        assertEquals(24.90, data.items[0].price, 0.01)
+        assertEquals(24.90, data.totalPrice, 0.01)
+    }
+
+    @Test
+    fun testRsStrategyParsesMultiItemInvoiceCorrectlyWithoutMatchingFirstItemTotal() {
+        val strategy = RsNfceStrategy()
+        // Mock HTML resembling Zaffari with multiple items and table headers mentioning "Total"
+        val mockHtml = """
+            <html>
+                <div class="txtTopo">Comercial Zaffari Ltda Filial 23</div>
+                <span class="text">CNPJ: 92.016.757/0073-66</span>
+                <span class="chave">4326 0992 0167 5700 7366 6510 4000 3070 4419 8888 7777</span>
+                <table class="tabela">
+                    <thead><tr><th>Descricao</th><th>Qtd</th><th>UN</th><th>Vl. Unit.</th><th>Total</th></tr></thead>
+                    <tbody>
+                        <tr id="Item + 1">
+                            <td><span class="txtTit">PAPEL HIG NOTAVEL 30M C32 PREM F DUP EMB ECON=</span>
+                                <span class="Rqtd"><strong>Qtde.:</strong>2</span>
+                                <span class="RUN"><strong>UN: </strong>UN1</span>
+                                <span class="RvlUnit"><strong>Vl. Unit.:</strong> 38,90</span>
+                            </td>
+                            <td><span class="valor">77,80</span></td>
+                        </tr>
+                        <tr id="Item + 2">
+                            <td><span class="txtTit">LEITE ELEGE 1L UHT INT =</span>
+                                <span class="Rqtd"><strong>Qtde.:</strong>12</span>
+                                <span class="RUN"><strong>UN: </strong>UN1</span>
+                                <span class="RvlUnit"><strong>Vl. Unit.:</strong> 4,79</span>
+                            </td>
+                            <td><span class="valor">57,48</span></td>
+                        </tr>
+                        <tr id="Item + 3">
+                            <td><span class="txtTit">QUEIJO FRIOLACK 700G MUSSAR FAT</span>
+                                <span class="Rqtd"><strong>Qtde.:</strong>1</span>
+                                <span class="RUN"><strong>UN: </strong>UN1</span>
+                                <span class="RvlUnit"><strong>Vl. Unit.:</strong> 31,99</span>
+                            </td>
+                            <td><span class="valor">31,99</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div id="totalNota" class="txtMax">
+                    <div id="linhaTotal"><label>Valor total R$:</label><span class="totalNumb txtMax">167,27</span></div>
+                    <div id="linhaTotal"><label>Descontos R$:</label><span class="totalNumb txtMax">10,00</span></div>
+                    <div id="linhaTotal"><label>Valor a pagar R$:</label><span class="totalNumb txtMax">157,27</span></div>
+                </div>
+                <div>Emissão: 01/08/2026 15:12:00</div>
+            </html>
+        """.trimIndent()
+
+        val url = "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=43260992016757007366651040003070441988887777"
+        val data = strategy.parseHtml(mockHtml, url)
+
+        assertEquals("Comercial Zaffari Ltda Filial 23", data.supermarket.name)
+        assertEquals(3, data.items.size)
+        assertEquals("PAPEL HIG NOTAVEL 30M C32 PREM F DUP EMB ECON=", data.items[0].name)
+        assertEquals(77.80, data.items[0].price, 0.01)
+        // Must NOT be 77.80 (the first item's price)
+        assertEquals(157.27, data.totalPrice, 0.01)
+    }
+
+    @Test
+    fun testRjStrategyParsesValidHtml() {
+        val strategy = RjNfceStrategy()
+        val mockHtml = """
+            <html>
+                <div class="txtTopo">Supermercado Guanabara</div>
+                <table>
+                    <tr>
+                        <span class="txtFixa">FEIJAO PRETO 1KG</span>
+                        <span class="Rqtd">2</span>
+                        <span class="RUN">UN</span>
+                        <span class="RVALOR">15.80</span>
+                    </tr>
+                </table>
+                <span>Valor total R$ 15,80</span>
+            </html>
+        """.trimIndent()
+
+        val url = "https://consultadfe.fazenda.rj.gov.br/consultaNFCe/paginas/consultaQRCode.faces?p=33260993015006000113651040003070441999999999"
+        val data = strategy.parseHtml(mockHtml, url)
+
+        assertEquals("Supermercado Guanabara", data.supermarket.name)
+        assertEquals(1, data.items.size)
+        assertEquals("FEIJAO PRETO 1KG", data.items[0].name)
+        assertEquals(15.80, data.items[0].price, 0.01)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testValidatorRejectsInvalidKey() {
+        NfcePayloadValidator.validateAccessKey("123") // Too short
+    }
+
+    @Test
+    fun `engine selects RJ strategy by URL`() {
+        val html = """
+            <div class="txtTopo">Mercado RJ</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">10,00</span>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val url = "https://consultadfe.fazenda.rj.gov.br/consultaNFCe/paginas/consultaQRCode.faces?p=33260993015006000113651040003070441999999999"
+
+        val result = NfceScraperEngine().parseWithStrategy(html, url)
+
+        assertTrue(result.isSuccess)
+        assertEquals("RJ", result.getOrThrow().supermarket.state)
+    }
+
+    @Test
+    fun `engine rejects URL from unsupported state`() {
+        val result = NfceScraperEngine().parseWithStrategy(
+            "<html></html>",
+            "https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260993015006000113651040003070441999999999"
+        )
+
+        val error = result.exceptionOrNull()
+        assertTrue(error is NfceScrapeException.UnsupportedState)
+        assertEquals("SP", (error as NfceScrapeException.UnsupportedState).detectedUf)
+    }
+
+    @Test
+    fun `engine rejects non-http schemes and embedded credentials`() = runTest {
+        val engine = NfceScraperEngine()
+
+        assertTrue(
+            engine.scrapeUrl("javascript:alert(1)").exceptionOrNull() is NfceScrapeException.InvalidUrl
+        )
+        assertTrue(
+            engine.scrapeUrl("file:///data/data/com.prati.meugasto/databases/meugasto.db")
+                .exceptionOrNull() is NfceScrapeException.InvalidUrl
+        )
+        assertTrue(
+            engine.scrapeUrl(
+                "https://user:pass@consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+            ).exceptionOrNull() is NfceScrapeException.InvalidUrl
+        )
+    }
+
+    @Test
+    fun `engine promotes http portal to https before parsing`() {
+        val html = """
+            <div class="txtTopo">Mercado RJ</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">10,00</span>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+
+        val result = NfceScraperEngine().parseWithStrategy(
+            html,
+            "http://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `engine blocks redirect to a host outside the state strategy`() = runTest {
+        val client = HttpClient(MockEngine) {
+            followRedirects = false
+            engine {
+                addHandler {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf(HttpHeaders.Location, "https://evil.example.com/nota")
+                    )
+                }
+            }
+        }
+
+        val result = NfceScraperEngine(httpClient = client).scrapeUrl(
+            "https://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.exceptionOrNull() is NfceScrapeException.NetworkFailure)
+    }
+
+    @Test
+    fun `engine follows a redirect between allowed hosts of the same state`() = runTest {
+        val html = """
+            <div class="txtTopo">Mercado RJ</div>
+            <span class="txtFixa">Produto</span>
+            <span class="Rqtd">1</span>
+            <span class="RUN">UN</span>
+            <span class="RVALOR">10,00</span>
+            <div>Emissão: 03/07/2024 09:30:00</div>
+        """.trimIndent()
+        val client = HttpClient(MockEngine) {
+            followRedirects = false
+            engine {
+                addHandler { request ->
+                    if (request.url.host == "consultadfe.fazenda.rj.gov.br") {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf(
+                                HttpHeaders.Location,
+                                "https://nfce.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+                            )
+                        )
+                    } else {
+                        respond(
+                            content = html,
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, "text/html; charset=utf-8")
+                        )
+                    }
+                }
+            }
+        }
+
+        val result = NfceScraperEngine(httpClient = client).scrapeUrl(
+            "https://consultadfe.fazenda.rj.gov.br/consulta?p=33260993015006000113651040003070441999999999"
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals("RJ", result.getOrThrow().supermarket.state)
+    }
+
+    @Test
+    fun `engine accepts RS QR payload pipes in original URL and redirect`() = runTest {
+        val accessKey = "43261187558037002080650240003941799006082750"
+        val payload = "$accessKey|2|1|03|32.88|366e6f394842722f3455456867706d7a4c664f685178726d66396b3d|1|18fc3f99e31befa0568cda0d7a7d095b748af61e"
+        val html = """
+            <div class="txtTopo">Mercado RS</div>
+            <tr id="Item + 1"><span class="txtTit">Produto</span>
+              <span class="Rqtd"><strong>Qtde.:</strong>1</span>
+              <span class="RUN"><strong>UN: </strong>UN</span><span class="valor">32,88</span></tr>
+            <div id="linhaTotal"><label>Valor a pagar R$:</label><span class="totalNumb">32,88</span></div>
+        """.trimIndent()
+        val client = HttpClient(MockEngine) {
+            followRedirects = false
+            engine {
+                addHandler { request ->
+                    if (request.url.host == "www.sefaz.rs.gov.br") {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf(
+                                HttpHeaders.Location,
+                                "https://dfe-portal.svrs.rs.gov.br/Dfe/QrCodeNFce?p=$payload"
+                            )
+                        )
+                    } else {
+                        respond(
+                            content = html,
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, "text/html; charset=utf-8")
+                        )
+                    }
+                }
+            }
+        }
+
+        val result = NfceScraperEngine(httpClient = client).scrapeUrl(
+            "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx?p=$payload"
+        )
+
+        assertTrue(result.exceptionOrNull()?.toString().orEmpty(), result.isSuccess)
+        assertEquals("RS", result.getOrThrow().supermarket.state)
+        assertEquals(accessKey, result.getOrThrow().accessKey)
+        assertEquals(32.88, result.getOrThrow().totalPrice, 0.001)
+    }
+}

@@ -1,0 +1,155 @@
+package com.prati.meugasto.data.remote.supabase
+
+import androidx.room.withTransaction
+import com.prati.meugasto.data.local.database.AppDatabase
+import com.prati.meugasto.data.local.database.ItemEntity
+import com.prati.meugasto.data.local.database.PurchaseEntity
+import com.prati.meugasto.data.local.database.SupermarketEntity
+import com.prati.meugasto.domain.comparator.ProductCanonicalizer
+import com.prati.meugasto.domain.model.EstablishmentDetector
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class UnverifiedCloudPricesException : SupabaseException(
+    "Totais das compras sincronizados. Itens antigos têm formato de preço não identificado; confira ou reimporte essas notas antes de usar análises por item."
+)
+
+private const val UNKNOWN_MARKET = "Estabelecimento não informado"
+
+/**
+ * Espelha as compras do Supabase na Room. Idempotente: cada linha remota tem um
+ * `remoteId` único, portanto sincronizar várias vezes não duplica dados.
+ */
+class CloudPurchaseSync(
+    private val database: AppDatabase,
+    private val runInTransaction: suspend (suspend () -> Unit) -> Unit = { operation ->
+        database.withTransaction { operation() }
+    }
+) : CloudAccountCache {
+
+    override suspend fun clear() {
+        database.withTransaction {
+            database.purchaseDao().deleteCloudAccountPurchases()
+            database.supermarketDao().clearRemoteIds()
+        }
+    }
+
+    suspend fun sync(remote: List<RemotePurchase>): Int {
+        runInTransaction {
+            val purchaseDao = database.purchaseDao()
+            remote.forEach { purchase -> upsertPurchase(purchase) }
+            val remoteIds = remote.map { it.id }.distinct()
+            if (remoteIds.isEmpty()) {
+                purchaseDao.deleteAllRemotePurchases()
+            } else {
+                purchaseDao.deleteRemotePurchasesNotIn(remoteIds)
+            }
+        }
+        if (remote.any { purchase -> purchase.items.any { it.priceBasis !in setOf("unit", "line_total") } }) {
+            throw UnverifiedCloudPricesException()
+        }
+        return remote.size
+    }
+
+    private suspend fun upsertPurchase(remote: RemotePurchase) {
+        val supermarketId = upsertSupermarket(remote.supermarket)
+
+        val total = if (remote.totalPrice > 0.0) {
+            remote.totalPrice
+        } else {
+            remote.items.sumOf { item -> when (item.priceBasis) {
+                "unit" -> item.lineTotal ?: CloudItemPrice.toLocalLineTotal(item.price, item.quantity)
+                "line_total" -> item.price
+                else -> 0.0
+            } }
+        }
+        val now = nowIso()
+        val createdAt = remote.createdAt ?: now
+        val updatedAt = remote.updatedAt ?: now
+
+        val purchaseDao = database.purchaseDao()
+        val existingId = purchaseDao.findIdByRemoteId(remote.id)
+
+        val purchaseId = if (existingId == null) {
+            purchaseDao.insertPurchase(
+                PurchaseEntity(
+                    supermarketId = supermarketId,
+                    date = remote.date,
+                    totalPrice = total,
+                    isManual = remote.manual,
+                    createdAt = createdAt,
+                    updatedAt = updatedAt,
+                    remoteId = remote.id
+                )
+            )
+        } else {
+            purchaseDao.updateFromRemote(
+                id = existingId,
+                supermarketId = supermarketId,
+                date = remote.date,
+                totalPrice = total,
+                isManual = remote.manual,
+                updatedAt = updatedAt
+            )
+            existingId
+        }
+
+        if (remote.items.any { it.priceBasis !in setOf("unit", "line_total") }) return
+
+        purchaseDao.deleteItemsByPurchaseId(purchaseId)
+        purchaseDao.insertItems(
+            remote.items.map { item ->
+                ItemEntity(
+                    purchaseId = purchaseId,
+                    name = item.name,
+                    code = item.code,
+                    categoryId = item.categoryId,
+                    quantity = item.quantity,
+                    unit = item.unit.orEmpty(),
+                    price = if (item.priceBasis == "unit") item.lineTotal ?: CloudItemPrice.toLocalLineTotal(item.price, item.quantity) else item.price,
+                    canonicalName = ProductCanonicalizer.canonicalKey(item.name, item.code),
+                    remoteId = item.id
+                )
+            }
+        )
+    }
+
+    private suspend fun upsertSupermarket(remote: RemoteSupermarket?): Long {
+        val supermarketDao = database.supermarketDao()
+        if (remote == null) {
+            return supermarketDao.findByName(UNKNOWN_MARKET)?.id
+                ?: supermarketDao.insert(
+                    SupermarketEntity(
+                        name = UNKNOWN_MARKET,
+                        createdAt = nowIso()
+                    )
+                )
+        }
+
+        val byRemoteId = supermarketDao.findIdByRemoteId(remote.id)
+        if (byRemoteId != null) return byRemoteId
+
+        val byName = supermarketDao.findByName(remote.name)
+        if (byName != null) {
+            supermarketDao.setRemoteId(byName.id, remote.id)
+            return byName.id
+        }
+
+        return supermarketDao.insert(
+            SupermarketEntity(
+                name = remote.name,
+                cnpj = remote.cnpj,
+                city = remote.city,
+                state = remote.state,
+                type = EstablishmentDetector.detectType(remote.name).name,
+                isManual = remote.manual,
+                createdAt = nowIso(),
+                remoteId = remote.id
+            )
+        )
+    }
+
+    private fun nowIso(): String =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date())
+}
