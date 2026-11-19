@@ -106,7 +106,7 @@ class CloudPurchaseSyncTest {
         val (database, purchaseDao) = databaseFixture()
         val sync = CloudPurchaseSync(database, runInTransaction = { it() })
 
-        assertEquals(0, sync.sync(emptyList()))
+        assertEquals(CloudSyncOutcome.Complete(synced = 0), sync.sync(emptyList()))
 
         coVerify(exactly = 1) { purchaseDao.deleteAllRemotePurchases() }
         coVerify(exactly = 0) { purchaseDao.deleteRemotePurchasesNotIn(any()) }
