@@ -40,9 +40,9 @@ class CloudPurchaseSyncTest {
         )
         val sync = CloudPurchaseSync(database, runInTransaction = { it() })
 
-        val synced = sync.sync(listOf(remote))
+        val outcome = sync.sync(listOf(remote))
 
-        assertEquals(1, synced)
+        assertEquals(CloudSyncOutcome.Complete(synced = 1), outcome)
         assertEquals(12.0, insertedItems.captured.single().price, 0.001)
         coVerify { purchaseDao.deleteRemotePurchasesNotIn(listOf(100L)) }
     }
@@ -60,24 +60,45 @@ class CloudPurchaseSyncTest {
                 RemoteItem(id = 200L, name = "Leite", quantity = 3.0, price = 3.33, priceBasis = "unit", lineTotal = 10.0),
                 RemoteItem(id = 201L, name = "Queijo", quantity = 0.344, price = 44.91, priceBasis = "unit", lineTotal = 15.45)))
 
-        assertEquals(1, CloudPurchaseSync(database, runInTransaction = { it() }).sync(listOf(remote)))
+        val outcome = CloudPurchaseSync(database, runInTransaction = { it() }).sync(listOf(remote))
+
+        assertEquals(CloudSyncOutcome.Complete(synced = 1), outcome)
         assertEquals(listOf(10.0, 15.45), inserted.captured.map { it.price })
     }
 
     @Test
-    fun `unknown historical prices preserve local items and sync purchase totals with warning`() = runTest {
+    fun `unknown historical prices preserve local items and report unpriced items`() = runTest {
         val (database, purchaseDao, supermarketDao) = databaseFixture()
         coEvery { purchaseDao.findIdByRemoteId(100L) } returns 30L
         coEvery { supermarketDao.findIdByRemoteId(7L) } returns 7L
         val remote = RemotePurchase(id = 100L, date = "2026-10-05", totalPrice = 10.0,
             supermarket = RemoteSupermarket(id = 7L, name = "Mercado"),
             items = listOf(RemoteItem(id = 200L, name = "Leite", quantity = 2.0, price = 5.0)))
-        val error = runCatching { CloudPurchaseSync(database, runInTransaction = { it() }).sync(listOf(remote)) }.exceptionOrNull()
+        val outcome = CloudPurchaseSync(database, runInTransaction = { it() }).sync(listOf(remote))
 
-        assertEquals("Totais das compras sincronizados. Itens antigos têm formato de preço não identificado; confira ou reimporte essas notas antes de usar análises por item.", error?.message)
+        assertEquals(CloudSyncOutcome.UnpricedItems(synced = 1, unpricedItemCount = 1), outcome)
         coVerify { purchaseDao.updateFromRemote(30L, 7L, "2026-10-05", 10.0, false, any()) }
         coVerify(exactly = 0) { purchaseDao.deleteItemsByPurchaseId(any()) }
         coVerify(exactly = 0) { purchaseDao.insertItems(any()) }
+    }
+
+    @Test
+    fun `unpriced items are counted across the whole snapshot`() = runTest {
+        val (database, purchaseDao, supermarketDao) = databaseFixture()
+        coEvery { purchaseDao.findIdByRemoteId(any()) } returns 30L
+        coEvery { supermarketDao.findIdByRemoteId(7L) } returns 7L
+        val priced = RemotePurchase(id = 100L, date = "2026-10-05", totalPrice = 10.0,
+            supermarket = RemoteSupermarket(id = 7L, name = "Mercado"),
+            items = listOf(RemoteItem(id = 200L, name = "Leite", quantity = 2.0, price = 10.0, priceBasis = "unit")))
+        val unpriced = RemotePurchase(id = 101L, date = "2026-10-06", totalPrice = 12.0,
+            supermarket = RemoteSupermarket(id = 7L, name = "Mercado"),
+            items = listOf(
+                RemoteItem(id = 201L, name = "Queijo", quantity = 1.0, price = 8.0),
+                RemoteItem(id = 202L, name = "Pão", quantity = 2.0, price = 2.0)))
+
+        val outcome = CloudPurchaseSync(database, runInTransaction = { it() }).sync(listOf(priced, unpriced))
+
+        assertEquals(CloudSyncOutcome.UnpricedItems(synced = 2, unpricedItemCount = 2), outcome)
     }
 
     @Test
@@ -85,7 +106,7 @@ class CloudPurchaseSyncTest {
         val (database, purchaseDao) = databaseFixture()
         val sync = CloudPurchaseSync(database, runInTransaction = { it() })
 
-        assertEquals(0, sync.sync(emptyList()))
+        assertEquals(CloudSyncOutcome.Complete(synced = 0), sync.sync(emptyList()))
 
         coVerify(exactly = 1) { purchaseDao.deleteAllRemotePurchases() }
         coVerify(exactly = 0) { purchaseDao.deleteRemotePurchasesNotIn(any()) }
