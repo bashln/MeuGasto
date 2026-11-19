@@ -11,9 +11,20 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class UnverifiedCloudPricesException : SupabaseException(
-    "Totais das compras sincronizados. Itens antigos têm formato de preço não identificado; confira ou reimporte essas notas antes de usar análises por item."
-)
+sealed interface CloudSyncOutcome {
+    val synced: Int
+
+    data class Complete(override val synced: Int) : CloudSyncOutcome
+
+    /**
+     * Totais espelhados. Os [unpricedItemCount] itens sem `price_basis` utilizável
+     * ficaram fora, porque gravar o preço deles como total da linha corromperia as
+     * análises por item.
+     */
+    data class UnpricedItems(override val synced: Int, val unpricedItemCount: Int) : CloudSyncOutcome
+}
+
+private val KNOWN_PRICE_BASIS = setOf("unit", "line_total")
 
 private const val UNKNOWN_MARKET = "Estabelecimento não informado"
 
@@ -35,7 +46,7 @@ class CloudPurchaseSync(
         }
     }
 
-    suspend fun sync(remote: List<RemotePurchase>): Int {
+    suspend fun sync(remote: List<RemotePurchase>): CloudSyncOutcome {
         runInTransaction {
             val purchaseDao = database.purchaseDao()
             remote.forEach { purchase -> upsertPurchase(purchase) }
@@ -46,10 +57,14 @@ class CloudPurchaseSync(
                 purchaseDao.deleteRemotePurchasesNotIn(remoteIds)
             }
         }
-        if (remote.any { purchase -> purchase.items.any { it.priceBasis !in setOf("unit", "line_total") } }) {
-            throw UnverifiedCloudPricesException()
+        val unpricedItemCount = remote.sumOf { purchase ->
+            purchase.items.count { it.priceBasis !in KNOWN_PRICE_BASIS }
         }
-        return remote.size
+        return if (unpricedItemCount == 0) {
+            CloudSyncOutcome.Complete(remote.size)
+        } else {
+            CloudSyncOutcome.UnpricedItems(remote.size, unpricedItemCount)
+        }
     }
 
     private suspend fun upsertPurchase(remote: RemotePurchase) {
@@ -95,7 +110,7 @@ class CloudPurchaseSync(
             existingId
         }
 
-        if (remote.items.any { it.priceBasis !in setOf("unit", "line_total") }) return
+        if (remote.items.any { it.priceBasis !in KNOWN_PRICE_BASIS }) return
 
         purchaseDao.deleteItemsByPurchaseId(purchaseId)
         purchaseDao.insertItems(
