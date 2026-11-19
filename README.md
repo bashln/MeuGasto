@@ -102,7 +102,7 @@ O APK sai em `mobile/app/build/outputs/apk/release/`. Releases oficiais são ger
 
 ### Cobertura NFC-e
 
-Implementado e testado para Rio Grande do Sul (RS) e Rio de Janeiro (RJ). A lista de estados pendentes fica em [AGENTS.md](AGENTS.md); cada novo estado exige uma estratégia de parsing e testes contra o HTML real do portal.
+Disponível para Rio Grande do Sul (RS) e Rio de Janeiro (RJ). Os demais estados ainda não são suportados por falta de amostras de QR Code de NFC-e para estudo e implementação. Cada novo estado exige uma estratégia de parsing própria e testes contra o HTML real do portal; a lista de pendências fica em [AGENTS.md](AGENTS.md).
 
 ### Verificação
 
