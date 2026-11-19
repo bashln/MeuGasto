@@ -21,6 +21,7 @@ import com.prati.meugasto.ui.navigation.BottomNavItems
 import com.prati.meugasto.ui.navigation.ScanActionPlacement
 import com.prati.meugasto.ui.navigation.Screen
 import com.prati.meugasto.data.remote.supabase.AuthState
+import com.prati.meugasto.data.remote.supabase.CloudSyncOutcome
 import com.prati.meugasto.domain.model.AppMode
 import com.prati.meugasto.ui.screens.dashboard.DashboardScreen
 import com.prati.meugasto.ui.screens.onboarding.OnboardingScreen
@@ -90,11 +91,19 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(authState, appMode) {
                     if (authState is AuthState.LoggedIn && appMode == AppMode.CLOUD) {
-                        cloudSyncManager.syncNow().onFailure { error ->
-                            snackbarHostState.showSnackbar(
-                                "Não foi possível sincronizar: ${error.message ?: "verifique sua conexão"}"
-                            )
-                        }
+                        cloudSyncManager.syncNow()
+                            .onSuccess { outcome ->
+                                if (outcome is CloudSyncOutcome.UnpricedItems) {
+                                    snackbarHostState.showSnackbar(
+                                        unpricedItemsWarning(outcome.unpricedItemCount)
+                                    )
+                                }
+                            }
+                            .onFailure { error ->
+                                snackbarHostState.showSnackbar(
+                                    "Não foi possível sincronizar: ${error.message ?: "verifique sua conexão"}"
+                                )
+                            }
                         cloudUploader.uploadPendingPurchases().onFailure { error ->
                             snackbarHostState.showSnackbar(
                                 "Há compras aguardando envio: ${error.message ?: "verifique sua conexão"}"
@@ -246,9 +255,17 @@ class MainActivity : ComponentActivity() {
                                     if (authRepository.state.value is AuthState.LoggedIn && appMode == AppMode.CLOUD) {
                                         coroutineScope.launch {
                                             cloudUploader.upload(purchaseId).onSuccess {
-                                                cloudSyncManager.syncNow().onFailure { error ->
-                                                    snackbarHostState.showSnackbar(error.message ?: "Confira a sincronização das compras.")
-                                                }
+                                                cloudSyncManager.syncNow()
+                                                    .onSuccess { outcome ->
+                                                        if (outcome is CloudSyncOutcome.UnpricedItems) {
+                                                            snackbarHostState.showSnackbar(
+                                                                unpricedItemsWarning(outcome.unpricedItemCount)
+                                                            )
+                                                        }
+                                                    }
+                                                    .onFailure { error ->
+                                                        snackbarHostState.showSnackbar(error.message ?: "Confira a sincronização das compras.")
+                                                    }
                                             }.onFailure { error ->
                                                 snackbarHostState.showSnackbar(
                                                     "Compra salva no aparelho, mas não sincronizada: ${error.message ?: "verifique sua conexão"}"
@@ -352,3 +369,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 }
+
+private fun unpricedItemsWarning(unpricedItemCount: Int): String =
+    if (unpricedItemCount == 1) {
+        "Compras sincronizadas. 1 item antigo está sem formato de preço identificado; releia essa nota para usar as análises por item."
+    } else {
+        "Compras sincronizadas. $unpricedItemCount itens antigos estão sem formato de preço identificado; releia essas notas para usar as análises por item."
+    }

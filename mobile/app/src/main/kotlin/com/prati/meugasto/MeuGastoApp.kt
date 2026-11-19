@@ -53,9 +53,7 @@ class MeuGastoApp : Application() {
             { (authRepository.state.value as? AuthState.LoggedIn)?.userId },
             repairCloudReceipt = { localId, receipt ->
                 cloudUploader.repairReceipt(localId, receipt).getOrThrow()
-                cloudSyncManager.syncNow().exceptionOrNull()?.let { error ->
-                    if (error !is com.prati.meugasto.data.remote.supabase.UnverifiedCloudPricesException) throw error
-                }
+                cloudSyncManager.syncNow().getOrThrow()
             }
         )
         cloudSyncManager = CloudSyncManager(

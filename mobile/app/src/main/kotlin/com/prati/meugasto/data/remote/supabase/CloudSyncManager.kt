@@ -10,7 +10,7 @@ class CloudSyncManager(
     private val sync: CloudPurchaseSync
 ) {
 
-    suspend fun syncNow(): Result<Int> = runCatching {
+    suspend fun syncNow(): Result<CloudSyncOutcome> = runCatching {
         val token = auth.currentAccessToken()
             ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
         try {
