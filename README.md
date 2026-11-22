@@ -7,6 +7,14 @@
 
 Aplicativo Android nativo para registrar compras de supermercado, farmácia e posto a partir do QR Code da NFC-e (Nota Fiscal de Consumidor Eletrônica), sem digitação manual de itens.
 
+<p align="center">
+  <img src="docs/screenshots/inicio.jpg" width="240" alt="Tela inicial do MeuGasto com resumo de gastos do mês" />
+  <img src="docs/screenshots/compras.jpg" width="240" alt="Lista de compras com estabelecimentos ocultados e valores por compra" />
+  <img src="docs/screenshots/relatorios.jpg" width="240" alt="Relatórios com tendência de gastos e distribuição por mercado" />
+</p>
+
+Capturas com os nomes dos estabelecimentos ocultados.
+
 ## Visão geral e problema resolvido
 
 Controlar gastos de supermercado exige registrar dezenas de itens por compra. Planilhas e apps financeiros genéricos dependem de entrada manual, o que faz o hábito morrer na segunda semana. O MeuGasto elimina essa etapa: o usuário escaneia o QR Code impresso no cupom, o app consulta o portal da SEFAZ do estado, extrai estabelecimento, data, itens, quantidades e preços, e grava tudo no banco local do aparelho. A partir daí o app calcula gastos por período, mercado e produto, com histórico de preços e comparação entre mercados.
@@ -102,7 +110,7 @@ O APK sai em `mobile/app/build/outputs/apk/release/`. Releases oficiais são ger
 
 ### Cobertura NFC-e
 
-Implementado e testado para Rio Grande do Sul (RS) e Rio de Janeiro (RJ). A lista de estados pendentes fica em [AGENTS.md](AGENTS.md); cada novo estado exige uma estratégia de parsing e testes contra o HTML real do portal.
+Disponível para Rio Grande do Sul (RS) e Rio de Janeiro (RJ). Os demais estados ainda não são suportados por falta de amostras de QR Code de NFC-e para estudo e implementação. Cada novo estado exige uma estratégia de parsing própria e testes contra o HTML real do portal; a lista de pendências fica em [AGENTS.md](AGENTS.md).
 
 ### Verificação
 
