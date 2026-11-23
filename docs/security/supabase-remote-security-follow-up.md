@@ -108,21 +108,9 @@ O teste roda contra uma instância de staging dedicada, usa apenas `anon key` e 
 
 Nunca disponibilizar credenciais de banco, `service_role` ou `SUPABASE_ACCESS_TOKEN` a workflows disparados por forks ou pull requests não confiáveis.
 
-## Prioridade 2 — Testes de regressão da sanitização Sentry
+## Sentry (aposentado)
 
-Criar testes unitários para a configuração Sentry e garantir que mudanças futuras não restaurem a coleta de dados pessoais.
-
-### Casos mínimos
-
-- [ ] E-mail é substituído por `[redacted-email]`.
-- [ ] URL NFC-e é substituída por `[redacted-url]`.
-- [ ] JWT ou token Bearer é substituído por `[redacted-token]`.
-- [ ] Chave NFC-e de 44 dígitos é substituída por `[redacted-nfce-key]`.
-- [ ] `beforeSend` remove `user`, `request`, `extra`, `contexts`, breadcrumbs e stacktrace antes do envio.
-
-### Critério de aceite
-
-Os testes falham se qualquer campo sensível voltar a ser transmitido ao Sentry.
+O app Android não tem dependência de Sentry: o relatório de crash é o do sistema, e as referências a Sentry neste documento ficaram como registro de uma integração antiga do cliente React Native. Não reintroduza o SDK nem um token `SENTRY_AUTH_TOKEN` no projeto sem uma decisão de privacidade nova.
 
 ## Prioridade 2 — Scanner especializado de segredos
 
@@ -172,7 +160,7 @@ Estas verificações dependem da configuração da organização/repositório e 
 - [ ] Pull request e checks de qualidade obrigatórios antes de merge.
 - [ ] Alterações em GitHub Actions requerem aprovação de mantenedor confiável.
 - [ ] Secrets de produção isolados em GitHub Environments protegidos.
-- [ ] Acesso mínimo a `EXPO_TOKEN`, material de assinatura Android e token Sentry.
+- [ ] Acesso mínimo a `EXPO_TOKEN` e ao material de assinatura Android.
 - [ ] Workflow com `contents: write` pode ser disparado somente por pessoas confiáveis e tags válidas `vX.Y.Z.W`.
 
 ## Prioridade 3 — Plano de resposta a exposição de credenciais
@@ -180,7 +168,7 @@ Estas verificações dependem da configuração da organização/repositório e 
 Antes de qualquer rotação de assinatura Android, criar um plano revisado que cubra:
 
 1. Inventário de onde cada segredo foi visto.
-2. Rotação de tokens Sentry e outros tokens expostos, quando aplicável.
+2. Rotação dos tokens expostos, quando aplicável.
 3. Avaliação de troca de senha do keystore mantendo o mesmo certificado/chave, se suportada.
 4. Teste de atualização sobre APK já instalado.
 5. Novo release assinado e verificado.

@@ -109,6 +109,21 @@ require_pattern_in_file \
   'tools:node="remove"' \
   'RECORD_AUDIO deve permanecer com tools:node="remove"'
 
+require_pattern_in_file \
+  "$ANDROID_MANIFEST" \
+  'android:dataExtractionRules="@xml/data_extraction_rules"' \
+  'manifesto precisa declarar regras de extracao de dados (backup/transferencia)'
+for extraction_domain in database sharedpref file; do
+  require_pattern_in_file \
+    "mobile/app/src/main/res/xml/data_extraction_rules.xml" \
+    "<exclude domain=\"${extraction_domain}\" path=\"\.\" />" \
+    "backup e transferencia precisam excluir ${extraction_domain}"
+done
+if grep -rin "sentry" mobile/app/build.gradle.kts mobile/gradle/libs.versions.toml 2>/dev/null | grep -q .; then
+  echo -e "${RED}FAIL${NC}: Sentry foi aposentado e nao pode voltar como dependencia do app"
+  FAIL=1
+fi
+
 FILE_PATHS_XML="mobile/app/src/main/res/xml/file_paths.xml"
 if [[ -f "$FILE_PATHS_XML" ]]; then
   if grep -qP 'path="\."' "$FILE_PATHS_XML" 2>/dev/null; then

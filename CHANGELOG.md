@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Release tags follow the project format `vMAJOR.MINOR.PATCH.BUILD`; GitHub Releases are the authoritative record of published APKs.
 
+## [Unreleased]
+
+### Security
+
+- Regras explícitas de extração de dados (`dataExtractionRules`): banco, preferências e arquivos privados ficam fora de backup em nuvem e de transferência entre aparelhos.
+- Guardrail de CI reprova qualquer dependência de Sentry no app e exige as regras de extração no manifesto.
+- Sentry marcado como aposentado na documentação de segurança, com a decisão de `FLAG_SECURE` registrada no ADR 0002 (proposta).
+
 ## [0.4.1.0] - 2026-09-18
 
 ### Added
