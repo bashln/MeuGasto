@@ -134,8 +134,18 @@ class DataExportTest {
     }
 
     @Test
-    fun `export of an empty account still renders every collection`() {
-        val document = Json.parseToJsonElement(
+    fun `export masks long digit sequences inside draft text`() {
+        val key = "35260112345678000199650010000001231000001234"
+        val draftWithKey = draft.copy(content = "payload bruto com $key e mais texto")
+
+        val raw = export(drafts = listOf(draftWithKey))
+
+        assertFalse(raw.contains(key))
+        assertTrue(raw.contains("payload bruto com"))
+    }
+
+    @Test
+    fun `export of an empty account still renders every collection`() {        val document = Json.parseToJsonElement(
             buildDataExport(
                 exportedAt = "2026-11-23T20:00:00-03:00",
                 appVersion = null,

@@ -221,7 +221,7 @@ class LocalDataExportRepository(
 ) : DataExportRepository {
 
     override suspend fun exportJson(): String = withContext(Dispatchers.IO) {
-        val supermarkets = database.supermarketDao().getAll().first().map { it.toDomain() }
+        val supermarkets = database.supermarketDao().getAll().first().map { it.toDomain(includeCreatedAt = true) }
         val purchases = purchaseRepository.getPurchases().first()
         val shoppingLists = database.shoppingListDao().getAllLists().first().map { detail ->
             ShoppingList(
@@ -259,7 +259,7 @@ class LocalDataExportRepository(
 
 private val draftItemsJson = Json { ignoreUnknownKeys = true }
 
-private fun SupermarketEntity.toDomain(): Supermarket {
+private fun SupermarketEntity.toDomain(includeCreatedAt: Boolean = false): Supermarket {
     val detectedOrSavedType = try {
         EstablishmentType.valueOf(type)
     } catch (_: Exception) {
@@ -273,7 +273,7 @@ private fun SupermarketEntity.toDomain(): Supermarket {
         state = state,
         type = detectedOrSavedType,
         isManual = isManual,
-        createdAt = createdAt
+        createdAt = if (includeCreatedAt) createdAt else null
     )
 }
 

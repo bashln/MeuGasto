@@ -30,6 +30,7 @@ import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
 import com.prati.meugasto.update.InAppUpdateManager
 import com.prati.meugasto.update.UpdateInfo
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,21 +69,27 @@ fun SettingsScreen(
         if (uri == null) return@rememberLauncherForActivityResult
         coroutineScope.launch {
             exportInProgress = true
-            runCatching {
-                val document = onExportData()
-                withContext(Dispatchers.IO) {
-                    context.contentResolver.openOutputStream(uri)?.use { stream ->
-                        stream.write(document.toByteArray(Charsets.UTF_8))
-                    } ?: throw IllegalStateException("Não foi possível abrir o arquivo escolhido.")
+            try {
+                runCatching {
+                    // Serializa antes de abrir o destino: abrir o stream trunca o arquivo escolhido.
+                    val document = onExportData()
+                    val bytes = document.toByteArray(Charsets.UTF_8)
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { stream ->
+                            stream.write(bytes)
+                        } ?: throw IllegalStateException("Não foi possível abrir o arquivo escolhido.")
+                    }
+                }.onSuccess {
+                    snackbarHostState.showSnackbar("Dados exportados. Guarde o arquivo em local seguro.")
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    snackbarHostState.showSnackbar(
+                        "Não foi possível exportar: ${error.message ?: "tente novamente"}"
+                    )
                 }
-            }.onSuccess {
-                snackbarHostState.showSnackbar("Dados exportados. Guarde o arquivo em local seguro.")
-            }.onFailure { error ->
-                snackbarHostState.showSnackbar(
-                    "Não foi possível exportar: ${error.message ?: "tente novamente"}"
-                )
+            } finally {
+                exportInProgress = false
             }
-            exportInProgress = false
         }
     }
 

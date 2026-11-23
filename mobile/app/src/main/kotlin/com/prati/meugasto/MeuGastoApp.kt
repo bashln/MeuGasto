@@ -77,7 +77,8 @@ class MeuGastoApp : Application() {
             api = supabaseApi,
             auth = authRepository,
             sync = cloudPurchaseSync
-        )        cloudUploader = CloudPurchaseUploader(
+        )
+        cloudUploader = CloudPurchaseUploader(
             api = supabaseApi,
             auth = authRepository,
             database = database

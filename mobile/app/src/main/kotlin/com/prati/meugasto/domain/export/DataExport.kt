@@ -114,6 +114,11 @@ private val exportJson = Json {
     encodeDefaults = true
 }
 
+/** Chave fiscal tem 44 digitos; qualquer sequencia maior e mascarada no texto livre. */
+private val longDigitRun = Regex("\\d{44,}")
+
+private fun String.withoutLongDigitRun() = longDigitRun.replace(this, "[sequencia numerica longa removida]")
+
 /** Serializa o retrato completo dos dados do titular em JSON legível. */
 fun buildDataExport(
     exportedAt: String,
@@ -189,7 +194,7 @@ private fun Draft.toExportDraft() = ExportDraft(
     id = id,
     supermarketId = supermarket?.id,
     supermarketName = supermarket?.name,
-    content = content,
+    content = content.withoutLongDigitRun(),
     totalPrice = totalPrice,
     createdAt = createdAt,
     updatedAt = updatedAt,

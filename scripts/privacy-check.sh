@@ -149,10 +149,14 @@ require_pattern_in_file \
   'DATA_EXPORT_SCHEMA_VERSION' \
   'exportacao de dados precisa de schema versionado'
 if grep -nE 'accessKey|accessKeyHash|password|token|secret|anonKey|userId|remoteId' "$DATA_EXPORT_SOURCE" 2>/dev/null \
-  | grep -vP '^\s*[0-9]+:\s*//' | grep -q .; then
+  | grep -vP '^\s*[0-9]+:\s*(//|\*|/\*)' | grep -q .; then
   echo -e "${RED}FAIL${NC}: exportacao de dados nao pode serializar campos de credencial ou de conta ($DATA_EXPORT_SOURCE)"
   FAIL=1
 fi
+require_pattern_in_file \
+  "$DATA_EXPORT_SOURCE" \
+  'DataExportDocument\.serializer\(\)' \
+  'exporter so pode serializar o documento versionado, nunca um modelo de dominio'
 
 SETTINGS_SCREEN="mobile/app/src/main/kotlin/com/prati/meugasto/ui/screens/settings/SettingsScreen.kt"
 require_pattern_in_file \
