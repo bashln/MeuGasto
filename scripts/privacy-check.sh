@@ -143,6 +143,12 @@ else
   require_hardening_pattern "'ALTER FUNCTION %s SET search_path = pg_catalog, public'" 'funcoes publicas precisam de search_path imutavel'
 fi
 
+PURCHASE_DAO="mobile/app/src/main/kotlin/com/prati/meugasto/data/local/database/Daos.kt"
+require_pattern_in_file \
+  "$PURCHASE_DAO" \
+  'UPDATE purchases SET remoteId = :remoteId, accessKey = NULL' \
+  'reconciliacao de upload precisa zerar a chave fiscal da nota'
+
 if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}OK${NC}: Guardrails de privacidade e hardening verificados."
 fi
