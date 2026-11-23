@@ -1,5 +1,7 @@
 package com.prati.meugasto.ui.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -27,13 +30,19 @@ import com.prati.meugasto.ui.theme.AppShapes
 import com.prati.meugasto.ui.theme.AppSpacing
 import com.prati.meugasto.update.InAppUpdateManager
 import com.prati.meugasto.update.UpdateInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     preferences: UserPreferences,
     authState: AuthState = AuthState.LoggedOut,
+    onExportData: suspend () -> String,
     onNavigateBack: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
@@ -49,8 +58,33 @@ fun SettingsScreen(
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var isInstallingUpdate by remember { mutableStateOf(false) }
+    var exportInProgress by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        coroutineScope.launch {
+            exportInProgress = true
+            runCatching {
+                val document = onExportData()
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.write(document.toByteArray(Charsets.UTF_8))
+                    } ?: throw IllegalStateException("Não foi possível abrir o arquivo escolhido.")
+                }
+            }.onSuccess {
+                snackbarHostState.showSnackbar("Dados exportados. Guarde o arquivo em local seguro.")
+            }.onFailure { error ->
+                snackbarHostState.showSnackbar(
+                    "Não foi possível exportar: ${error.message ?: "tente novamente"}"
+                )
+            }
+            exportInProgress = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -248,6 +282,50 @@ fun SettingsScreen(
                                 Text("Entrar na Nuvem")
                             }
                         }
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = AppShapes.Medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(AppSpacing.LG)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Seus dados",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                    Text(
+                        text = "Baixe um arquivo JSON com perfil, mercados, compras, itens, listas e rascunhos deste aparelho. O arquivo não inclui senha, credencial de acesso nem a chave de 44 dígitos da nota fiscal.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(AppSpacing.MD))
+                    OutlinedButton(
+                        onClick = {
+                            val fileName = "meugasto-dados-" +
+                                SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".json"
+                            exportLauncher.launch(fileName)
+                        },
+                        enabled = !exportInProgress,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (exportInProgress) "Exportando..." else "Exportar meus dados")
                     }
                 }
             }

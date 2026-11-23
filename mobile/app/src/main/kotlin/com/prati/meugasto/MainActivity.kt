@@ -318,6 +318,7 @@ class MainActivity : ComponentActivity() {
                             SettingsScreen(
                                 preferences = preferences,
                                 authState = authState,
+                                onExportData = { app.dataExportRepository.exportJson() },
                                 onNavigateBack = { navController.popBackStack() },
                                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },

@@ -10,8 +10,11 @@ import com.prati.meugasto.data.remote.supabase.CloudSyncManager
 import com.prati.meugasto.data.remote.supabase.AuthState
 import com.prati.meugasto.data.remote.supabase.SupabaseApi
 import com.prati.meugasto.data.remote.supabase.SupabaseAuthRepository
+import com.prati.meugasto.data.repository.LocalDataExportRepository
 import com.prati.meugasto.data.repository.LocalPurchaseRepository
 import com.prati.meugasto.data.repository.PurchaseRepository
+import com.prati.meugasto.data.repository.DataExportRepository
+import com.prati.meugasto.domain.export.DataExportProfile
 
 class MeuGastoApp : Application() {
 
@@ -22,6 +25,9 @@ class MeuGastoApp : Application() {
         private set
 
     lateinit var purchaseRepository: PurchaseRepository
+        private set
+
+    lateinit var dataExportRepository: DataExportRepository
         private set
 
     lateinit var supabaseApi: SupabaseApi
@@ -56,12 +62,22 @@ class MeuGastoApp : Application() {
                 cloudSyncManager.syncNow().getOrThrow()
             }
         )
+        dataExportRepository = LocalDataExportRepository(
+            database = database,
+            purchaseRepository = purchaseRepository,
+            appVersion = BuildConfig.VERSION_NAME,
+            currentProfile = {
+                DataExportProfile(
+                    email = preferences.getUserEmail(),
+                    appMode = preferences.getAppMode().name
+                )
+            }
+        )
         cloudSyncManager = CloudSyncManager(
             api = supabaseApi,
             auth = authRepository,
             sync = cloudPurchaseSync
-        )
-        cloudUploader = CloudPurchaseUploader(
+        )        cloudUploader = CloudPurchaseUploader(
             api = supabaseApi,
             auth = authRepository,
             database = database
