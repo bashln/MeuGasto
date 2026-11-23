@@ -143,6 +143,43 @@ else
   require_hardening_pattern "'ALTER FUNCTION %s SET search_path = pg_catalog, public'" 'funcoes publicas precisam de search_path imutavel'
 fi
 
+ACCOUNT_DELETION_MIGRATION="supabase/migrations/20261123120000_account_self_deletion.sql"
+require_pattern_in_file \
+  "$ACCOUNT_DELETION_MIGRATION" \
+  'delete_own_account' \
+  'exclusao de conta precisa de RPC propria'
+require_pattern_in_file \
+  "$ACCOUNT_DELETION_MIGRATION" \
+  'SECURITY DEFINER' \
+  'exclusao de conta precisa rodar como definer para remover auth.users'
+require_pattern_in_file \
+  "$ACCOUNT_DELETION_MIGRATION" \
+  'SET search_path = pg_catalog, public' \
+  'funcao de exclusao precisa de search_path imutavel'
+require_pattern_in_file \
+  "$ACCOUNT_DELETION_MIGRATION" \
+  'REVOKE ALL ON FUNCTION public\.delete_own_account\(\) FROM PUBLIC, anon' \
+  'anon nao pode excluir conta'
+require_pattern_in_file \
+  "$ACCOUNT_DELETION_MIGRATION" \
+  'GRANT EXECUTE ON FUNCTION public\.delete_own_account\(\) TO authenticated' \
+  'apenas o titular autenticado pode excluir a propria conta'
+require_pattern_in_file \
+  "$ACCOUNT_DELETION_MIGRATION" \
+  'auth\.uid\(\)' \
+  'exclusao precisa derivar o dono de auth.uid()'
+
+SETTINGS_SCREEN="mobile/app/src/main/kotlin/com/prati/meugasto/ui/screens/settings/SettingsScreen.kt"
+require_pattern_in_file \
+  "$SETTINGS_SCREEN" \
+  'EXCLUIR' \
+  'exclusao de dados precisa de confirmacao explicita na interface'
+
+if grep -rn "service_role" mobile/app/src/main/kotlin 2>/dev/null | grep -q .; then
+  echo -e "${RED}FAIL${NC}: service_role nao pode aparecer no app mobile"
+  FAIL=1
+fi
+
 if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}OK${NC}: Guardrails de privacidade e hardening verificados."
 fi

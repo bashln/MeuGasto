@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -37,7 +38,9 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
-    onSignOut: suspend () -> Unit = {}
+    onSignOut: suspend () -> Unit = {},
+    onDeleteAccount: suspend () -> Unit = {},
+    onDeleteLocalData: suspend () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -49,6 +52,9 @@ fun SettingsScreen(
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     var isCheckingUpdate by remember { mutableStateOf(false) }
     var isInstallingUpdate by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showDeleteDeviceDataDialog by remember { mutableStateOf(false) }
+    var deletionInProgress by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -261,6 +267,65 @@ fun SettingsScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(AppSpacing.LG)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.SM)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = "Excluir dados",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(AppSpacing.SM))
+                    Text(
+                        text = "Apagar dados deste aparelho remove compras, listas e rascunhos salvos localmente. Excluir a conta remove também o histórico sincronizado na nuvem. As duas ações não podem ser desfeitas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(AppSpacing.MD))
+
+                    OutlinedButton(
+                        onClick = { showDeleteDeviceDataDialog = true },
+                        enabled = !deletionInProgress,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Apagar dados deste aparelho")
+                    }
+
+                    if (authState is AuthState.LoggedIn) {
+                        Spacer(modifier = Modifier.height(AppSpacing.SM))
+                        Button(
+                            onClick = { showDeleteAccountDialog = true },
+                            enabled = !deletionInProgress,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Text("Excluir conta na nuvem")
+                        }
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = AppShapes.Medium,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(AppSpacing.LG)) {
                     Text(
                         text = "Privacidade e Princípios",
                         style = MaterialTheme.typography.titleMedium
@@ -369,5 +434,108 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(AppSpacing.XXL))
         }
+
+        if (showDeleteAccountDialog) {
+            DeleteConfirmationDialog(
+                title = "Excluir conta na nuvem?",
+                message = "O histórico sincronizado será apagado e você voltará ao modo local. Compras que existem apenas neste aparelho permanecem.",
+                confirmLabel = "Excluir conta",
+                inProgress = deletionInProgress,
+                onDismiss = { if (!deletionInProgress) showDeleteAccountDialog = false },
+                onConfirm = {
+                    coroutineScope.launch {
+                        deletionInProgress = true
+                        runCatching { onDeleteAccount() }
+                            .onSuccess {
+                                snackbarHostState.showSnackbar("Conta excluída. Você voltou ao modo local.")
+                            }
+                            .onFailure { error ->
+                                snackbarHostState.showSnackbar(
+                                    "Não foi possível excluir a conta: ${error.message ?: "tente novamente"}"
+                                )
+                            }
+                        deletionInProgress = false
+                        showDeleteAccountDialog = false
+                    }
+                }
+            )
+        }
+
+        if (showDeleteDeviceDataDialog) {
+            DeleteConfirmationDialog(
+                title = "Apagar dados deste aparelho?",
+                message = "Compras, listas e rascunhos salvos neste aparelho serão removidos. Se você estiver conectado, a próxima sincronização pode baixar de novo o histórico da nuvem.",
+                confirmLabel = "Apagar dados",
+                inProgress = deletionInProgress,
+                onDismiss = { if (!deletionInProgress) showDeleteDeviceDataDialog = false },
+                onConfirm = {
+                    coroutineScope.launch {
+                        deletionInProgress = true
+                        runCatching { onDeleteLocalData() }
+                            .onSuccess {
+                                snackbarHostState.showSnackbar("Dados deste aparelho apagados.")
+                            }
+                            .onFailure { error ->
+                                snackbarHostState.showSnackbar(
+                                    "Não foi possível apagar os dados: ${error.message ?: "tente novamente"}"
+                                )
+                            }
+                        deletionInProgress = false
+                        showDeleteDeviceDataDialog = false
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun DeleteConfirmationDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    inProgress: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    var confirmation by remember { mutableStateOf("") }
+    val canConfirm = confirmation.trim().equals("EXCLUIR", ignoreCase = true) && !inProgress
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(message)
+                Spacer(modifier = Modifier.height(AppSpacing.MD))
+                OutlinedTextField(
+                    value = confirmation,
+                    onValueChange = { confirmation = it },
+                    label = { Text("Digite EXCLUIR para confirmar") },
+                    singleLine = true,
+                    shape = AppShapes.Small
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = canConfirm) {
+                Text(
+                    text = if (inProgress) "Excluindo..." else confirmLabel,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !inProgress) {
+                Text("Cancelar")
+            }
+        }
+    )
 }

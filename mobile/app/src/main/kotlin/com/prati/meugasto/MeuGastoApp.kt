@@ -12,6 +12,8 @@ import com.prati.meugasto.data.remote.supabase.SupabaseApi
 import com.prati.meugasto.data.remote.supabase.SupabaseAuthRepository
 import com.prati.meugasto.data.repository.LocalPurchaseRepository
 import com.prati.meugasto.data.repository.PurchaseRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MeuGastoApp : Application() {
 
@@ -38,6 +40,13 @@ class MeuGastoApp : Application() {
 
     lateinit var cloudPurchaseSync: CloudPurchaseSync
         private set
+
+    /** Remove compras, listas e rascunhos deste aparelho; mantém a sessão. */
+    suspend fun clearLocalData() {
+        withContext(Dispatchers.IO) {
+            database.clearAllTables()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()

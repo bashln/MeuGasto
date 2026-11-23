@@ -56,6 +56,31 @@ class SupabaseAuthRepository(
         _state.value = AuthState.LoggedOut
     }
 
+    /**
+     * Exclui a conta na nuvem (LGPD art. 18, VI) e encerra a sessão local.
+     * Não apaga compras que existem só neste aparelho.
+     */
+    suspend fun deleteAccount(): Result<Unit> = runCatching {
+        if (_state.value !is AuthState.LoggedIn) {
+            throw SupabaseAuthException("Entre na sua conta para excluir.")
+        }
+        suspend fun request(token: String) = api.deleteAccount(token)
+
+        val token = currentAccessToken()
+            ?: throw SupabaseAuthException("Sessão expirada. Entre novamente.")
+        try {
+            request(token)
+        } catch (error: SupabaseAuthException) {
+            if (!refreshSession()) throw error
+            request(currentAccessToken() ?: throw error)
+        }
+
+        accountCache.clear()
+        preferences.clearAuth()
+        preferences.setAppMode(AppMode.LOCAL_FIRST)
+        _state.value = AuthState.LoggedOut
+    }
+
     suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> = runCatching {
         val loggedIn = _state.value as? AuthState.LoggedIn
             ?: throw SupabaseAuthException("Entre na sua conta para alterar a senha.")
