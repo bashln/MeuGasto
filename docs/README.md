@@ -15,6 +15,8 @@ Esta pasta reúne a documentação versionada do projeto. Documentos duráveis d
 - [Segurança](security/): planos e documentação de privacidade e segurança.
   - [Estado e próximos passos do Supabase remoto](security/supabase-remote-security-follow-up.md).
   - [Política de auditoria de dependências](security/dependency-audit-policy.md).
+  - [Auditoria LGPD (2026-11-23)](security/lgpd-audit-2026-11-23.md).
+  - [Plano de remediação LGPD](security/lgpd-remediation-plan.md).
 - [Desenvolvimento](development/): guias locais de build e assinatura.
 
 ## Fontes de verdade
