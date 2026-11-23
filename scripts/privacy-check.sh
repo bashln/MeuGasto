@@ -143,6 +143,31 @@ else
   require_hardening_pattern "'ALTER FUNCTION %s SET search_path = pg_catalog, public'" 'funcoes publicas precisam de search_path imutavel'
 fi
 
+DATA_EXPORT_SOURCE="mobile/app/src/main/kotlin/com/prati/meugasto/domain/export/DataExport.kt"
+require_pattern_in_file \
+  "$DATA_EXPORT_SOURCE" \
+  'DATA_EXPORT_SCHEMA_VERSION' \
+  'exportacao de dados precisa de schema versionado'
+if grep -nE 'accessKey|accessKeyHash|password|token|secret|anonKey|userId|remoteId' "$DATA_EXPORT_SOURCE" 2>/dev/null \
+  | grep -vP '^\s*[0-9]+:\s*(//|\*|/\*)' | grep -q .; then
+  echo -e "${RED}FAIL${NC}: exportacao de dados nao pode serializar campos de credencial ou de conta ($DATA_EXPORT_SOURCE)"
+  FAIL=1
+fi
+require_pattern_in_file \
+  "$DATA_EXPORT_SOURCE" \
+  'DataExportDocument\.serializer\(\)' \
+  'exporter so pode serializar o documento versionado, nunca um modelo de dominio'
+
+SETTINGS_SCREEN="mobile/app/src/main/kotlin/com/prati/meugasto/ui/screens/settings/SettingsScreen.kt"
+require_pattern_in_file \
+  "$SETTINGS_SCREEN" \
+  'Exportar meus dados' \
+  'titular precisa de acao de exportacao na interface'
+require_pattern_in_file \
+  "$SETTINGS_SCREEN" \
+  'ActivityResultContracts\.CreateDocument' \
+  'exportacao precisa usar SAF, sem permissao de armazenamento'
+
 if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}OK${NC}: Guardrails de privacidade e hardening verificados."
 fi
