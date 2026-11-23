@@ -143,6 +143,16 @@ else
   require_hardening_pattern "'ALTER FUNCTION %s SET search_path = pg_catalog, public'" 'funcoes publicas precisam de search_path imutavel'
 fi
 
+USER_PREFERENCES="mobile/app/src/main/kotlin/com/prati/meugasto/data/local/preferences/UserPreferences.kt"
+require_pattern_in_file \
+  "$USER_PREFERENCES" \
+  'PiiMigration\.migrate\(plainPrefs, securePrefs\)' \
+  'dados pessoais legados precisam migrar para o armazenamento seguro'
+if grep -nE 'plainPrefs[^;]*putString\("(user_email|user_name|user_id)"' "$USER_PREFERENCES" 2>/dev/null | grep -q .; then
+  echo -e "${RED}FAIL${NC}: dados pessoais nao podem ser gravados em SharedPreferences em claro ($USER_PREFERENCES)"
+  FAIL=1
+fi
+
 if [[ $FAIL -eq 0 ]]; then
   echo -e "${GREEN}OK${NC}: Guardrails de privacidade e hardening verificados."
 fi

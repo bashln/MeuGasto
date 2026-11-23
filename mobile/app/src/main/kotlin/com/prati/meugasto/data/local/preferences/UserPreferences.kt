@@ -71,6 +71,8 @@ class UserPreferences(context: Context) : AuthPreferences {
     private val _appMode = MutableStateFlow(getAppMode())
     val appMode: StateFlow<AppMode> = _appMode.asStateFlow()
 
+    private var piiMigrated = false
+
     private val _themeMode = MutableStateFlow(getThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
@@ -122,26 +124,50 @@ class UserPreferences(context: Context) : AuthPreferences {
     override fun getRefreshToken(): String? = securePrefs.getString("refresh_token", null)
 
     override fun saveUserEmail(email: String) {
-        plainPrefs.edit().putString("user_email", email).apply()
+        savePii("user_email", email)
     }
 
-    override fun getUserEmail(): String? = plainPrefs.getString("user_email", null)
+    override fun getUserEmail(): String? = getPii("user_email")
 
     override fun saveUserName(name: String) {
-        plainPrefs.edit().putString("user_name", name).apply()
+        savePii("user_name", name)
     }
 
-    override fun getUserName(): String? = plainPrefs.getString("user_name", null)
+    override fun getUserName(): String? = getPii("user_name")
 
     override fun saveUserId(id: String) {
-        plainPrefs.edit().putString("user_id", id).apply()
+        savePii("user_id", id)
     }
 
-    override fun getUserId(): String? = plainPrefs.getString("user_id", null)
+    override fun getUserId(): String? = getPii("user_id")
 
     override fun clearAuth() {
         securePrefs.edit().remove("access_token").remove("refresh_token").apply()
+        securePrefs.edit().remove("user_email").remove("user_name").remove("user_id").apply()
         plainPrefs.edit().remove("user_email").remove("user_name").remove("user_id").apply()
+    }
+
+    // Dados pessoais ficam no armazenamento criptografado. O valor legado,
+    // gravado em claro, e lido apenas ate a migracao conseguir copia-lo.
+    private fun getPii(key: String): String? {
+        ensurePiiMigrated()
+        return securePrefs.getString(key, null) ?: plainPrefs.getString(key, null)
+    }
+
+    private fun savePii(key: String, value: String) {
+        ensurePiiMigrated()
+        securePrefs.edit().putString(key, value).apply()
+        plainPrefs.edit().remove(key).apply()
+    }
+
+    @Synchronized
+    private fun ensurePiiMigrated() {
+        if (piiMigrated) return
+        piiMigrated = true
+        // Sem cofre operacional, migrar para memoria e apagar o valor legivel
+        // perderia o dado no proximo start.
+        if (securePrefs is InMemorySharedPreferences) return
+        runCatching { PiiMigration.migrate(plainPrefs, securePrefs) }
     }
 
     // WebDAV config
