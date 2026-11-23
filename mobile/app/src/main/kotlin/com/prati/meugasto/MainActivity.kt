@@ -321,7 +321,9 @@ class MainActivity : ComponentActivity() {
                                 onNavigateBack = { navController.popBackStack() },
                                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
-                                onSignOut = { authRepository.signOut() }
+                                onSignOut = { authRepository.signOut() },
+                                onDeleteAccount = { authRepository.deleteAccount().getOrThrow() },
+                                onDeleteLocalData = { app.clearLocalData() }
                             )
                         }
 

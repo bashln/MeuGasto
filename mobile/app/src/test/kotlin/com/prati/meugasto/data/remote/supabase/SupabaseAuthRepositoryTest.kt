@@ -263,4 +263,51 @@ class SupabaseAuthRepositoryTest {
 
         assertTrue(result.isFailure)
     }
+
+    @Test
+    fun `deleteAccount apaga na nuvem e limpa sessao antes de voltar ao local`() = runTest {
+        val calls = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            calls += "${request.method.value} ${request.url.encodedPath}"
+            respond(content = "", status = HttpStatusCode.NoContent)
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val prefs = FakePrefs(accessToken = "tok", userId = "user-1", mode = AppMode.CLOUD)
+        val cache = FakeCloudAccountCache()
+        val repository = SupabaseAuthRepository(api, prefs, cache)
+
+        val result = repository.deleteAccount()
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf("POST /rest/v1/rpc/delete_own_account"), calls)
+        assertEquals(1, cache.clearCount)
+        assertTrue(prefs.cleared)
+        assertEquals(AppMode.LOCAL_FIRST, prefs.appModeSet)
+        assertEquals(AuthState.LoggedOut, repository.state.value)
+    }
+
+    @Test
+    fun `deleteAccount sem sessao falha sem chamar a RPC`() = runTest {
+        var calls = 0
+        val engine = MockEngine {
+            calls += 1
+            respond(content = "", status = HttpStatusCode.NoContent)
+        }
+        val api = SupabaseApi(
+            "https://proj.supabase.co",
+            "anon-key",
+            HttpClient(engine) { install(ContentNegotiation) { json(SupabaseApi.json) } }
+        )
+        val prefs = FakePrefs(mode = AppMode.LOCAL_FIRST)
+        val repository = SupabaseAuthRepository(api, prefs, FakeCloudAccountCache())
+
+        val result = repository.deleteAccount()
+
+        assertTrue(result.isFailure)
+        assertEquals(0, calls)
+    }
 }

@@ -242,6 +242,22 @@ class SupabaseApi(
         return response.body<List<PurchaseIdRow>>().first().id
     }
 
+    /**
+     * Apaga a conta do usuário autenticado. A RPC deriva o dono de auth.uid();
+     * nenhum id de usuário é enviado pelo cliente.
+     */
+    suspend fun deleteAccount(accessToken: String) {
+        val response = client.post("$baseUrl/rest/v1/rpc/delete_own_account") {
+            header("apikey", anonKey)
+            header("Authorization", "Bearer $accessToken")
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }
+        if (!response.status.isSuccess()) {
+            throw response.toException(auth = response.status == HttpStatusCode.Unauthorized)
+        }
+    }
+
     suspend fun deletePurchase(accessToken: String, purchaseId: Long) {
         val response = client.delete("$baseUrl/rest/v1/purchases") {
             header("apikey", anonKey)

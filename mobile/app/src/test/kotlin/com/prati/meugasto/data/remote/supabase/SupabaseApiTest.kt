@@ -310,4 +310,29 @@ class SupabaseApiTest {
         assertTrue(capturedBody.contains("\"password\":\"novaSenhaForte\""))
         assertEquals("user-1", user.id)
     }
+
+    @Test
+    fun `deleteAccount chama RPC derivada de auth uid sem enviar id de usuario`() = runTest {
+        var capturedMethod = ""
+        var capturedPath = ""
+        var capturedAuth = ""
+        var capturedBody = ""
+
+        val engine = MockEngine { request ->
+            capturedMethod = request.method.value
+            capturedPath = request.url.encodedPath
+            capturedAuth = request.headers[HttpHeaders.Authorization].orEmpty()
+            capturedBody = (request.body as? TextContent)?.text.orEmpty()
+            respond(content = "", status = HttpStatusCode.NoContent)
+        }
+
+        val api = SupabaseApi("https://proj.supabase.co", "anon-key", client(engine))
+        api.deleteAccount("access-123")
+
+        assertEquals("POST", capturedMethod)
+        assertEquals("/rest/v1/rpc/delete_own_account", capturedPath)
+        assertEquals("Bearer access-123", capturedAuth)
+        assertTrue(!capturedBody.contains("user_id"))
+        assertTrue(!capturedBody.contains("user-1"))
+    }
 }
